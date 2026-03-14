@@ -10,9 +10,11 @@ describe("SignalTable", () => {
         onSelectSymbol={onSelectSymbol}
         rows={[
           {
+            signal_id: "sig_test_btc",
             symbol: "BTC",
             signal_type: "trend_breakout",
             timestamp: "2026-03-15T11:25:00Z",
+            freshness_minutes: 5,
             direction: "long",
             score: 74.6,
             confidence: 0.79,

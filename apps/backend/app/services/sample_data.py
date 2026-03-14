@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, timedelta
 from math import sin
 from random import Random
+
+from app.core.clock import naive_utc_now
 
 
 ASSET_SEEDS: dict[str, tuple[float, float]] = {
@@ -18,7 +20,7 @@ ASSET_SEEDS: dict[str, tuple[float, float]] = {
 def generate_sample_ohlcv(symbol: str, bars: int = 180) -> list[dict[str, object]]:
     base_price, amplitude = ASSET_SEEDS[symbol]
     rng = Random(symbol)
-    start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None) - timedelta(days=bars)
+    start = naive_utc_now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=bars)
     close = base_price
     rows: list[dict[str, object]] = []
     for index in range(bars):
@@ -52,7 +54,7 @@ def generate_sample_ohlcv(symbol: str, bars: int = 180) -> list[dict[str, object
 
 
 def seed_watchlist() -> list[dict[str, object]]:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = naive_utc_now()
     return [
         {
             "symbol": "BTC",

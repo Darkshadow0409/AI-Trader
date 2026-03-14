@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     api_refresh_seconds: int = 900
     pipeline_refresh_minutes: int = 15
     enable_scheduler: bool = True
+    fixture_now_iso: str = "2026-03-15T11:30:00+00:00"
     fred_api_key: str = ""
     openai_api_key: str = ""
     ollama_url: str = "http://127.0.0.1:11434"

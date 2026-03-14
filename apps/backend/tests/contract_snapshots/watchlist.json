@@ -1,0 +1,42 @@
+[
+  {
+    "symbol": "BTC",
+    "label": "Bitcoin",
+    "thesis": "Primary crypto beta with improving daily trend.",
+    "priority": 1,
+    "status": "active",
+    "last_signal_score": 23.62,
+    "updated_at": "2026-03-15T11:30:00",
+    "freshness_minutes": 0
+  },
+  {
+    "symbol": "ETH",
+    "label": "Ethereum",
+    "thesis": "Relative-strength candidate if BTC trend holds.",
+    "priority": 2,
+    "status": "active",
+    "last_signal_score": 23.62,
+    "updated_at": "2026-03-15T11:30:00",
+    "freshness_minutes": 0
+  },
+  {
+    "symbol": "WTI",
+    "label": "WTI crude context",
+    "thesis": "Oil proxy for inflation spillover and macro context.",
+    "priority": 3,
+    "status": "context",
+    "last_signal_score": 0.0,
+    "updated_at": "2026-03-15T11:30:00",
+    "freshness_minutes": 0
+  },
+  {
+    "symbol": "GOLD",
+    "label": "Gold",
+    "thesis": "Macro hedge and real-yield sensitivity monitor.",
+    "priority": 4,
+    "status": "context",
+    "last_signal_score": 0.0,
+    "updated_at": "2026-03-15T11:30:00",
+    "freshness_minutes": 0
+  }
+]

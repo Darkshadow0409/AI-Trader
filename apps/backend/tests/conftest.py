@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 
 ROOT = Path(__file__).resolve().parents[3]
-TEST_RUNTIME = ROOT / "data" / "test_runtime"
+TEST_RUNTIME = ROOT / "data" / f"test_runtime_{os.getpid()}"
 
 if TEST_RUNTIME.exists():
     shutil.rmtree(TEST_RUNTIME)
@@ -17,9 +17,10 @@ if TEST_RUNTIME.exists():
 
 os.environ["AI_TRADER_USE_SAMPLE_ONLY"] = "true"
 os.environ["AI_TRADER_ENABLE_SCHEDULER"] = "false"
-os.environ["AI_TRADER_SQLITE_PATH"] = "data/test_runtime/ai_trader_test.db"
-os.environ["AI_TRADER_DUCKDB_PATH"] = "data/test_runtime/ai_trader_test.duckdb"
-os.environ["AI_TRADER_PARQUET_DIR"] = "data/test_runtime/parquet"
+os.environ["AI_TRADER_FIXTURE_NOW_ISO"] = "2026-03-15T11:30:00+00:00"
+os.environ["AI_TRADER_SQLITE_PATH"] = str((TEST_RUNTIME / "ai_trader_test.db").relative_to(ROOT)).replace("\\", "/")
+os.environ["AI_TRADER_DUCKDB_PATH"] = str((TEST_RUNTIME / "ai_trader_test.duckdb").relative_to(ROOT)).replace("\\", "/")
+os.environ["AI_TRADER_PARQUET_DIR"] = str((TEST_RUNTIME / "parquet").relative_to(ROOT)).replace("\\", "/")
 
 
 @pytest.fixture()

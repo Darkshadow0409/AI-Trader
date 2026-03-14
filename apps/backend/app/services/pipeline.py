@@ -15,6 +15,7 @@ from app.connectors.binance_market_data import BinanceMarketData
 from app.connectors.coinbase_market_data import CoinbaseMarketData
 from app.connectors.eia_client import EIAClient
 from app.connectors.fred_client import FredClient
+from app.core.clock import naive_utc_now
 from app.core.database import engine, init_db
 from app.core.settings import get_settings
 from app.models.domain import DataQuality, PipelineSummary
@@ -140,7 +141,7 @@ def _seed_static_records(session: Session) -> None:
                 BacktestRun(
                     name=item["name"],
                     engine="fixture",
-                    started_at=datetime.now(UTC).replace(tzinfo=None),
+                    started_at=naive_utc_now(),
                     metadata_json=item["metadata"],
                 )
                 for item in backtests
@@ -207,6 +208,7 @@ def _persist_signals_and_risk(
     session.add_all(
         [
             SignalRecord(
+                signal_id=str(signal["signal_id"]),
                 symbol=str(signal["symbol"]),
                 signal_type=str(signal["signal_type"]),
                 timestamp=signal["timestamp"],
@@ -223,6 +225,8 @@ def _persist_signals_and_risk(
     session.add_all(
         [
             RiskReport(
+                risk_report_id=str(report["risk_report_id"]),
+                signal_id=str(report["signal_id"]),
                 symbol=str(report["symbol"]),
                 as_of=report["as_of"],
                 stop_price=float(report["stop_price"]),
@@ -240,7 +244,7 @@ def _persist_signals_and_risk(
     signal_scores = {str(signal["symbol"]): float(signal["score"]) for signal in signals}
     for item in session.exec(select(WatchlistItem)).all():
         item.last_signal_score = signal_scores.get(item.symbol, item.last_signal_score)
-        item.updated_at = datetime.now(tz=UTC)
+        item.updated_at = naive_utc_now()
         item.status = "active" if item.last_signal_score >= 50 else item.status
         session.add(item)
     session.commit()
@@ -257,12 +261,15 @@ def _write_parquet(bars: list[dict[str, object]]) -> None:
 def _refresh_duckdb() -> None:
     settings.duckdb_file.parent.mkdir(parents=True, exist_ok=True)
     parquet_glob = (settings.parquet_path / "*.parquet").as_posix()
-    with duckdb.connect(str(settings.duckdb_file)) as conn:
-        conn.execute(f"create or replace view market_bars as select * from read_parquet('{parquet_glob}')")
+    try:
+        with duckdb.connect(str(settings.duckdb_file)) as conn:
+            conn.execute(f"create or replace view market_bars as select * from read_parquet('{parquet_glob}')")
+    except duckdb.IOException:
+        return
 
 
 def _next_event(events: list[MacroEvent]) -> MacroEvent | None:
-    now = datetime.utcnow()
+    now = naive_utc_now()
     future = sorted((event for event in events if event.event_time >= now), key=lambda item: item.event_time)
     return future[0] if future else None
 
@@ -279,7 +286,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
     with Session(engine) as session:
         _seed_static_records(session)
         bars, source_mode = _collect_market_data(force_live=force_live)
-        run = PipelineRun(started_at=datetime.now(UTC), source_mode=source_mode, status="running")
+        run = PipelineRun(started_at=naive_utc_now(), source_mode=source_mode, status="running")
         session.add(run)
         session.commit()
         session.refresh(run)
@@ -296,7 +303,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         )
         latest_tradeables = [
             {
-                **{key: _normalize_json(value) for key, value in row.items()},
+                **row,
                 "data_quality": str(row.get("data_quality", "fixture")),
             }
             for row in latest_rows
@@ -315,7 +322,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         risk_reports = generate_risk_reports(signals)
         _persist_signals_and_risk(session, run, signals, risk_reports)
 
-        run.completed_at = datetime.now(UTC)
+        run.completed_at = naive_utc_now()
         run.bars_ingested = len(bars)
         run.signals_emitted = len(signals)
         run.status = "completed"

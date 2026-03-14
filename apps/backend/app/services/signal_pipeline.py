@@ -1,10 +1,34 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 from app.engines.signals.event_driven import build_event_signal
 from app.engines.signals.signal_ranker import rank_signals
 from app.engines.signals.trend_following import build_trend_breakout_signal
+
+
+def _timestamp_iso(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value or "")
+
+
+def _build_signal_id(signal: dict[str, Any]) -> str:
+    feature = signal.get("feature_snapshot", {})
+    stable_key = "|".join(
+        [
+            str(signal.get("symbol", "")),
+            str(signal.get("signal_type", "")),
+            str(signal.get("direction", "")),
+            _timestamp_iso(signal.get("timestamp")),
+            _timestamp_iso(feature.get("timestamp")),
+            str(feature.get("close", "")),
+            str(signal.get("data_quality", "")),
+        ]
+    )
+    return f"sig_{uuid5(NAMESPACE_URL, stable_key).hex}"
 
 
 def generate_signals(
@@ -21,5 +45,7 @@ def generate_signals(
         event_signal = build_event_signal(feature, next_event)
         if event_signal:
             signals.append(event_signal)
-    return rank_signals(signals)
-
+    ranked = rank_signals(signals)
+    for signal in ranked:
+        signal["signal_id"] = _build_signal_id(signal)
+    return ranked

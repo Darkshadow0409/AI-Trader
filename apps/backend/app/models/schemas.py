@@ -24,9 +24,11 @@ class BarView(BaseModel):
 
 
 class SignalView(BaseModel):
+    signal_id: str
     symbol: str
     signal_type: str
     timestamp: datetime
+    freshness_minutes: int
     direction: str
     score: float
     confidence: float
@@ -43,6 +45,7 @@ class SignalView(BaseModel):
 class NewsView(BaseModel):
     source: str
     published_at: datetime
+    freshness_minutes: int
     title: str
     summary: str
     url: str
@@ -60,11 +63,15 @@ class WatchlistView(BaseModel):
     status: str
     last_signal_score: float
     updated_at: datetime
+    freshness_minutes: int
 
 
 class RiskView(BaseModel):
+    risk_report_id: str
+    signal_id: str
     symbol: str
     as_of: datetime
+    freshness_minutes: int
     stop_price: float
     size_band: str
     max_portfolio_risk_pct: float

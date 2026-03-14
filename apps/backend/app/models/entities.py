@@ -60,6 +60,7 @@ class MacroEvent(SQLModel, table=True):
 
 class SignalRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    signal_id: str = Field(index=True, unique=True)
     symbol: str = Field(index=True)
     signal_type: str = Field(index=True)
     timestamp: datetime = Field(index=True)
@@ -73,6 +74,8 @@ class SignalRecord(SQLModel, table=True):
 
 class RiskReport(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    risk_report_id: str = Field(index=True, unique=True)
+    signal_id: str = Field(index=True)
     symbol: str = Field(index=True)
     as_of: datetime = Field(index=True)
     stop_price: float

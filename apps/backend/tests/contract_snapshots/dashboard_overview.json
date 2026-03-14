@@ -1,0 +1,15 @@
+{
+  "macro_regime": "event-risk",
+  "data_freshness_minutes": 2130,
+  "freshness_status": "stale",
+  "risk_budget_used_pct": 0.008,
+  "risk_budget_total_pct": 2.5,
+  "pipeline_status": "completed",
+  "source_mode": "sample",
+  "last_refresh": "2026-03-15T11:30:00",
+  "next_event": {
+    "title": "US CPI Release",
+    "impact": "high",
+    "event_time": "2026-03-15T12:30:00"
+  }
+}

@@ -10,8 +10,10 @@ describe("frontend contract alignment", () => {
     const ribbon: RibbonView = mockRibbon;
 
     expect(signal).toMatchObject({
+      signal_id: expect.stringMatching(/^sig_/),
       symbol: expect.any(String),
       signal_type: expect.any(String),
+      freshness_minutes: expect.any(Number),
       score: expect.any(Number),
       confidence: expect.any(Number),
       noise_probability: expect.any(Number),
@@ -20,10 +22,14 @@ describe("frontend contract alignment", () => {
     });
     expect(news).toMatchObject({
       source: expect.any(String),
+      freshness_minutes: expect.any(Number),
       entity_tags: expect.any(Array),
       affected_assets: expect.any(Array),
     });
     expect(risk).toMatchObject({
+      risk_report_id: expect.stringMatching(/^risk_/),
+      signal_id: expect.stringMatching(/^sig_/),
+      freshness_minutes: expect.any(Number),
       size_band: expect.any(String),
       scenario_shocks: expect.any(Object),
       exposure_cluster: expect.any(String),

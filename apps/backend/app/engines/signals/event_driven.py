@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 
@@ -26,7 +25,7 @@ def build_event_signal(feature: dict[str, Any], next_event: dict[str, Any] | Non
         "direction": direction,
         "score": round(score, 2),
         "thesis": thesis,
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": feature.get("timestamp"),
         "uncertainty": 0.42 if next_event["impact"] == "high" else 0.33,
         "data_quality": str(feature.get("data_quality") or "fixture"),
         "feature_snapshot": feature,

@@ -1,0 +1,64 @@
+[
+  {
+    "risk_report_id": "risk_83a87cbea6fe55bb9883cce13be0b954",
+    "signal_id": "sig_c56fb3977fe1550a91bbc5103358a71e",
+    "symbol": "ETH",
+    "as_of": "2026-03-14T00:00:00",
+    "freshness_minutes": 2130,
+    "stop_price": 4377.753,
+    "size_band": "probe",
+    "max_portfolio_risk_pct": 0.004,
+    "exposure_cluster": "crypto_beta",
+    "uncertainty": 0.42,
+    "data_quality": "fixture",
+    "scenario_shocks": {
+      "risk_off_pct": -10.5,
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2
+    },
+    "report": {
+      "entry_reference": 4505.5777,
+      "atr_14": 58.1021,
+      "scenario_shocks": {
+        "risk_off_pct": -10.5,
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2
+      },
+      "risk_notes": [
+        "No live execution is enabled in this platform.",
+        "Macro event proximity should reduce conviction when high-impact releases are pending."
+      ]
+    }
+  },
+  {
+    "risk_report_id": "risk_7a11f320899a5f5fb4988492c9b4b0f4",
+    "signal_id": "sig_765281d9cfc3570183cc9ce642dcec18",
+    "symbol": "BTC",
+    "as_of": "2026-03-14T00:00:00",
+    "freshness_minutes": 2130,
+    "stop_price": 83201.5717,
+    "size_band": "probe",
+    "max_portfolio_risk_pct": 0.004,
+    "exposure_cluster": "crypto_beta",
+    "uncertainty": 0.42,
+    "data_quality": "fixture",
+    "scenario_shocks": {
+      "risk_off_pct": -8.0,
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0
+    },
+    "report": {
+      "entry_reference": 85593.4967,
+      "atr_14": 1087.2386,
+      "scenario_shocks": {
+        "risk_off_pct": -8.0,
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0
+      },
+      "risk_notes": [
+        "No live execution is enabled in this platform.",
+        "Macro event proximity should reduce conviction when high-impact releases are pending."
+      ]
+    }
+  }
+]

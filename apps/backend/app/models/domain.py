@@ -5,6 +5,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.core.clock import naive_utc_now
+
 
 class AssetSymbol(StrEnum):
     BTC = "BTC"
@@ -54,4 +56,4 @@ class PipelineSummary(BaseModel):
     signals_emitted: int
     risk_reports_built: int
     data_quality: DataQuality
-    refreshed_at: datetime = Field(default_factory=datetime.utcnow)
+    refreshed_at: datetime = Field(default_factory=naive_utc_now)

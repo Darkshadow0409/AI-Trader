@@ -43,9 +43,11 @@ export const mockRibbon: RibbonView = {
 
 export const mockSignals: SignalView[] = [
   {
+    signal_id: "sig_8dca021b9c1256658b09a4fa6e218485",
     symbol: "BTC",
     signal_type: "trend_breakout",
     timestamp: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
     direction: "long",
     score: 74.6,
     confidence: 0.79,
@@ -59,9 +61,11 @@ export const mockSignals: SignalView[] = [
     features: { close: 71880, atr_14: 1720, trend_state: "uptrend", relative_volume: 1.22 },
   },
   {
+    signal_id: "sig_342ef03a8f4a559b9b1773fc5fd9f4ae",
     symbol: "ETH",
     signal_type: "event_driven",
     timestamp: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
     direction: "neutral",
     score: 31.4,
     confidence: 0.58,
@@ -82,6 +86,7 @@ export const mockNews: NewsView[] = [
   {
     source: "EIA",
     published_at: "2026-03-15T10:10:00Z",
+    freshness_minutes: 80,
     title: "Crude inventory draw tightens inflation-sensitive macro backdrop",
     summary: "Energy-led inflation context remains relevant for rates, dollar sensitivity, and crypto beta positioning.",
     url: "https://www.eia.gov/petroleum/supply/weekly/",
@@ -93,6 +98,7 @@ export const mockNews: NewsView[] = [
   {
     source: "FRED",
     published_at: "2026-03-15T09:00:00Z",
+    freshness_minutes: 150,
     title: "CPI release due within the next hour",
     summary: "High-impact inflation data can reset rate expectations, dollar pricing, and crypto risk appetite.",
     url: "https://fred.stlouisfed.org/",
@@ -112,6 +118,7 @@ export const mockWatchlist: WatchlistView[] = [
     status: "active",
     last_signal_score: 74.6,
     updated_at: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
   },
   {
     symbol: "ETH",
@@ -121,6 +128,7 @@ export const mockWatchlist: WatchlistView[] = [
     status: "active",
     last_signal_score: 31.4,
     updated_at: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
   },
   {
     symbol: "WTI",
@@ -130,6 +138,7 @@ export const mockWatchlist: WatchlistView[] = [
     status: "context",
     last_signal_score: 0,
     updated_at: "2026-03-15T11:20:00Z",
+    freshness_minutes: 10,
   },
 ];
 
@@ -180,8 +189,11 @@ export const mockResearch: ResearchView[] = [
 
 export const mockRisk: RiskView[] = [
   {
+    risk_report_id: "risk_28782b441c135ccf921f5dbc7f3d6d77",
+    signal_id: mockSignals[0].signal_id,
     symbol: "BTC",
     as_of: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
     stop_price: 68450,
     size_band: "medium",
     max_portfolio_risk_pct: 0.7,
@@ -192,8 +204,11 @@ export const mockRisk: RiskView[] = [
     report: { entry_reference: 71880, atr_14: 1720, risk_notes: ["No live execution enabled."] },
   },
   {
+    risk_report_id: "risk_3490fc4bf0305fbcbe6c1765fcc4fed8",
+    signal_id: mockSignals[1].signal_id,
     symbol: "ETH",
     as_of: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
     stop_price: 3440,
     size_band: "small",
     max_portfolio_risk_pct: 0.4,

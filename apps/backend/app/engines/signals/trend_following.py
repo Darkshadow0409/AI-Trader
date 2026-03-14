@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 
@@ -26,7 +25,7 @@ def build_trend_breakout_signal(feature: dict[str, Any], correlation: float) -> 
         "direction": "long",
         "score": round(score, 2),
         "thesis": "Breakout above the 20-day range with aligned trend structure and supportive relative volume.",
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": feature.get("timestamp"),
         "uncertainty": round(min(0.7, uncertainty), 3),
         "data_quality": str(feature.get("data_quality") or "fixture"),
         "feature_snapshot": feature,

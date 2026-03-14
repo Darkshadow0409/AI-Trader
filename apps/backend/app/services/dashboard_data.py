@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlmodel import Session, desc, select
 
+from app.core.clock import naive_utc_now
 from app.models.entities import BacktestResult, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord
 from app.models.schemas import (
     ActiveTradeView,
@@ -55,12 +56,17 @@ def _infer_assets(text: str, tags: list[str]) -> list[str]:
     return sorted(set(matched))
 
 
+def _freshness_minutes(value: datetime) -> int:
+    return max(0, int((naive_utc_now() - value).total_seconds() // 60))
+
+
 def _news_view(item: NewsItem) -> NewsView:
     affected_assets = _infer_assets(f"{item.title} {item.summary}", item.tags_json)
     entity_tags = sorted(set([*item.tags_json, *affected_assets]))
     return NewsView(
         source=item.source,
         published_at=item.published_at,
+        freshness_minutes=_freshness_minutes(item.published_at),
         title=item.title,
         summary=item.summary,
         url=item.url,
@@ -73,8 +79,11 @@ def _news_view(item: NewsItem) -> NewsView:
 
 def _risk_view(report: RiskReport) -> RiskView:
     return RiskView(
+        risk_report_id=report.risk_report_id,
+        signal_id=report.signal_id,
         symbol=report.symbol,
         as_of=report.as_of,
+        freshness_minutes=_freshness_minutes(report.as_of),
         stop_price=report.stop_price,
         size_band=report.size_band,
         max_portfolio_risk_pct=report.max_portfolio_risk_pct,
@@ -99,7 +108,7 @@ def _signal_targets(direction: str, entry_reference: float, atr_14: float) -> di
 
 
 def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalView:
-    risk_report = risk_map.get(row.symbol)
+    risk_report = risk_map.get(row.signal_id)
     feature_snapshot = dict(row.features_json)
     reference_fallback = risk_report.report_json.get("entry_reference") if risk_report else 0.0
     atr_fallback = risk_report.report_json.get("atr_14") if risk_report else 0.0
@@ -113,9 +122,11 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
     invalidation = risk_report.stop_price if risk_report else round(entry_reference - atr_14 * 1.2, 2)
     affected_assets = sorted(set([row.symbol, *(_infer_assets(row.thesis, [row.symbol]))]))
     return SignalView(
+        signal_id=row.signal_id,
         symbol=row.symbol,
         signal_type=row.signal_type,
         timestamp=row.timestamp,
+        freshness_minutes=_freshness_minutes(row.timestamp),
         direction=row.direction,
         score=row.score,
         confidence=confidence,
@@ -133,7 +144,7 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
 def list_signal_views(session: Session) -> list[SignalView]:
     signals = session.exec(select(SignalRecord).order_by(desc(SignalRecord.score), desc(SignalRecord.timestamp))).all()
     risk_reports = session.exec(select(RiskReport)).all()
-    risk_map = {report.symbol: report for report in risk_reports}
+    risk_map = {report.signal_id: report for report in risk_reports}
     return [_signal_view(row, risk_map) for row in signals]
 
 
@@ -185,7 +196,7 @@ def list_research_views(session: Session) -> list[ResearchView]:
     if not rows:
         return []
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
-    next_event = next((item for item in events if item.event_time >= datetime.utcnow()), None)
+    next_event = next((item for item in events if item.event_time >= naive_utc_now()), None)
     frame, _ = build_feature_frame(
         [
             {
@@ -229,11 +240,11 @@ def dashboard_ribbon(session: Session) -> RibbonView:
     latest_bar = session.exec(select(MarketBar).order_by(desc(MarketBar.timestamp))).first()
     latest_run = session.exec(select(PipelineRun).order_by(desc(PipelineRun.started_at))).first()
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
-    next_event = next((item for item in events if item.event_time >= datetime.utcnow()), None)
+    next_event = next((item for item in events if item.event_time >= naive_utc_now()), None)
     research_rows = list_research_views(session)
     btc_research = next((row for row in research_rows if row.symbol == "BTC"), None)
     freshness_minutes = (
-        int((datetime.utcnow() - latest_bar.timestamp).total_seconds() // 60)
+        _freshness_minutes(latest_bar.timestamp)
         if latest_bar
         else 9999
     )

@@ -11,9 +11,12 @@ def test_signal_payloads_expose_required_fields_and_sane_ranges(client, seeded_s
     assert len(rows) == seeded_summary.signals_emitted
 
     for row in rows:
+        assert row["signal_id"].startswith("sig_")
         assert row["symbol"]
         assert row["signal_type"]
         assert row["timestamp"]
+        assert isinstance(row["freshness_minutes"], int)
+        assert row["freshness_minutes"] >= 0
         assert row["direction"]
         assert isfinite(row["score"])
         assert 0.0 <= row["score"] <= 100.0
@@ -27,7 +30,7 @@ def test_signal_payloads_expose_required_fields_and_sane_ranges(client, seeded_s
         assert row["data_quality"]
         assert row["features"]
         assert row["symbol"] in row["affected_assets"]
-        for field in ("symbol", "signal_type", "timestamp", "score", "confidence", "noise_probability", "invalidation"):
+        for field in ("signal_id", "symbol", "signal_type", "timestamp", "score", "confidence", "noise_probability", "invalidation"):
             assert row[field] is not None
 
 
@@ -39,7 +42,11 @@ def test_risk_payloads_expose_required_fields_and_non_empty_shocks(client, seede
     assert len(rows) == seeded_summary.risk_reports_built
 
     for row in rows:
+        assert row["risk_report_id"].startswith("risk_")
+        assert row["signal_id"].startswith("sig_")
         assert row["symbol"]
+        assert isinstance(row["freshness_minutes"], int)
+        assert row["freshness_minutes"] >= 0
         assert row["size_band"]
         assert isfinite(row["stop_price"])
         assert row["stop_price"] > 0

@@ -16,9 +16,11 @@ export interface BarView {
 }
 
 export interface SignalView {
+  signal_id: string;
   symbol: string;
   signal_type: string;
   timestamp: string;
+  freshness_minutes: number;
   direction: string;
   score: number;
   confidence: number;
@@ -35,6 +37,7 @@ export interface SignalView {
 export interface NewsView {
   source: string;
   published_at: string;
+  freshness_minutes: number;
   title: string;
   summary: string;
   url: string;
@@ -52,11 +55,15 @@ export interface WatchlistView {
   status: string;
   last_signal_score: number;
   updated_at: string;
+  freshness_minutes: number;
 }
 
 export interface RiskView {
+  risk_report_id: string;
+  signal_id: string;
   symbol: string;
   as_of: string;
+  freshness_minutes: number;
   stop_price: number;
   size_band: string;
   max_portfolio_risk_pct: number;

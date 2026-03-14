@@ -15,6 +15,6 @@ coverage/
 .env
 data/parquet/*.parquet
 data/sqlite/*.db
-data/test_runtime/
+data/test_runtime*/
 apps/frontend/coverage/
 *.tsbuildinfo

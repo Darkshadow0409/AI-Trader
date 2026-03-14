@@ -1,0 +1,415 @@
+import type {
+  ActiveTradeView,
+  AssetContextView,
+  BacktestDetailView,
+  BacktestListView,
+  BarView,
+  HealthView,
+  JournalReviewView,
+  NewsView,
+  ResearchView,
+  RibbonView,
+  RiskExposureView,
+  RiskView,
+  SignalView,
+  StrategyDetailView,
+  StrategyListView,
+  WalletBalanceView,
+  WatchlistView,
+} from "../types/api";
+
+export const mockHealth: HealthView = {
+  status: "mock",
+  sqlite_path: "mock/sqlite.db",
+  duckdb_path: "mock/analytics.duckdb",
+  parquet_dir: "mock/parquet",
+};
+
+export const mockRibbon: RibbonView = {
+  macro_regime: "event-risk",
+  data_freshness_minutes: 22,
+  freshness_status: "fresh",
+  risk_budget_used_pct: 1.1,
+  risk_budget_total_pct: 2.5,
+  pipeline_status: "completed",
+  source_mode: "sample",
+  last_refresh: "2026-03-15T11:30:00Z",
+  next_event: {
+    title: "US CPI Release",
+    impact: "high",
+    event_time: "2026-03-15T12:30:00Z",
+  },
+};
+
+export const mockSignals: SignalView[] = [
+  {
+    symbol: "BTC",
+    signal_type: "trend_breakout",
+    timestamp: "2026-03-15T11:25:00Z",
+    direction: "long",
+    score: 74.6,
+    confidence: 0.79,
+    noise_probability: 0.22,
+    thesis: "Breakout above the 20-day range remains intact with aligned structure and supportive volume.",
+    invalidation: 68450,
+    targets: { base: 73120, stretch: 74840 },
+    uncertainty: 0.21,
+    data_quality: "fixture",
+    affected_assets: ["BTC", "ETH"],
+    features: { close: 71880, atr_14: 1720, trend_state: "uptrend", relative_volume: 1.22 },
+  },
+  {
+    symbol: "ETH",
+    signal_type: "event_driven",
+    timestamp: "2026-03-15T11:25:00Z",
+    direction: "neutral",
+    score: 31.4,
+    confidence: 0.58,
+    noise_probability: 0.41,
+    thesis: "CPI is inside the event window. Continuation setups should be treated as event-sensitive until the release clears.",
+    invalidation: 3440,
+    targets: { base: 3745, stretch: 3810 },
+    uncertainty: 0.42,
+    data_quality: "fixture",
+    affected_assets: ["ETH", "BTC"],
+    features: { close: 3588, atr_14: 104, trend_state: "uptrend", relative_volume: 0.96 },
+  },
+];
+
+export const mockHighRiskSignals = mockSignals.filter((row) => row.noise_probability >= 0.35);
+
+export const mockNews: NewsView[] = [
+  {
+    source: "EIA",
+    published_at: "2026-03-15T10:10:00Z",
+    title: "Crude inventory draw tightens inflation-sensitive macro backdrop",
+    summary: "Energy-led inflation context remains relevant for rates, dollar sensitivity, and crypto beta positioning.",
+    url: "https://www.eia.gov/petroleum/supply/weekly/",
+    tags: ["oil", "inflation", "macro"],
+    entity_tags: ["oil", "inflation", "macro", "WTI", "US10Y", "BTC", "ETH"],
+    affected_assets: ["WTI", "US10Y", "BTC", "ETH"],
+    data_quality: "fixture",
+  },
+  {
+    source: "FRED",
+    published_at: "2026-03-15T09:00:00Z",
+    title: "CPI release due within the next hour",
+    summary: "High-impact inflation data can reset rate expectations, dollar pricing, and crypto risk appetite.",
+    url: "https://fred.stlouisfed.org/",
+    tags: ["cpi", "rates", "macro"],
+    entity_tags: ["cpi", "rates", "macro", "BTC", "ETH", "DXY", "US10Y"],
+    affected_assets: ["BTC", "ETH", "DXY", "US10Y"],
+    data_quality: "fixture",
+  },
+];
+
+export const mockWatchlist: WatchlistView[] = [
+  {
+    symbol: "BTC",
+    label: "Bitcoin",
+    thesis: "Primary crypto beta with the cleanest breakout structure.",
+    priority: 1,
+    status: "active",
+    last_signal_score: 74.6,
+    updated_at: "2026-03-15T11:25:00Z",
+  },
+  {
+    symbol: "ETH",
+    label: "Ethereum",
+    thesis: "Watch for confirmation after the macro event clears.",
+    priority: 2,
+    status: "active",
+    last_signal_score: 31.4,
+    updated_at: "2026-03-15T11:25:00Z",
+  },
+  {
+    symbol: "WTI",
+    label: "WTI Crude",
+    thesis: "Macro scout asset for inflation spillover.",
+    priority: 3,
+    status: "context",
+    last_signal_score: 0,
+    updated_at: "2026-03-15T11:20:00Z",
+  },
+];
+
+export const mockResearch: ResearchView[] = [
+  {
+    symbol: "BTC",
+    label: "BTC",
+    timeframe: "1d",
+    last_price: 71880,
+    return_1d_pct: 1.42,
+    return_5d_pct: 4.9,
+    trend_state: "uptrend",
+    relative_volume: 1.22,
+    atr_pct: 2.4,
+    breakout_distance: 1.8,
+    structure_score: 2.4,
+    data_quality: "fixture",
+  },
+  {
+    symbol: "ETH",
+    label: "ETH",
+    timeframe: "1d",
+    last_price: 3588,
+    return_1d_pct: -0.6,
+    return_5d_pct: 2.1,
+    trend_state: "uptrend",
+    relative_volume: 0.96,
+    atr_pct: 2.9,
+    breakout_distance: 0.7,
+    structure_score: 1.4,
+    data_quality: "fixture",
+  },
+  {
+    symbol: "WTI",
+    label: "WTI",
+    timeframe: "1d",
+    last_price: 79.2,
+    return_1d_pct: 0.4,
+    return_5d_pct: 1.2,
+    trend_state: "range",
+    relative_volume: 1.08,
+    atr_pct: 1.9,
+    breakout_distance: 0.2,
+    structure_score: 0.8,
+    data_quality: "fixture",
+  },
+];
+
+export const mockRisk: RiskView[] = [
+  {
+    symbol: "BTC",
+    as_of: "2026-03-15T11:25:00Z",
+    stop_price: 68450,
+    size_band: "medium",
+    max_portfolio_risk_pct: 0.7,
+    exposure_cluster: "crypto_beta",
+    uncertainty: 0.21,
+    data_quality: "fixture",
+    scenario_shocks: { risk_off_pct: -8, liquidity_gap_pct: -4.5, macro_repricing_pct: -6 },
+    report: { entry_reference: 71880, atr_14: 1720, risk_notes: ["No live execution enabled."] },
+  },
+  {
+    symbol: "ETH",
+    as_of: "2026-03-15T11:25:00Z",
+    stop_price: 3440,
+    size_band: "small",
+    max_portfolio_risk_pct: 0.4,
+    exposure_cluster: "crypto_beta",
+    uncertainty: 0.42,
+    data_quality: "fixture",
+    scenario_shocks: { risk_off_pct: -10.5, liquidity_gap_pct: -5.8, macro_repricing_pct: -7.2 },
+    report: { entry_reference: 3588, atr_14: 104, risk_notes: ["Reduce conviction near CPI."] },
+  },
+];
+
+export const mockRiskExposure: RiskExposureView[] = [
+  {
+    cluster: "crypto_beta",
+    symbols: ["BTC", "ETH"],
+    gross_risk_pct: 1.1,
+    worst_scenario_pct: -10.5,
+  },
+];
+
+export const mockBars: Record<string, BarView[]> = {
+  BTC: [
+    { symbol: "BTC", timestamp: "2026-03-11T00:00:00Z", open: 69210, high: 69920, low: 68880, close: 69740, volume: 22800 },
+    { symbol: "BTC", timestamp: "2026-03-12T00:00:00Z", open: 69740, high: 70640, low: 69520, close: 70420, volume: 24100 },
+    { symbol: "BTC", timestamp: "2026-03-13T00:00:00Z", open: 70420, high: 71310, low: 70110, close: 70980, volume: 25220 },
+    { symbol: "BTC", timestamp: "2026-03-14T00:00:00Z", open: 70980, high: 72140, low: 70710, close: 71880, volume: 26740 },
+  ],
+  ETH: [
+    { symbol: "ETH", timestamp: "2026-03-11T00:00:00Z", open: 3522, high: 3570, low: 3498, close: 3554, volume: 140200 },
+    { symbol: "ETH", timestamp: "2026-03-12T00:00:00Z", open: 3554, high: 3638, low: 3531, close: 3622, volume: 146400 },
+    { symbol: "ETH", timestamp: "2026-03-13T00:00:00Z", open: 3622, high: 3640, low: 3572, close: 3588, volume: 131100 },
+    { symbol: "ETH", timestamp: "2026-03-14T00:00:00Z", open: 3588, high: 3612, low: 3525, close: 3566, volume: 125480 },
+  ],
+  WTI: [
+    { symbol: "WTI", timestamp: "2026-03-11T00:00:00Z", open: 78.1, high: 79.0, low: 77.8, close: 78.6, volume: 7120 },
+    { symbol: "WTI", timestamp: "2026-03-12T00:00:00Z", open: 78.6, high: 79.3, low: 78.2, close: 79.0, volume: 7340 },
+    { symbol: "WTI", timestamp: "2026-03-13T00:00:00Z", open: 79.0, high: 79.7, low: 78.7, close: 79.2, volume: 7280 },
+    { symbol: "WTI", timestamp: "2026-03-14T00:00:00Z", open: 79.2, high: 79.6, low: 78.4, close: 78.9, volume: 7400 },
+  ],
+};
+
+export const mockAssetContexts: Record<string, AssetContextView> = {
+  BTC: {
+    symbol: "BTC",
+    latest_signal: mockSignals[0],
+    latest_risk: mockRisk[0],
+    research: mockResearch[0],
+    related_news: mockNews,
+    latest_backtest: {
+      id: 7,
+      strategy_name: "trend_breakout_v1",
+      engine: "strategy_lab",
+      status: "completed",
+      symbol: "BTC",
+      timeframe: "1d",
+      created_at: "2026-03-15T10:45:00Z",
+      proxy_grade: false,
+      promoted_candidate: false,
+      search_method: "grid",
+      robustness_score: 71.4,
+      net_return_pct: 14.2,
+      sharpe_ratio: 1.18,
+      max_drawdown_pct: -8.6,
+      trade_count: 7,
+    },
+  },
+  ETH: {
+    symbol: "ETH",
+    latest_signal: mockSignals[1],
+    latest_risk: mockRisk[1],
+    research: mockResearch[1],
+    related_news: mockNews,
+    latest_backtest: null,
+  },
+  WTI: {
+    symbol: "WTI",
+    latest_signal: null,
+    latest_risk: null,
+    research: mockResearch[2],
+    related_news: mockNews.filter((item) => item.affected_assets.includes("WTI")),
+    latest_backtest: null,
+  },
+};
+
+export const mockActiveTrades: ActiveTradeView[] = [
+  {
+    symbol: "BTC",
+    strategy_name: "trend_breakout_v1",
+    side: "long",
+    entry_time: "2026-03-12T10:30:00Z",
+    entry_price: 70420,
+    current_price: 71880,
+    stop_price: 68450,
+    target_price: 74200,
+    pnl_pct: 2.07,
+    size_band: "medium",
+    status: "open",
+    thesis: "Breakout structure remains valid above invalidation.",
+    data_quality: "fixture",
+  },
+];
+
+export const mockWalletBalances: WalletBalanceView[] = [
+  {
+    venue: "paper",
+    account_label: "Research Book",
+    updated_at: "2026-03-15T09:15:00Z",
+    total_usd: 125640,
+    available_usd: 81420,
+    data_quality: "fixture",
+    balances: [
+      { asset: "USD", free: 81420, locked: 0, usd_value: 81420 },
+      { asset: "BTC", free: 0.42, locked: 0, usd_value: 30190 },
+      { asset: "ETH", free: 3.9, locked: 0.6, usd_value: 14030 },
+    ],
+  },
+];
+
+export const mockJournal: JournalReviewView[] = [
+  {
+    symbol: "BTC",
+    entered_at: "2026-03-11T15:00:00Z",
+    note: "Trend quality improved after reclaiming the 20-day breakout level, but CPI kept conviction moderate.",
+    mood: "disciplined",
+    tags: ["trend", "macro", "btc"],
+    setup_quality: 4,
+    execution_quality: 4,
+    follow_through: "held core and respected event-risk trim plan",
+    outcome: "open",
+    lessons: "Cap size to medium when a high-impact macro release is inside 24h.",
+    review_status: "in_review",
+  },
+];
+
+export const mockStrategies: StrategyListView[] = [
+  {
+    name: "trend_breakout_v1",
+    version: "1.0",
+    template: "trend_breakout",
+    description: "Daily BTC breakout strategy with trend confirmation.",
+    underlying_symbol: "BTC",
+    tradable_symbol: "BTC",
+    timeframe: "1d",
+    warmup_bars: 55,
+    fees_bps: 8,
+    slippage_bps: 5,
+    proxy_grade: false,
+    promoted: false,
+    tags: ["trend", "breakout"],
+    validation: { walk_forward_required: true, robustness_required: true },
+  },
+];
+
+export const mockStrategyDetail: StrategyDetailView = {
+  ...mockStrategies[0],
+  search_space: {
+    breakout_buffer: { kind: "float", low: 0, high: 0.02, step: 0.01 },
+  },
+  spec: {},
+};
+
+export const mockBacktests: BacktestListView[] = [
+  {
+    id: 7,
+    strategy_name: "trend_breakout_v1",
+    engine: "strategy_lab",
+    status: "completed",
+    symbol: "BTC",
+    timeframe: "1d",
+    created_at: "2026-03-15T10:45:00Z",
+    proxy_grade: false,
+    promoted_candidate: false,
+    search_method: "grid",
+    robustness_score: 71.4,
+    net_return_pct: 14.2,
+    sharpe_ratio: 1.18,
+    max_drawdown_pct: -8.6,
+    trade_count: 7,
+  },
+];
+
+export const mockBacktestDetail: BacktestDetailView = {
+  ...mockBacktests[0],
+  completed_at: "2026-03-15T10:46:00Z",
+  fees_bps: 8,
+  slippage_bps: 5,
+  warmup_bars: 55,
+  validation: {
+    flags: { no_lookahead: true, time_series_split_only: true, walk_forward_required: true },
+    walk_forward: { window_count: 3, positive_window_ratio: 0.67 },
+  },
+  summary: {
+    best_parameters: { breakout_buffer: 0.01, relative_volume_min: 1.1 },
+  },
+  equity_curve: [
+    { timestamp: "2026-03-01T00:00:00Z", equity: 100000 },
+    { timestamp: "2026-03-05T00:00:00Z", equity: 104200 },
+    { timestamp: "2026-03-10T00:00:00Z", equity: 111400 },
+    { timestamp: "2026-03-15T00:00:00Z", equity: 114200 },
+  ],
+  trades: [
+    { entry_time: "2026-03-03T00:00:00Z", exit_time: "2026-03-07T00:00:00Z", side: "long", entry_price: 69200, exit_price: 71110, pnl_pct: 2.76 },
+  ],
+  stability_heatmap: [
+    {
+      x_param: "relative_volume_min",
+      y_param: "breakout_buffer",
+      x_labels: ["1.0", "1.1", "1.2"],
+      y_labels: ["0.00", "0.01", "0.02"],
+      values: [
+        [55.2, 60.4, 61.8],
+        [58.1, 66.5, 68.2],
+        [53.9, 62.3, 64.1],
+      ],
+    },
+  ],
+  regime_summary: [{ regime: "risk_on", return_pct: 14.2, trade_count: 7, win_rate: 0.71 }],
+  metadata: {},
+};

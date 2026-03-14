@@ -1,0 +1,70 @@
+[
+  {
+    "strategy_name": "trend_breakout_v1",
+    "engine": "walk_forward",
+    "status": "completed",
+    "symbol": "BTC",
+    "timeframe": "1d",
+    "created_at": "2026-03-14T10:00:00Z",
+    "completed_at": "2026-03-14T10:00:03Z",
+    "proxy_grade": false,
+    "promoted_candidate": true,
+    "fees_bps": 8,
+    "slippage_bps": 5,
+    "warmup_bars": 55,
+    "search_method": "grid",
+    "robustness_score": 71.4,
+    "net_return_pct": 18.6,
+    "sharpe_ratio": 1.12,
+    "max_drawdown_pct": -12.4,
+    "trade_count": 9,
+    "validation": {
+      "no_lookahead": true,
+      "warmup_bars": 55,
+      "time_series_split_only": true,
+      "fees_and_slippage_required": true,
+      "walk_forward_completed": true,
+      "walk_forward_required_for_promoted": true,
+      "robustness_required": true,
+      "proxy_grade": false,
+      "window_count": 2
+    },
+    "summary": {
+      "selected_params": [
+        { "breakout_window": 20, "ema_fast": 18, "sma_slow": 50, "rv_threshold": 1.1, "atr_window": 14, "rv_window": 20 },
+        { "breakout_window": 25, "ema_fast": 16, "sma_slow": 50, "rv_threshold": 1.2, "atr_window": 14, "rv_window": 20 }
+      ],
+      "positive_window_ratio": 1.0,
+      "parameter_stability": 0.82,
+      "windows": [
+        { "warmup_start": 0, "train_start": 55, "train_end": 145, "test_start": 145, "test_end": 175 },
+        { "warmup_start": 30, "train_start": 85, "train_end": 175, "test_start": 175, "test_end": 205 }
+      ]
+    },
+    "equity_curve": [
+      { "timestamp": "2026-02-01T00:00:00", "equity": 10000.0 },
+      { "timestamp": "2026-02-15T00:00:00", "equity": 10420.0 },
+      { "timestamp": "2026-03-01T00:00:00", "equity": 11280.0 }
+    ],
+    "trades": [
+      { "entry_time": "2026-02-03T00:00:00", "exit_time": "2026-02-11T00:00:00", "entry_price": 68210.0, "exit_price": 70350.0, "return_pct": 3.14, "size": 1.0, "regime": "trend" },
+      { "entry_time": "2026-02-20T00:00:00", "exit_time": "2026-02-28T00:00:00", "entry_price": 71820.0, "exit_price": 74280.0, "return_pct": 3.42, "size": 1.0, "regime": "trend" }
+    ],
+    "stability_heatmap": [
+      { "window": 0, "parameters": { "breakout_window": 20, "ema_fast": 18, "sma_slow": 50, "rv_threshold": 1.1, "atr_window": 14, "rv_window": 20 }, "objective": 12.8 },
+      { "window": 1, "parameters": { "breakout_window": 25, "ema_fast": 16, "sma_slow": 50, "rv_threshold": 1.2, "atr_window": 14, "rv_window": 20 }, "objective": 11.9 }
+    ],
+    "regime_summary": [
+      { "regime": "trend", "trade_count": 2, "avg_return_pct": 3.28, "win_rate": 1.0 }
+    ],
+    "metadata": {
+      "description": "Seeded sample walk-forward result",
+      "tradable_symbol": "BTC",
+      "template": "trend_breakout",
+      "rules": {
+        "entry": "close breaks prior 20-day high, ema_fast above sma_slow, relative volume confirms",
+        "exit": "close loses ema_fast or falls back into range"
+      }
+    }
+  }
+]

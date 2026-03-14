@@ -1,0 +1,32 @@
+[
+  {
+    "symbol": "BTC",
+    "strategy_name": "trend_breakout_v1",
+    "side": "long",
+    "entry_time": "2026-03-12T10:30:00Z",
+    "entry_price": 70420.0,
+    "current_price": 71880.0,
+    "stop_price": 68450.0,
+    "target_price": 74200.0,
+    "pnl_pct": 2.07,
+    "size_band": "medium",
+    "status": "open",
+    "thesis": "Daily breakout remains intact above the 20-day range with acceptable event risk.",
+    "data_quality": "fixture"
+  },
+  {
+    "symbol": "ETH",
+    "strategy_name": "vol_expansion_v1",
+    "side": "long",
+    "entry_time": "2026-03-13T09:15:00Z",
+    "entry_price": 3622.0,
+    "current_price": 3588.0,
+    "stop_price": 3440.0,
+    "target_price": 3810.0,
+    "pnl_pct": -0.94,
+    "size_band": "small",
+    "status": "monitor",
+    "thesis": "Expansion setup is still valid but relative volume has cooled and event sensitivity is elevated.",
+    "data_quality": "fixture"
+  }
+]

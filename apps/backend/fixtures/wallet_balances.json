@@ -1,0 +1,30 @@
+[
+  {
+    "venue": "paper",
+    "account_label": "Research Book",
+    "updated_at": "2026-03-15T09:15:00Z",
+    "total_usd": 125640.0,
+    "available_usd": 81420.0,
+    "data_quality": "fixture",
+    "balances": [
+      {
+        "asset": "USD",
+        "free": 81420.0,
+        "locked": 0.0,
+        "usd_value": 81420.0
+      },
+      {
+        "asset": "BTC",
+        "free": 0.42,
+        "locked": 0.0,
+        "usd_value": 30190.0
+      },
+      {
+        "asset": "ETH",
+        "free": 3.9,
+        "locked": 0.6,
+        "usd_value": 14030.0
+      }
+    ]
+  }
+]

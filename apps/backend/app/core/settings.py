@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="AI_TRADER_", extra="ignore")
+
+    env: str = "development"
+    host: str = "127.0.0.1"
+    port: int = 8000
+    frontend_port: int = 5173
+    use_sample_only: bool = True
+    sqlite_path: str = "data/sqlite/ai_trader.db"
+    duckdb_path: str = "data/sqlite/ai_trader.duckdb"
+    parquet_dir: str = "data/parquet"
+    default_timeframe: str = "1d"
+    api_refresh_seconds: int = 900
+    pipeline_refresh_minutes: int = 15
+    enable_scheduler: bool = True
+    fred_api_key: str = ""
+    openai_api_key: str = ""
+    ollama_url: str = "http://127.0.0.1:11434"
+    allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:5173", "http://localhost:5173"])
+
+    @property
+    def repo_root(self) -> Path:
+        return Path(__file__).resolve().parents[4]
+
+    @property
+    def sqlite_full_path(self) -> Path:
+        return self.repo_root / self.sqlite_path
+
+    @property
+    def duckdb_full_path(self) -> Path:
+        return self.repo_root / self.duckdb_path
+
+    @property
+    def parquet_full_path(self) -> Path:
+        return self.repo_root / self.parquet_dir
+
+    @property
+    def fixtures_path(self) -> Path:
+        return self.repo_root / "apps" / "backend" / "fixtures"
+
+    @property
+    def parquet_path(self) -> Path:
+        return self.parquet_full_path
+
+    @property
+    def duckdb_file(self) -> Path:
+        return self.duckdb_full_path
+
+    @property
+    def frontend_origin(self) -> str:
+        return self.allowed_origins[0]
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()

@@ -1,0 +1,105 @@
+[
+  {
+    "name": "trend_breakout_v1_sample",
+    "engine": "multi-engine",
+    "started_at": "2026-03-14T06:00:00Z",
+    "metadata": {
+      "strategy_name": "trend_breakout_v1",
+      "symbol": "BTC",
+      "status": "completed",
+      "fees_bps": 8,
+      "slippage_bps": 5,
+      "proxy_grade": false,
+      "promoted": true,
+      "robustness_score": 72.8,
+      "research_summary": {
+        "net_return_pct": 19.4,
+        "max_drawdown_pct": -11.2,
+        "trade_count": 9
+      },
+      "validation_summary": {
+        "net_return_pct": 14.1,
+        "max_drawdown_pct": -9.5,
+        "trade_count": 8
+      },
+      "walk_forward_summary": {
+        "window_count": 3,
+        "oos_return_pct": 8.6,
+        "pass_rate": 0.67
+      },
+      "equity_curve": [
+        {"timestamp": "2026-01-10T00:00:00", "equity": 100000},
+        {"timestamp": "2026-01-25T00:00:00", "equity": 104800},
+        {"timestamp": "2026-02-10T00:00:00", "equity": 109200},
+        {"timestamp": "2026-02-25T00:00:00", "equity": 113500},
+        {"timestamp": "2026-03-10T00:00:00", "equity": 114100}
+      ],
+      "trades": [
+        {"entry_time": "2026-01-13T00:00:00", "exit_time": "2026-01-20T00:00:00", "side": "long", "entry_price": 67200, "exit_price": 70120, "pnl_pct": 4.34},
+        {"entry_time": "2026-02-05T00:00:00", "exit_time": "2026-02-17T00:00:00", "side": "long", "entry_price": 70840, "exit_price": 74420, "pnl_pct": 5.05}
+      ],
+      "parameter_heatmap": {
+        "x_labels": ["1.0", "1.1", "1.2"],
+        "y_labels": ["0.00", "0.01", "0.02"],
+        "values": [[55.2, 60.4, 62.1], [58.4, 66.7, 68.3], [54.3, 63.1, 64.8]],
+        "x_param": "relative_volume_min",
+        "y_param": "breakout_buffer"
+      },
+      "regime_summary": [
+        {"regime": "risk_on", "return_pct": 12.4, "trade_count": 5, "win_rate": 0.6},
+        {"regime": "risk_off", "return_pct": 1.8, "trade_count": 3, "win_rate": 0.33}
+      ]
+    }
+  },
+  {
+    "name": "event_continuation_v1_sample",
+    "engine": "multi-engine",
+    "started_at": "2026-03-14T07:00:00Z",
+    "metadata": {
+      "strategy_name": "event_continuation_v1",
+      "symbol": "BTC",
+      "status": "completed",
+      "fees_bps": 9,
+      "slippage_bps": 7,
+      "proxy_grade": true,
+      "promoted": false,
+      "robustness_score": 51.6,
+      "research_summary": {
+        "net_return_pct": 7.9,
+        "max_drawdown_pct": -8.8,
+        "trade_count": 5
+      },
+      "validation_summary": {
+        "net_return_pct": 5.2,
+        "max_drawdown_pct": -7.9,
+        "trade_count": 4
+      },
+      "walk_forward_summary": {
+        "window_count": 3,
+        "oos_return_pct": 2.1,
+        "pass_rate": 0.33
+      },
+      "equity_curve": [
+        {"timestamp": "2026-01-10T00:00:00", "equity": 100000},
+        {"timestamp": "2026-01-25T00:00:00", "equity": 100900},
+        {"timestamp": "2026-02-10T00:00:00", "equity": 103500},
+        {"timestamp": "2026-02-25T00:00:00", "equity": 104100},
+        {"timestamp": "2026-03-10T00:00:00", "equity": 105200}
+      ],
+      "trades": [
+        {"entry_time": "2026-02-12T00:00:00", "exit_time": "2026-02-15T00:00:00", "side": "long", "entry_price": 70250, "exit_price": 71620, "pnl_pct": 1.95}
+      ],
+      "parameter_heatmap": {
+        "x_labels": ["1.0", "1.1", "1.2"],
+        "y_labels": ["12", "24", "48"],
+        "values": [[42.1, 44.0, 43.5], [47.4, 51.6, 50.1], [46.2, 49.3, 48.8]],
+        "x_param": "relative_volume_min",
+        "y_param": "event_hours_max"
+      },
+      "regime_summary": [
+        {"regime": "macro_event", "return_pct": 4.8, "trade_count": 3, "win_rate": 0.67},
+        {"regime": "post_event", "return_pct": 0.4, "trade_count": 2, "win_rate": 0.5}
+      ]
+    }
+  }
+]

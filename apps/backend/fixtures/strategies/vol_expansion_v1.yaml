@@ -1,0 +1,50 @@
+name: vol_expansion_v1
+version: "1.0.0"
+template: vol_expansion
+description: Daily volatility expansion breakout that only activates when ATR and relative volume both expand.
+universe: [BTC, ETH]
+underlying_symbol: ETH
+tradable_symbol: ETH
+timeframe: 1d
+rules:
+  entry: atr_pct exceeds threshold, price above ema_fast, relative volume confirms
+  exit: atr contracts materially or price loses ema_fast
+tags: [volatility, expansion, research]
+parameters:
+  ema_fast: 16
+  sma_slow: 45
+  atr_window: 14
+  atr_threshold: 0.028
+  rv_threshold: 1.2
+  rv_window: 20
+search_space:
+  ema_fast:
+    kind: int
+    low: 10
+    high: 20
+    step: 2
+  atr_threshold:
+    kind: float
+    low: 0.02
+    high: 0.04
+    step: 0.005
+  rv_threshold:
+    kind: float
+    low: 1.0
+    high: 1.6
+    step: 0.2
+execution:
+  fees_bps: 10
+  slippage_bps: 6
+  order_size_pct: 1.0
+validation:
+  warmup_bars: 50
+  train_bars: 90
+  test_bars: 30
+  step_bars: 30
+  walk_forward_required: true
+  promote_requires_walk_forward: true
+  robustness_required: true
+  proxy_grade_if_symbol_mismatch: true
+  max_search_trials: 16
+

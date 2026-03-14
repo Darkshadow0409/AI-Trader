@@ -1,0 +1,36 @@
+[
+  {
+    "source": "FRED",
+    "event_time": "2026-03-15T12:30:00Z",
+    "event_name": "US CPI Release",
+    "category": "inflation",
+    "impact": "high",
+    "previous_value": "3.1%",
+    "expected_value": "3.0%",
+    "actual_value": "",
+    "data_quality": "fixture"
+  },
+  {
+    "source": "FRED",
+    "event_time": "2026-03-18T18:00:00Z",
+    "event_name": "FOMC Rate Decision",
+    "category": "rates",
+    "impact": "high",
+    "previous_value": "4.75%",
+    "expected_value": "4.75%",
+    "actual_value": "",
+    "data_quality": "fixture"
+  },
+  {
+    "source": "FRED",
+    "event_time": "2026-03-21T14:00:00Z",
+    "event_name": "University of Michigan Inflation Expectations",
+    "category": "sentiment",
+    "impact": "medium",
+    "previous_value": "3.0%",
+    "expected_value": "3.1%",
+    "actual_value": "",
+    "data_quality": "fixture"
+  }
+]
+

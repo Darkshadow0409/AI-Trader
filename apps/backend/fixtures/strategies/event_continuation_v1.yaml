@@ -1,0 +1,56 @@
+name: event_continuation_v1
+version: "1.0.0"
+template: event_continuation
+description: Post-event continuation strategy that treats macro releases as catalysts rather than predictive probabilities.
+universe: [BTC, ETH]
+underlying_symbol: BTC
+tradable_symbol: BTC
+timeframe: 1d
+rules:
+  entry: only after a recent macro event, trend is positive, and relative volume remains elevated
+  exit: fixed holding window or loss of ema_fast
+tags: [event, continuation, proxy-grade-aware]
+parameters:
+  ema_fast: 14
+  sma_slow: 40
+  hold_bars: 5
+  event_lookback_days: 2
+  volume_threshold: 1.05
+  rv_window: 20
+  atr_window: 14
+search_space:
+  ema_fast:
+    kind: int
+    low: 10
+    high: 20
+    step: 2
+  hold_bars:
+    kind: int
+    low: 3
+    high: 8
+    step: 1
+  event_lookback_days:
+    kind: int
+    low: 1
+    high: 3
+    step: 1
+  volume_threshold:
+    kind: float
+    low: 1.0
+    high: 1.4
+    step: 0.1
+execution:
+  fees_bps: 8
+  slippage_bps: 5
+  order_size_pct: 1.0
+validation:
+  warmup_bars: 45
+  train_bars: 90
+  test_bars: 30
+  step_bars: 30
+  walk_forward_required: true
+  promote_requires_walk_forward: true
+  robustness_required: true
+  proxy_grade_if_symbol_mismatch: true
+  max_search_trials: 14
+

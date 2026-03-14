@@ -1,0 +1,21 @@
+[
+  {
+    "source": "EIA",
+    "published_at": "2026-03-10T14:30:00Z",
+    "title": "Weekly petroleum status report shows tighter crude inventories",
+    "summary": "The latest release points to a larger-than-expected crude draw, reinforcing cross-asset inflation sensitivity and energy-led macro volatility.",
+    "url": "https://www.eia.gov/petroleum/supply/weekly/",
+    "tags": ["oil", "inventory", "macro", "inflation"],
+    "data_quality": "fixture"
+  },
+  {
+    "source": "EIA",
+    "published_at": "2026-03-07T13:00:00Z",
+    "title": "Short-term energy outlook highlights mixed demand growth",
+    "summary": "EIA's monthly outlook flagged softer global demand assumptions while maintaining a volatile supply baseline.",
+    "url": "https://www.eia.gov/outlooks/steo/",
+    "tags": ["outlook", "demand", "energy"],
+    "data_quality": "fixture"
+  }
+]
+

@@ -1,0 +1,28 @@
+[
+  {
+    "symbol": "BTC",
+    "entered_at": "2026-03-11T15:00:00Z",
+    "note": "Trend quality improved after reclaiming the 20-day breakout level, but upcoming CPI keeps conviction moderate.",
+    "mood": "disciplined",
+    "tags": ["trend", "macro", "btc"],
+    "setup_quality": 4,
+    "execution_quality": 4,
+    "follow_through": "held core and respected event risk trim plan",
+    "outcome": "open",
+    "lessons": "Keep the size in the medium band when CPI is inside 24h even if breakout quality is strong.",
+    "review_status": "in_review"
+  },
+  {
+    "symbol": "ETH",
+    "entered_at": "2026-03-12T16:45:00Z",
+    "note": "ETH is lagging BTC on breakout confirmation. Prefer smaller size until relative volume expands.",
+    "mood": "patient",
+    "tags": ["eth", "relative-strength"],
+    "setup_quality": 3,
+    "execution_quality": 3,
+    "follow_through": "waited for confirmation and kept sizing constrained",
+    "outcome": "mixed",
+    "lessons": "ETH continuation setups should not be promoted when BTC leadership is the only supporting factor.",
+    "review_status": "logged"
+  }
+]

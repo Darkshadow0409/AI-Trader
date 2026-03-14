@@ -1,0 +1,46 @@
+name: event_continuation_v1
+version: "1.0"
+template: event_continuation
+description: Event-sensitive continuation model that can only be promoted after walk-forward validation and is proxy-grade if routed through a proxy market.
+universe: [WTI, BTC, ETH]
+underlying_symbol: WTI
+tradable_symbol: BTC
+timeframe: 1d
+rules:
+  entry: hours_to_event <= event_hours_max and return_1 > 0 and relative_volume > relative_volume_min
+  exit: hours_to_event < -24 or return_1 < 0
+tags: [event, proxy, macro]
+parameters:
+  event_hours_max: 48
+  relative_volume_min: 1.0
+  stop_atr_multiple: 2.0
+search_space:
+  event_hours_max:
+    kind: int
+    low: 12
+    high: 48
+    step: 12
+  relative_volume_min:
+    kind: float
+    low: 1.0
+    high: 1.4
+    step: 0.1
+  stop_atr_multiple:
+    kind: float
+    low: 1.6
+    high: 2.6
+    step: 0.2
+execution:
+  fees_bps: 9
+  slippage_bps: 7
+  order_size_pct: 1.0
+validation:
+  warmup_bars: 35
+  train_bars: 90
+  test_bars: 30
+  step_bars: 30
+  walk_forward_required: true
+  promote_requires_walk_forward: true
+  robustness_required: true
+  proxy_grade_if_symbol_mismatch: true
+  max_search_trials: 16

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "trend_breakout_v1_sample",
+    "engine": "multi-engine",
+    "metadata": {
+      "strategy_name": "trend_breakout_v1",
+      "fees_bps": 8,
+      "slippage_bps": 5,
+      "robustness_score": 72.8
+    }
+  }
+]

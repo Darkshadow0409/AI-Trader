@@ -26,4 +26,27 @@ describe("TopRibbon", () => {
     expect(screen.getByText("1.10 / 2.50%")).toBeInTheDocument();
     expect(screen.getByText("completed / sample")).toBeInTheDocument();
   });
+
+  it("handles stale or missing ribbon details without crashing", () => {
+    render(
+      <TopRibbon
+        health={{ status: "mock", sqlite_path: "db", duckdb_path: "duck", parquet_dir: "parquet" }}
+        ribbon={{
+          macro_regime: "defensive",
+          data_freshness_minutes: 1600,
+          freshness_status: "stale",
+          risk_budget_used_pct: 0.5,
+          risk_budget_total_pct: 2.5,
+          pipeline_status: "completed",
+          source_mode: "sample",
+          last_refresh: null,
+          next_event: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("1600m / stale")).toBeInTheDocument();
+    expect(screen.getByText("none")).toBeInTheDocument();
+    expect(screen.getByText(/mock \/ n\/a/i)).toBeInTheDocument();
+  });
 });

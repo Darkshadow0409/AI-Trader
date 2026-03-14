@@ -63,9 +63,40 @@ python scripts/seed_data.py
 python scripts/backfill.py
 python scripts/local_jobs.py
 python scripts/run_backtest.py --strategy trend_breakout_v1 --search-method grid --max-trials 8
-pytest apps/backend/tests
-cd apps/frontend && npm test -- --run
+python -m pytest apps/backend/tests
+cd apps/frontend && npm run test -- --run
+cd apps/frontend && npm run build
+python scripts/verify.py
 ```
+
+## Testing
+
+The default test mode is fixture-first and local-only:
+
+- no live API keys are required
+- pytest forces sample mode and disables the scheduler
+- frontend API calls fall back to deterministic mock payloads when the backend is unavailable
+
+Windows PowerShell commands:
+
+```powershell
+python scripts/seed_data.py
+python scripts/backfill.py
+python -m pytest apps/backend/tests
+Set-Location apps/frontend
+npm run test -- --run
+npm run build
+Set-Location ../..
+python scripts/verify.py
+```
+
+The full local verification wrapper runs this exact sequence:
+
+1. `python scripts/seed_data.py`
+2. `python scripts/backfill.py`
+3. `python -m pytest apps/backend/tests`
+4. `cd apps/frontend && npm run test -- --run`
+5. `cd apps/frontend && npm run build`
 
 ## First endpoints
 

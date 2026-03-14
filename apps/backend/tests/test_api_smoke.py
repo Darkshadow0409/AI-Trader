@@ -29,6 +29,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     active_trades = client.get("/api/portfolio/active-trades")
     wallet = client.get("/api/portfolio/wallet-balance")
     journal = client.get("/api/journal")
+    refresh = client.post("/api/system/refresh")
     assert news.status_code == 200
     assert watchlist.status_code == 200
     assert risk.status_code == 200
@@ -43,6 +44,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert active_trades.status_code == 200
     assert wallet.status_code == 200
     assert journal.status_code == 200
+    assert refresh.status_code == 200
     assert len(bars.json()) > 0
     assert len(strategies.json()) >= 3
     assert len(backtests.json()) >= 1
@@ -51,6 +53,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert isinstance(active_trades.json(), list)
     assert isinstance(wallet.json(), list)
     assert isinstance(journal.json(), list)
+    assert refresh.json()["source_mode"] == "sample"
 
     strategy_detail = client.get(f"/api/strategies/{strategies.json()[0]['name']}")
     backtest_detail = client.get(f"/api/backtests/{backtests.json()[0]['id']}")

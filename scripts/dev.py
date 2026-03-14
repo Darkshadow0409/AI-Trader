@@ -4,10 +4,15 @@ import os
 import signal
 import subprocess
 import sys
+from shutil import which
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def resolve_npm_command() -> str:
+    return which("npm.cmd") or which("npm") or "npm"
 
 
 def main() -> int:
@@ -29,7 +34,7 @@ def main() -> int:
         env.get("AI_TRADER_PORT", "8000"),
         "--reload",
     ]
-    frontend_cmd = ["npm", "run", "dev", "--", "--host", env.get("AI_TRADER_HOST", "127.0.0.1")]
+    frontend_cmd = [resolve_npm_command(), "run", "dev", "--", "--host", env.get("AI_TRADER_HOST", "127.0.0.1")]
 
     backend = subprocess.Popen(backend_cmd, cwd=ROOT, env=backend_env)
     frontend = subprocess.Popen(frontend_cmd, cwd=ROOT / "apps" / "frontend", env=frontend_env)
@@ -52,4 +57,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

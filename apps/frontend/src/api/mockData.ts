@@ -233,6 +233,46 @@ export const mockRiskExposure: RiskExposureView[] = [
   },
 ];
 
+const mockTrendPenalties = [
+  {
+    code: "fixture_only",
+    severity: "warning",
+    summary: "Current validation depends on fixture-first market data.",
+    score_penalty: 14,
+  },
+  {
+    code: "missing_cross_asset_confirmation",
+    severity: "info",
+    summary: "Cross-asset confirmation is weak or missing in the latest context.",
+    score_penalty: 6,
+  },
+];
+
+const mockCalibrationSummary = [
+  {
+    strategy_name: "trend_breakout_v1",
+    created_at: "2026-03-15T11:30:00Z",
+    bucket_kind: "score",
+    buckets: [
+      { bucket: "top", sample_size: 3, avg_score: 74.6, avg_confidence: 0.79, hit_rate: 0.67, expectancy_proxy: 1.0, invalidation_rate: 0, target_attainment: 0.67 },
+      { bucket: "middle", sample_size: 0, avg_score: 0, avg_confidence: 0, hit_rate: 0, expectancy_proxy: 0, invalidation_rate: 0, target_attainment: 0 },
+      { bucket: "low", sample_size: 0, avg_score: 0, avg_confidence: 0, hit_rate: 0, expectancy_proxy: 0, invalidation_rate: 0, target_attainment: 0 },
+    ],
+    notes: "Calibration compares buckets only. It is not a probability-of-profit claim.",
+  },
+  {
+    strategy_name: "trend_breakout_v1",
+    created_at: "2026-03-15T11:30:00Z",
+    bucket_kind: "confidence",
+    buckets: [
+      { bucket: "top", sample_size: 3, avg_score: 74.6, avg_confidence: 0.79, hit_rate: 0.67, expectancy_proxy: 1.0, invalidation_rate: 0, target_attainment: 0.67 },
+      { bucket: "middle", sample_size: 0, avg_score: 0, avg_confidence: 0, hit_rate: 0, expectancy_proxy: 0, invalidation_rate: 0, target_attainment: 0 },
+      { bucket: "low", sample_size: 0, avg_score: 0, avg_confidence: 0, hit_rate: 0, expectancy_proxy: 0, invalidation_rate: 0, target_attainment: 0 },
+    ],
+    notes: "Calibration compares buckets only. It is not a probability-of-profit claim.",
+  },
+];
+
 export const mockSignalDetail: SignalDetailView = {
   ...mockSignals[0],
   evidence: [
@@ -359,6 +399,8 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
       sharpe_ratio: 1.18,
       max_drawdown_pct: -8.6,
       trade_count: 7,
+      lifecycle_state: "promoted",
+      data_realism_penalties: mockTrendPenalties,
     },
   },
   ETH: {
@@ -512,7 +554,10 @@ export const mockStrategies: StrategyListView[] = [
     fees_bps: 8,
     slippage_bps: 5,
     proxy_grade: false,
-    promoted: false,
+    promoted: true,
+    lifecycle_state: "promoted",
+    lifecycle_updated_at: "2026-03-15T11:30:00Z",
+    lifecycle_note: "Forward validation held up under fixture-mode penalties.",
     tags: ["trend", "breakout"],
     validation: { walk_forward_required: true, robustness_required: true },
   },
@@ -524,6 +569,88 @@ export const mockStrategyDetail: StrategyDetailView = {
     breakout_buffer: { kind: "float", low: 0, high: 0.02, step: 0.01 },
   },
   spec: {},
+  promotion_rationale: {
+    state: "promoted",
+    recommended_state: "promoted",
+    gate_results: {
+      robustness_score: true,
+      walk_forward_quality: true,
+      forward_results: true,
+      minimum_sample_size: true,
+      data_quality: true,
+      proxy_grade_penalty: true,
+    },
+    notes: ["Calibration buckets compare cohorts only. They are not probability-of-profit estimates.", "Total realism penalty: 20.0"],
+    penalties: mockTrendPenalties,
+  },
+  calibration_summary: mockCalibrationSummary,
+  forward_validation_summary: {
+    sample_size: 3,
+    hit_rate: 0.67,
+    expectancy_proxy: 1.0,
+    drawdown: -1.12,
+    target_attainment: 0.67,
+    invalidation_rate: 0,
+    time_stop_frequency: 0.33,
+    modes: { paper_trade: 2, live_sim: 1 },
+  },
+  forward_validation_records: [
+    {
+      validation_id: "fv_trend_breakout_003",
+      strategy_name: "trend_breakout_v1",
+      mode: "live_sim",
+      signal_id: mockSignals[0].signal_id,
+      risk_report_id: mockRisk[0].risk_report_id,
+      trade_id: null,
+      opened_at: "2026-03-13T10:30:00Z",
+      closed_at: "2026-03-14T12:00:00Z",
+      entry_price: 71320,
+      exit_price: 70990,
+      pnl_pct: -0.46,
+      drawdown_pct: -1.12,
+      target_attained: false,
+      invalidated: false,
+      time_stopped: true,
+      data_quality: "paper",
+      notes: "Time-stop exit without invalidation.",
+    },
+    {
+      validation_id: "fv_trend_breakout_002",
+      strategy_name: "trend_breakout_v1",
+      mode: "paper_trade",
+      signal_id: mockSignals[0].signal_id,
+      risk_report_id: mockRisk[0].risk_report_id,
+      trade_id: null,
+      opened_at: "2026-03-12T10:30:00Z",
+      closed_at: "2026-03-13T13:00:00Z",
+      entry_price: 70880,
+      exit_price: 72110,
+      pnl_pct: 1.74,
+      drawdown_pct: -0.68,
+      target_attained: true,
+      invalidated: false,
+      time_stopped: false,
+      data_quality: "paper",
+      notes: "Second paper validation leg reached the base target.",
+    },
+  ],
+  data_realism_penalties: mockTrendPenalties,
+  transition_history: [
+    {
+      strategy_name: "trend_breakout_v1",
+      from_state: "paper_validating",
+      to_state: "promoted",
+      changed_at: "2026-03-15T11:30:00Z",
+      note: "Forward validation met promotion gates in fixture mode.",
+    },
+    {
+      strategy_name: "trend_breakout_v1",
+      from_state: "experimental",
+      to_state: "paper_validating",
+      changed_at: "2026-03-14T11:30:00Z",
+      note: "Initial paper validation cohort started.",
+    },
+  ],
 };
 
 export const mockBacktests: BacktestListView[] = [
@@ -543,6 +670,8 @@ export const mockBacktests: BacktestListView[] = [
     sharpe_ratio: 1.18,
     max_drawdown_pct: -8.6,
     trade_count: 7,
+    lifecycle_state: "promoted",
+    data_realism_penalties: mockTrendPenalties,
   },
 ];
 
@@ -583,4 +712,7 @@ export const mockBacktestDetail: BacktestDetailView = {
   ],
   regime_summary: [{ regime: "risk_on", return_pct: 14.2, trade_count: 7, win_rate: 0.71 }],
   metadata: {},
+  promotion_rationale: mockStrategyDetail.promotion_rationale,
+  forward_validation_summary: mockStrategyDetail.forward_validation_summary,
+  calibration_summary: mockCalibrationSummary,
 };

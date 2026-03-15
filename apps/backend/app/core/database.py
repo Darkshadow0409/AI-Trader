@@ -54,6 +54,11 @@ def _ensure_contract_columns() -> None:
             "suppressed_reason": "TEXT",
             "last_attempted_at": "TIMESTAMP",
         },
+        "strategyregistryentry": {
+            "lifecycle_state": "TEXT DEFAULT 'experimental'",
+            "lifecycle_updated_at": "TIMESTAMP",
+            "lifecycle_note": "TEXT DEFAULT ''",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -76,10 +81,13 @@ def _ensure_contract_columns() -> None:
         connection.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_alertrecord_dedupe_key ON alertrecord (dedupe_key)"
         )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_strategyregistryentry_lifecycle_state ON strategyregistryentry (lifecycle_state)"
+        )
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, JournalEntry, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

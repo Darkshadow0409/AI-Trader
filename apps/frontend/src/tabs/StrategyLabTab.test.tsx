@@ -29,6 +29,9 @@ describe("StrategyLabTab", () => {
               slippage_bps: 5,
               proxy_grade: false,
               promoted: false,
+              lifecycle_state: "paper_validating",
+              lifecycle_updated_at: "2026-03-14T10:00:00Z",
+              lifecycle_note: "Forward validation is underway.",
               tags: ["trend"],
               validation: { walk_forward_required: true },
             },
@@ -55,6 +58,8 @@ describe("StrategyLabTab", () => {
               sharpe_ratio: 1.18,
               max_drawdown_pct: -8.3,
               trade_count: 6,
+              lifecycle_state: "paper_validating",
+              data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
             },
           ],
         });
@@ -75,10 +80,88 @@ describe("StrategyLabTab", () => {
             slippage_bps: 5,
             proxy_grade: false,
             promoted: false,
+            lifecycle_state: "promoted",
+            lifecycle_updated_at: "2026-03-15T11:30:00Z",
+            lifecycle_note: "Promotion gates passed.",
             tags: ["trend"],
             validation: { walk_forward_required: true, robustness_required: true },
             search_space: { breakout_buffer: { kind: "float", low: 0, high: 0.02, step: 0.01 } },
             spec: {},
+            promotion_rationale: {
+              state: "promoted",
+              recommended_state: "promoted",
+              gate_results: {
+                robustness_score: true,
+                walk_forward_quality: true,
+                forward_results: true,
+                minimum_sample_size: true,
+                data_quality: true,
+                proxy_grade_penalty: true,
+              },
+              notes: ["Calibration buckets compare cohorts only."],
+              penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            },
+            calibration_summary: [
+              {
+                strategy_name: "trend_breakout_v1",
+                created_at: "2026-03-15T11:30:00Z",
+                bucket_kind: "score",
+                notes: "Calibration compares buckets only.",
+                buckets: [
+                  {
+                    bucket: "top",
+                    sample_size: 3,
+                    avg_score: 74.6,
+                    avg_confidence: 0.79,
+                    hit_rate: 0.67,
+                    expectancy_proxy: 1,
+                    invalidation_rate: 0,
+                    target_attainment: 0.67,
+                  },
+                ],
+              },
+            ],
+            forward_validation_summary: {
+              sample_size: 3,
+              hit_rate: 0.67,
+              expectancy_proxy: 1,
+              drawdown: -1.12,
+              target_attainment: 0.67,
+              invalidation_rate: 0,
+              time_stop_frequency: 0.33,
+              modes: { paper_trade: 2, live_sim: 1 },
+            },
+            forward_validation_records: [
+              {
+                validation_id: "fv_1",
+                strategy_name: "trend_breakout_v1",
+                mode: "paper_trade",
+                signal_id: "sig_1",
+                risk_report_id: "risk_1",
+                trade_id: null,
+                opened_at: "2026-03-12T00:00:00Z",
+                closed_at: "2026-03-13T00:00:00Z",
+                entry_price: 62000,
+                exit_price: 63200,
+                pnl_pct: 1.94,
+                drawdown_pct: -0.5,
+                target_attained: true,
+                invalidated: false,
+                time_stopped: false,
+                data_quality: "paper",
+                notes: "held",
+              },
+            ],
+            data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            transition_history: [
+              {
+                strategy_name: "trend_breakout_v1",
+                from_state: "paper_validating",
+                to_state: "promoted",
+                changed_at: "2026-03-15T11:30:00Z",
+                note: "Promotion gates passed.",
+              },
+            ],
           }),
         });
       }
@@ -102,6 +185,8 @@ describe("StrategyLabTab", () => {
             sharpe_ratio: 1.18,
             max_drawdown_pct: -8.3,
             trade_count: 6,
+            lifecycle_state: "promoted",
+            data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
             fees_bps: 8,
             slippage_bps: 5,
             warmup_bars: 55,
@@ -135,6 +220,24 @@ describe("StrategyLabTab", () => {
             ],
             regime_summary: [{ regime: "risk_on", return_pct: 13.4, trade_count: 6, win_rate: 0.67 }],
             metadata: {},
+            promotion_rationale: {
+              state: "promoted",
+              recommended_state: "promoted",
+              gate_results: { robustness_score: true, walk_forward_quality: true, forward_results: true },
+              notes: ["Calibration buckets compare cohorts only."],
+              penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            },
+            forward_validation_summary: {
+              sample_size: 3,
+              hit_rate: 0.67,
+              expectancy_proxy: 1,
+              drawdown: -1.12,
+              target_attainment: 0.67,
+              invalidation_rate: 0,
+              time_stop_frequency: 0.33,
+              modes: { paper_trade: 2, live_sim: 1 },
+            },
+            calibration_summary: [],
           }),
         });
       }
@@ -158,6 +261,8 @@ describe("StrategyLabTab", () => {
             sharpe_ratio: 1.26,
             max_drawdown_pct: -8.1,
             trade_count: 7,
+            lifecycle_state: "promoted",
+            data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
             fees_bps: 8,
             slippage_bps: 5,
             warmup_bars: 55,
@@ -171,6 +276,24 @@ describe("StrategyLabTab", () => {
             stability_heatmap: [],
             regime_summary: [],
             metadata: {},
+            promotion_rationale: {
+              state: "promoted",
+              recommended_state: "promoted",
+              gate_results: { robustness_score: true, walk_forward_quality: true, forward_results: true },
+              notes: ["Calibration buckets compare cohorts only."],
+              penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            },
+            forward_validation_summary: {
+              sample_size: 4,
+              hit_rate: 0.75,
+              expectancy_proxy: 1.2,
+              drawdown: -1.01,
+              target_attainment: 0.75,
+              invalidation_rate: 0,
+              time_stop_frequency: 0.25,
+              modes: { paper_trade: 3, live_sim: 1 },
+            },
+            calibration_summary: [],
           }),
         });
       }
@@ -194,6 +317,8 @@ describe("StrategyLabTab", () => {
             sharpe_ratio: 1.26,
             max_drawdown_pct: -8.1,
             trade_count: 7,
+            lifecycle_state: "promoted",
+            data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
             fees_bps: 8,
             slippage_bps: 5,
             warmup_bars: 55,
@@ -207,6 +332,24 @@ describe("StrategyLabTab", () => {
             stability_heatmap: [],
             regime_summary: [],
             metadata: {},
+            promotion_rationale: {
+              state: "promoted",
+              recommended_state: "promoted",
+              gate_results: { robustness_score: true, walk_forward_quality: true, forward_results: true },
+              notes: ["Calibration buckets compare cohorts only."],
+              penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            },
+            forward_validation_summary: {
+              sample_size: 4,
+              hit_rate: 0.75,
+              expectancy_proxy: 1.2,
+              drawdown: -1.01,
+              target_attainment: 0.75,
+              invalidation_rate: 0,
+              time_stop_frequency: 0.25,
+              modes: { paper_trade: 3, live_sim: 1 },
+            },
+            calibration_summary: [],
           }),
         });
       }
@@ -222,6 +365,7 @@ describe("StrategyLabTab", () => {
     expect(await screen.findByRole("heading", { name: "Run Detail" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Equity Curve" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Search space" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Strategy Promotion / Validation" })).toBeInTheDocument();
     expect(screen.getByTestId("equity-chart")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Run trend_breakout_v1/i }));

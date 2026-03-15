@@ -42,6 +42,7 @@ TEST_FILES = [
     "apps/backend/tests/test_pipeline_scripts.py",
     "apps/backend/tests/test_connector_fallbacks.py",
     "apps/backend/tests/test_feature_pipeline.py",
+    "apps/backend/tests/test_promotion_core.py",
     "apps/backend/tests/test_signal_and_risk_invariants.py",
     "apps/backend/tests/test_risk_engine.py",
     "apps/frontend/src/App.test.tsx",
@@ -49,6 +50,7 @@ TEST_FILES = [
     "apps/frontend/src/api/contracts.test.ts",
     "apps/frontend/src/components/TopRibbon.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
+    "apps/frontend/src/tabs/StrategyLabTab.test.tsx",
     "apps/frontend/src/tabs/WatchlistTab.test.tsx",
 ]
 
@@ -76,11 +78,15 @@ CORE_FILES = [
     "apps/backend/app/api/routes/portfolio.py",
     "apps/backend/app/api/routes/journal.py",
     "apps/backend/app/api/routes/alerts.py",
+    "apps/backend/app/api/routes/strategies.py",
+    "apps/backend/app/api/routes/backtests.py",
     "apps/backend/app/api/routes/market.py",
     "apps/backend/app/api/routes/system.py",
     "apps/backend/app/alerting/sinks.py",
     "apps/backend/app/alerting/service.py",
     "apps/backend/app/services/operator_console.py",
+    "apps/backend/app/strategy_lab/registry.py",
+    "apps/backend/app/strategy_lab/service.py",
     "apps/backend/app/connectors/eia_client.py",
     "apps/backend/app/connectors/fred_client.py",
     "apps/backend/app/connectors/binance_market_data.py",
@@ -92,6 +98,7 @@ CORE_FILES = [
     "apps/backend/app/engines/risk/stop_logic.py",
     "apps/backend/app/models/schemas.py",
     "apps/backend/app/models/entities.py",
+    "apps/backend/fixtures/forward_validation_samples.json",
     "apps/frontend/src/App.tsx",
     "apps/frontend/src/api/client.ts",
     "apps/frontend/src/api/hooks.ts",
@@ -101,6 +108,7 @@ CORE_FILES = [
     "apps/frontend/src/tabs/ActiveTradesTab.tsx",
     "apps/frontend/src/tabs/JournalTab.tsx",
     "apps/frontend/src/tabs/RiskExposureTab.tsx",
+    "apps/frontend/src/tabs/StrategyLabTab.tsx",
     "apps/frontend/src/components/TopRibbon.tsx",
     "apps/frontend/src/components/ContextSidebar.tsx",
     "apps/frontend/src/components/SignalTable.tsx",
@@ -297,6 +305,24 @@ def collect_contracts(bundle_root: Path, runtime_env: dict[str, str]) -> dict[st
                 payload = response.json()
                 responses[f"/api/risk/{risk_report_id}"] = payload
                 write_json(bundle_root / "contracts/risk_detail.json", payload)
+        strategies = responses.get("/api/strategies")
+        if isinstance(strategies, list) and strategies:
+            strategy_name = strategies[0].get("name")
+            if strategy_name:
+                response = client.get(f"/api/strategies/{strategy_name}")
+                response.raise_for_status()
+                payload = response.json()
+                responses[f"/api/strategies/{strategy_name}"] = payload
+                write_json(bundle_root / "contracts/strategy_detail.json", payload)
+        backtests = responses.get("/api/backtests")
+        if isinstance(backtests, list) and backtests:
+            run_id = backtests[0].get("id")
+            if run_id is not None:
+                response = client.get(f"/api/backtests/{run_id}")
+                response.raise_for_status()
+                payload = response.json()
+                responses[f"/api/backtests/{run_id}"] = payload
+                write_json(bundle_root / "contracts/backtest_detail.json", payload)
     return responses
 
 
@@ -305,7 +331,7 @@ def build_review_readme() -> str:
         """
         # Review Bundle
 
-        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, and thin external alert sinks for Telegram and Discord. It does not perform live order execution.
+        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, thin external alert sinks for Telegram and Discord, and explicit strategy promotion plus validation tracking. It does not perform live order execution.
 
         ## Fixture-first mode
 
@@ -313,16 +339,17 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, demotion rules, and explicit data-realism penalties.
 
         ## Intentionally stubbed
 
         - No real-money execution, broker routing, or autonomous trading
         - No vector DB, RL, or broad altcoin scanning
         - Macro proxies such as WTI, GOLD, DXY, and US10Y are sample-backed context, not production-grade market feeds
-        - OpenAI remote adapter and non-local alert sinks remain stubs or interfaces
+        - OpenAI remote adapter remains a stub
         - UI updates currently rely on polling, not a fully wired websocket event stream
         - External alert delivery remains notification-only; it does not change platform control flow and it does not expose bot commands
+        - Calibration output compares score or confidence buckets only and should not be read as probability-of-profit
 
         ## Exact local run commands
 
@@ -390,6 +417,7 @@ def build_milestone_summary() -> str:
         - Milestone 1.5 contract hardening for explicit signal and risk identities plus fixture API snapshots
         - Milestone 2A operator-console workflows for detail views, trades, journal, opportunities, and in-app alerts
         - Milestone 2B thin external delivery sinks for Telegram and Discord with dedupe, cooldowns, and persisted delivery state
+        - Milestone 3A promotion and validation core for lifecycle state transitions, forward validation summaries, calibration snapshots, and realism penalties
 
         ## Hardened in the testing pass
 
@@ -408,6 +436,7 @@ def build_milestone_summary() -> str:
         - Vectorbt and backtesting.py runner surfaces
         - Walk-forward, bounded search, and robustness scoring
         - Backtest routes and richer dashboard tabs
+        - Promotion rationale, lifecycle history, and forward paper-validation tracking in the operator console
 
         ## Known technical debt
 
@@ -416,10 +445,11 @@ def build_milestone_summary() -> str:
         - Polling-based frontend updates despite websocket scaffolding existing in the backend
         - Macro context assets are sample-proxy quality rather than exchange-grade feeds
         - Frontend mock data and backend contracts require continued alignment as routes evolve
+        - Calibration in fixture mode falls back to current symbol context when historical signal IDs are unavailable
 
         ## Immediate next recommended milestone
 
-        Focus on operational hardening rather than scope expansion: tighten alert routing policy, add browser-level interaction coverage for trade and journal flows, improve alert status filtering and historical review, and tighten websocket or polling semantics before considering any broader asset or execution work.
+        Focus on operational hardening rather than scope expansion: add deeper browser-level interaction coverage for trade, journal, and strategy-promotion review flows, tighten websocket or polling semantics, and improve historical calibration or validation review before considering any broader asset or execution work.
         """
     ).strip() + "\n"
 
@@ -453,11 +483,11 @@ def build_arch_review() -> str:
 
         ## Where strategy lab fits
 
-        Strategy lab is not the core of milestone 1, but it is already integrated as a local validation layer that consumes stored bar data and persists run metadata and summaries. Review it as an adjacent subsystem, not as a sign that live execution is present.
+        Strategy lab is not the core of milestone 1, but it is already integrated as a local validation layer that consumes stored bar data and persists run metadata and summaries. Milestone 3A extends that layer with lifecycle states, forward-validation tracking, calibration snapshots, promotion rationale, and realism penalties. Review it as a validation subsystem, not as a sign that live execution is present.
 
         ## What remains local-only
 
-        The entire platform is local-first. There is no broker integration, no autonomous trade execution, and no remote stateful service dependency required for the default workflow. Alert delivery is in-app only at this stage.
+        The entire platform is local-first. There is no broker integration, no autonomous trade execution, and no remote stateful service dependency required for the default workflow. Telegram and Discord are optional thin sinks behind local config, but the browser remains the source of truth.
         """
     ).strip() + "\n"
 
@@ -472,7 +502,7 @@ def build_data_quality_review() -> str:
         - Seeded OHLCV for BTC, ETH, WTI, GOLD, DXY, and US10Y
         - EIA news fixtures
         - FRED macro release fixtures
-        - Sample signals, risk reports, watchlist state, opportunity hunter state, wallet balance, active trades, journal items, and persisted alert records
+        - Sample signals, risk reports, watchlist state, opportunity hunter state, wallet balance, active trades, journal items, persisted alert records, and forward-validation records
 
         ## Live-capable today
 
@@ -484,11 +514,13 @@ def build_data_quality_review() -> str:
 
         - WTI, GOLD, DXY, US10Y, and similar macro assets in the current local workflow
         - Strategy results where underlying context differs from a directly tradable proxy
+        - Promotion or calibration summaries that inherit proxy-grade mappings or stale fixture context
 
         ## What should not be treated as production-grade market data yet
 
         - Any seeded OHLCV series used for macro context
         - Any derived signal confidence or noise metric as calibrated probability
+        - Calibration snapshots as probability-of-profit; they are bucket comparisons only
         - Any route payload that depends on fixture narratives rather than venue-verified market data
         """
     ).strip() + "\n"
@@ -511,6 +543,7 @@ def build_testing_review() -> str:
         - Signal and risk route invariants
         - Core risk-engine helpers
         - Strategy-lab baseline parsing, walk-forward, robustness, and API serialization
+        - Promotion transitions, demotion logic, forward-validation aggregation, calibration buckets, and realism penalties
         - Frontend app shell, client fallback, contract alignment, ribbon rendering, watchlist opportunity rendering, and placeholder backtest-tab behavior
 
         ## Deterministic counts
@@ -528,6 +561,7 @@ def build_testing_review() -> str:
         - No websocket behavior tests
         - No deep DuckDB or parquet integrity assertions beyond smoke
         - Strategy-lab search behavior is covered only at baseline protection level
+        - No browser-level mutation tests for manual lifecycle changes
 
         ## Windows-specific workflow
 
@@ -545,9 +579,11 @@ def build_known_issues() -> str:
 
         - Signal, risk, and alert payloads now have explicit IDs or dedupe keys, but frontend and backend contracts are still maintained manually rather than generated from a shared schema.
         - Frontend and backend contracts are aligned today, but there is no automated cross-language schema generation, so route drift remains a maintenance risk.
+        - Promotion state can change as new validation runs are persisted, so fixture-state screenshots should be reviewed alongside the exact verification output captured in the bundle.
         - The UI is polling-based even though backend websocket scaffolding exists; freshness expectations should be reviewed with that in mind.
         - Live and fixture paths can diverge in shape or market realism because fixtures are deterministic simulations rather than exchange captures.
         - Oil, metals, DXY, and US10Y context are not production-grade market feeds in the current local workflow.
+        - Calibration snapshots in fixture mode may fall back from historical signal IDs to current symbol context when older validation records reference signals not present in the current signal table.
         - `scripts/dev.py` is Windows-safe for npm resolution now, but it still does not manage frontend port overrides or port collisions automatically.
         - Active trades and journal entries are writable locally, but there is no conflict-resolution layer beyond last write wins.
         - Telegram and Discord delivery are best-effort notifications; there is no retry worker or durable outbound queue beyond the local persisted status record.
@@ -566,6 +602,7 @@ def build_test_notes() -> str:
         - `test_contract_snapshots.py`: protects the saved fixture-mode API contracts for signals, risk, news, watchlist, and dashboard overview.
         - `test_connector_fallbacks.py`: protects offline local development by proving live connector failures fall back cleanly.
         - `test_feature_pipeline.py`: checks feature columns, seeded-asset coverage, and warm-up NaN containment.
+        - `test_promotion_core.py`: covers lifecycle transitions, demotion logic, forward-validation aggregation, calibration bucket summaries, and realism penalties.
         - `test_signal_and_risk_invariants.py`: asserts real API payloads expose the required fields and sane numeric ranges.
         - `test_risk_engine.py`: guards stop logic, size-band mapping, and risk report construction.
         - `App.test.tsx`: smoke-renders the dense dashboard shell in backend-unavailable mode.
@@ -573,6 +610,7 @@ def build_test_notes() -> str:
         - `contracts.test.ts`: keeps representative frontend payload shapes aligned with backend field names.
         - `TopRibbon.test.tsx`: covers top-ribbon rendering for both normal and stale or missing data states.
         - `BacktestsTab.test.tsx`: proves the backtests tab does not crash when placeholder data is empty.
+        - `StrategyLabTab.test.tsx`: protects the promotion or validation console rendering and run action wiring against contract drift.
         - `WatchlistTab.test.tsx`: checks the opportunity hunter queues render and still support drill-down callbacks.
         """
     ).strip() + "\n"
@@ -630,6 +668,12 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     )
     if isinstance(backtests, list) and backtests:
         write_json(bundle_root / "samples/sample_backtest_result.json", backtests[0])
+    strategy_detail = contracts.get(f"/api/strategies/{strategies[0]['name']}") if isinstance(strategies, list) and strategies else None
+    if isinstance(strategy_detail, dict):
+        write_json(bundle_root / "samples/strategy_promotion_summary.json", strategy_detail)
+    backtest_detail = contracts.get(f"/api/backtests/{backtests[0]['id']}") if isinstance(backtests, list) and backtests else None
+    if isinstance(backtest_detail, dict):
+        write_json(bundle_root / "samples/backtest_validation_summary.json", backtest_detail)
     write_text(
         bundle_root / "samples/seed_counts.txt",
         textwrap.dedent(

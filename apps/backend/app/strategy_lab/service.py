@@ -3,13 +3,30 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from math import isnan
+from pathlib import Path
 from typing import Any
 
-from sqlmodel import Session, select
+from sqlalchemy import delete
+from sqlmodel import Session, desc, select
 
+from app.core.clock import naive_utc_now
 from app.core.settings import get_settings
-from app.models.entities import BacktestResult, BacktestRun, MacroEvent, MarketBar, StrategyRegistryEntry
-from app.models.schemas import BacktestRunRequest
+from app.models.entities import BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, MacroEvent, MarketBar, PipelineRun, SignalRecord, StrategyRegistryEntry, StrategyStateTransition
+from app.models.schemas import (
+    BacktestDetailView,
+    BacktestListView,
+    BacktestRunRequest,
+    CalibrationBucketView,
+    CalibrationSnapshotView,
+    DataRealismPenaltyView,
+    ForwardValidationRecordView,
+    ForwardValidationSummaryView,
+    PromotionRationaleView,
+    PromotionTransitionView,
+    StrategyDetailView,
+    StrategyLifecycleUpdateRequest,
+    StrategyListView,
+)
 from app.strategy_lab.backtestingpy_runner import run_backtesting_validation
 from app.strategy_lab.optuna_search import optimize_with_optuna
 from app.strategy_lab.persistence import persist_backtest_duckdb, sync_strategy_registry_duckdb
@@ -24,6 +41,8 @@ from app.strategy_lab.walk_forward import generate_walk_forward_windows
 
 
 settings = get_settings()
+FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
+LIFECYCLE_STATES = {"experimental", "paper_validating", "promoted", "demoted"}
 
 
 def _clean_number(value: Any) -> float:
@@ -44,6 +63,76 @@ def _clean_json(value: Any) -> Any:
     return value
 
 
+def _parse_iso(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC).replace(tzinfo=None)
+
+
+def _bucket_label(metric: float) -> str:
+    if metric >= 60:
+        return "top"
+    if metric >= 40:
+        return "middle"
+    return "low"
+
+
+def _confidence_bucket(metric: float) -> str:
+    if metric >= 0.75:
+        return "top"
+    if metric >= 0.55:
+        return "middle"
+    return "low"
+
+
+def _forward_validation_view(row: ForwardValidationRecord) -> ForwardValidationRecordView:
+    return ForwardValidationRecordView(
+        validation_id=row.validation_id,
+        strategy_name=row.strategy_name,
+        mode=row.mode,
+        signal_id=row.signal_id,
+        risk_report_id=row.risk_report_id,
+        trade_id=row.trade_id,
+        opened_at=row.opened_at,
+        closed_at=row.closed_at,
+        entry_price=row.entry_price,
+        exit_price=row.exit_price,
+        pnl_pct=row.pnl_pct,
+        drawdown_pct=row.drawdown_pct,
+        target_attained=row.target_attained,
+        invalidated=row.invalidated,
+        time_stopped=row.time_stopped,
+        data_quality=row.data_quality,
+        notes=row.notes,
+    )
+
+
+def _transition_view(row: StrategyStateTransition) -> PromotionTransitionView:
+    return PromotionTransitionView(
+        strategy_name=row.strategy_name,
+        from_state=row.from_state,
+        to_state=row.to_state,
+        changed_at=row.changed_at,
+        note=row.note,
+    )
+
+
+def _walk_forward_quality(result: BacktestResult | None) -> float:
+    if result is None:
+        return 0.0
+    validation_walk_forward = result.validation_json.get("walk_forward", {})
+    if isinstance(validation_walk_forward, dict):
+        if validation_walk_forward.get("positive_window_ratio") is not None:
+            return _clean_number(validation_walk_forward.get("positive_window_ratio"))
+        if validation_walk_forward.get("pass_rate") is not None:
+            return _clean_number(validation_walk_forward.get("pass_rate"))
+    summary_walk_forward = result.summary_json.get("walk_forward", {})
+    if isinstance(summary_walk_forward, dict):
+        if summary_walk_forward.get("positive_window_ratio") is not None:
+            return _clean_number(summary_walk_forward.get("positive_window_ratio"))
+        if summary_walk_forward.get("pass_rate") is not None:
+            return _clean_number(summary_walk_forward.get("pass_rate"))
+    return 0.0
+
+
 def _objective(metrics: dict[str, Any]) -> float:
     return (
         _clean_number(metrics.get("net_return_pct", 0.0))
@@ -51,6 +140,284 @@ def _objective(metrics: dict[str, Any]) -> float:
         + min(_clean_number(metrics.get("trade_count", 0.0)), 12) * 0.35
         + _clean_number(metrics.get("sharpe_ratio", 0.0)) * 2.5
     )
+
+
+def _seed_lifecycle_transitions(session: Session) -> None:
+    if session.exec(select(StrategyStateTransition)).first() is not None:
+        return
+    for entry in session.exec(select(StrategyRegistryEntry)).all():
+        session.add(
+            StrategyStateTransition(
+                strategy_name=entry.name,
+                from_state="experimental",
+                to_state=entry.lifecycle_state,
+                changed_at=entry.lifecycle_updated_at,
+                note=entry.lifecycle_note or "Initial seeded lifecycle state.",
+            )
+        )
+    session.commit()
+
+
+def _seed_forward_validation_records(session: Session) -> None:
+    if session.exec(select(ForwardValidationRecord)).first() is not None:
+        return
+    payload = json.loads((FIXTURES_DIR / "forward_validation_samples.json").read_text(encoding="utf-8"))
+    for item in payload:
+        session.add(
+            ForwardValidationRecord(
+                validation_id=str(item["validation_id"]),
+                strategy_name=str(item["strategy_name"]),
+                mode=str(item["mode"]),
+                signal_id=item.get("signal_id"),
+                risk_report_id=item.get("risk_report_id"),
+                trade_id=item.get("trade_id"),
+                opened_at=_parse_iso(str(item["opened_at"])),
+                closed_at=_parse_iso(str(item["closed_at"])) if item.get("closed_at") else None,
+                entry_price=float(item.get("entry_price", 0.0)),
+                exit_price=float(item.get("exit_price", 0.0)),
+                pnl_pct=float(item.get("pnl_pct", 0.0)),
+                drawdown_pct=float(item.get("drawdown_pct", 0.0)),
+                target_attained=bool(item.get("target_attained", False)),
+                invalidated=bool(item.get("invalidated", False)),
+                time_stopped=bool(item.get("time_stopped", False)),
+                data_quality=str(item.get("data_quality", "fixture")),
+                notes=str(item.get("notes", "")),
+            )
+        )
+    session.commit()
+
+
+def _aggregate_forward_validation(session: Session, strategy_name: str) -> ForwardValidationSummaryView:
+    rows = session.exec(
+        select(ForwardValidationRecord)
+        .where(ForwardValidationRecord.strategy_name == strategy_name)
+        .order_by(desc(ForwardValidationRecord.opened_at))
+    ).all()
+    sample_size = len(rows)
+    if sample_size == 0:
+        return ForwardValidationSummaryView(
+            sample_size=0,
+            hit_rate=0.0,
+            expectancy_proxy=0.0,
+            drawdown=0.0,
+            target_attainment=0.0,
+            invalidation_rate=0.0,
+            time_stop_frequency=0.0,
+            modes={},
+        )
+    hits = sum(1 for row in rows if row.pnl_pct > 0)
+    modes: dict[str, int] = {}
+    for row in rows:
+        modes[row.mode] = modes.get(row.mode, 0) + 1
+    return ForwardValidationSummaryView(
+        sample_size=sample_size,
+        hit_rate=round(hits / sample_size, 2),
+        expectancy_proxy=round(sum(row.pnl_pct for row in rows) / sample_size, 2),
+        drawdown=round(min((row.drawdown_pct for row in rows), default=0.0), 2),
+        target_attainment=round(sum(1 for row in rows if row.target_attained) / sample_size, 2),
+        invalidation_rate=round(sum(1 for row in rows if row.invalidated) / sample_size, 2),
+        time_stop_frequency=round(sum(1 for row in rows if row.time_stopped) / sample_size, 2),
+        modes=modes,
+    )
+
+
+def _recompute_calibration_snapshots(session: Session) -> None:
+    session.execute(delete(CalibrationSnapshot))
+    signal_rows = session.exec(select(SignalRecord).order_by(desc(SignalRecord.timestamp))).all()
+    signals = {row.signal_id: row for row in signal_rows}
+    latest_signal_by_symbol: dict[str, SignalRecord] = {}
+    for row in signal_rows:
+        latest_signal_by_symbol.setdefault(row.symbol, row)
+    for entry in session.exec(select(StrategyRegistryEntry)).all():
+        records = session.exec(select(ForwardValidationRecord).where(ForwardValidationRecord.strategy_name == entry.name)).all()
+        for bucket_kind in ("score", "confidence"):
+            grouped: dict[str, list[dict[str, float]]] = {"top": [], "middle": [], "low": []}
+            for record in records:
+                signal = signals.get(record.signal_id or "")
+                if signal is None:
+                    signal = latest_signal_by_symbol.get(entry.underlying_symbol) or latest_signal_by_symbol.get(entry.tradable_symbol)
+                if signal is None:
+                    continue
+                score_value = float(signal.score)
+                confidence_value = round(max(0.05, min(0.95, 1.0 - float(signal.uncertainty))), 2)
+                label = _bucket_label(score_value) if bucket_kind == "score" else _confidence_bucket(confidence_value)
+                grouped[label].append(
+                    {
+                        "score": score_value,
+                        "confidence": confidence_value,
+                        "pnl_pct": float(record.pnl_pct),
+                        "target_attained": 1.0 if record.target_attained else 0.0,
+                        "invalidated": 1.0 if record.invalidated else 0.0,
+                    }
+                )
+            buckets: list[dict[str, Any]] = []
+            for label in ("top", "middle", "low"):
+                rows = grouped[label]
+                sample_size = len(rows)
+                buckets.append(
+                    {
+                        "bucket": label,
+                        "sample_size": sample_size,
+                        "avg_score": round(sum(item["score"] for item in rows) / sample_size, 2) if sample_size else 0.0,
+                        "avg_confidence": round(sum(item["confidence"] for item in rows) / sample_size, 2) if sample_size else 0.0,
+                        "hit_rate": round(sum(1 for item in rows if item["pnl_pct"] > 0) / sample_size, 2) if sample_size else 0.0,
+                        "expectancy_proxy": round(sum(item["pnl_pct"] for item in rows) / sample_size, 2) if sample_size else 0.0,
+                        "invalidation_rate": round(sum(item["invalidated"] for item in rows) / sample_size, 2) if sample_size else 0.0,
+                        "target_attainment": round(sum(item["target_attained"] for item in rows) / sample_size, 2) if sample_size else 0.0,
+                    }
+                )
+            session.add(
+                CalibrationSnapshot(
+                    strategy_name=entry.name,
+                    created_at=naive_utc_now(),
+                    bucket_kind=bucket_kind,
+                    summary_json={
+                        "buckets": buckets,
+                        "notes": "Calibration compares buckets only. It is not a probability-of-profit claim.",
+                    },
+                )
+            )
+    session.commit()
+
+
+def _calibration_snapshots(session: Session, strategy_name: str) -> list[CalibrationSnapshotView]:
+    rows = session.exec(
+        select(CalibrationSnapshot)
+        .where(CalibrationSnapshot.strategy_name == strategy_name)
+        .order_by(CalibrationSnapshot.created_at.desc(), CalibrationSnapshot.bucket_kind.asc())
+    ).all()
+    payload: list[CalibrationSnapshotView] = []
+    for row in rows:
+        payload.append(
+            CalibrationSnapshotView(
+                strategy_name=row.strategy_name,
+                created_at=row.created_at,
+                bucket_kind=row.bucket_kind,
+                buckets=[CalibrationBucketView(**item) for item in row.summary_json.get("buckets", [])],
+                notes=str(row.summary_json.get("notes", "")),
+            )
+        )
+    return payload
+
+
+def _data_realism_penalties(session: Session, entry: StrategyRegistryEntry) -> list[DataRealismPenaltyView]:
+    penalties: list[DataRealismPenaltyView] = []
+    latest_run = session.exec(select(PipelineRun).order_by(desc(PipelineRun.started_at))).first()
+    latest_signal = session.exec(
+        select(SignalRecord)
+        .where(SignalRecord.symbol == entry.underlying_symbol)
+        .order_by(desc(SignalRecord.timestamp))
+    ).first()
+    if latest_run and latest_run.source_mode == "sample":
+        penalties.append(
+            DataRealismPenaltyView(
+                code="fixture_only",
+                severity="warning",
+                summary="Current validation depends on fixture-first market data.",
+                score_penalty=14.0,
+            )
+        )
+    if latest_run and latest_run.completed_at is not None:
+        age_minutes = max(0, int((naive_utc_now() - latest_run.completed_at).total_seconds() // 60))
+        if age_minutes > 240:
+            penalties.append(
+                DataRealismPenaltyView(
+                    code="stale_data",
+                    severity="critical",
+                    summary=f"Latest pipeline refresh is {age_minutes} minutes old.",
+                    score_penalty=18.0,
+                )
+            )
+    if entry.proxy_grade:
+        penalties.append(
+            DataRealismPenaltyView(
+                code="proxy_grade",
+                severity="warning",
+                summary="Tradable symbol is a proxy mapping rather than a direct underlying market.",
+                score_penalty=12.0,
+            )
+        )
+    if entry.underlying_symbol in {"WTI", "GOLD", "SILVER"}:
+        penalties.append(
+            DataRealismPenaltyView(
+                code="weak_oil_metals_realism",
+                severity="warning",
+                summary="Oil or metals context is sample-backed and weaker than venue-grade feeds.",
+                score_penalty=9.0,
+            )
+        )
+    if latest_signal is None or len(latest_signal.features_json.get("cross_asset_positive", [])) == 0:
+        penalties.append(
+            DataRealismPenaltyView(
+                code="missing_cross_asset_confirmation",
+                severity="info",
+                summary="Cross-asset confirmation is weak or missing in the latest context.",
+                score_penalty=6.0,
+            )
+        )
+    return penalties
+
+
+def _promotion_rationale(
+    session: Session,
+    entry: StrategyRegistryEntry,
+    robustness_score: float,
+    walk_forward_quality: float,
+) -> PromotionRationaleView:
+    forward_summary = _aggregate_forward_validation(session, entry.name)
+    penalties = _data_realism_penalties(session, entry)
+    total_penalty = sum(item.score_penalty for item in penalties)
+    gate_results = {
+        "robustness_score": robustness_score >= 65,
+        "walk_forward_quality": walk_forward_quality >= 0.55,
+        "forward_results": forward_summary.expectancy_proxy > 0 and forward_summary.hit_rate >= 0.5,
+        "minimum_sample_size": forward_summary.sample_size >= 3,
+        "data_quality": not any(item.severity == "critical" for item in penalties),
+        "proxy_grade_penalty": not entry.proxy_grade or total_penalty <= 24,
+    }
+    recommended_state = "experimental"
+    if all(gate_results.values()):
+        recommended_state = "promoted"
+    elif gate_results["robustness_score"] and gate_results["walk_forward_quality"]:
+        recommended_state = "paper_validating"
+    if entry.lifecycle_state == "demoted" and recommended_state == "experimental":
+        recommended_state = "demoted"
+    if entry.lifecycle_state == "promoted" and (not gate_results["forward_results"] or forward_summary.expectancy_proxy < 0):
+        recommended_state = "demoted"
+    notes = [
+        "Calibration buckets compare cohorts only. They are not probability-of-profit estimates.",
+        f"Total realism penalty: {total_penalty:.1f}",
+    ]
+    return PromotionRationaleView(
+        state=entry.lifecycle_state,
+        recommended_state=recommended_state,
+        gate_results=gate_results,
+        notes=notes,
+        penalties=penalties,
+    )
+
+
+def _apply_lifecycle_transition(session: Session, entry: StrategyRegistryEntry, to_state: str, note: str) -> StrategyRegistryEntry:
+    if to_state not in LIFECYCLE_STATES:
+        raise ValueError(f"Unsupported lifecycle state '{to_state}'.")
+    if entry.lifecycle_state == to_state and (entry.lifecycle_note or "") == note:
+        return entry
+    transition = StrategyStateTransition(
+        strategy_name=entry.name,
+        from_state=entry.lifecycle_state,
+        to_state=to_state,
+        changed_at=naive_utc_now(),
+        note=note,
+    )
+    entry.lifecycle_state = to_state
+    entry.promoted = to_state == "promoted"
+    entry.lifecycle_note = note
+    entry.lifecycle_updated_at = transition.changed_at
+    session.add(transition)
+    session.add(entry)
+    session.commit()
+    session.refresh(entry)
+    return entry
 
 
 def _market_rows(session: Session, symbol: str) -> list[dict[str, Any]]:
@@ -245,8 +612,8 @@ def _regime_summary(signal_frame: Any, trades: list[dict[str, Any]]) -> list[dic
             {
                 "regime": regime,
                 "return_pct": round(sum(pnls), 2),
-            "trade_count": len(pnls),
-            "win_rate": round(wins / len(pnls), 2) if pnls else 0.0,
+                "trade_count": len(pnls),
+                "win_rate": round(wins / len(pnls), 2) if pnls else 0.0,
             }
         )
     return summaries
@@ -254,6 +621,9 @@ def _regime_summary(signal_frame: Any, trades: list[dict[str, Any]]) -> list[dic
 
 def seed_strategy_lab(session: Session) -> None:
     seed_registry(session)
+    _seed_lifecycle_transitions(session)
+    _seed_forward_validation_records(session)
+    _recompute_calibration_snapshots(session)
     sync_strategy_registry_duckdb(session.exec(select(StrategyRegistryEntry)).all())
     if session.exec(select(BacktestResult)).first() is not None:
         return
@@ -301,6 +671,19 @@ def seed_strategy_lab(session: Session) -> None:
         )
         session.add(result)
     session.commit()
+    for entry in session.exec(select(StrategyRegistryEntry)).all():
+        latest_backtest = session.exec(
+            select(BacktestResult)
+            .where(BacktestResult.strategy_name == entry.name)
+            .order_by(desc(BacktestResult.created_at))
+        ).first()
+        rationale = _promotion_rationale(
+            session,
+            entry,
+            robustness_score=float(latest_backtest.robustness_score) if latest_backtest else 0.0,
+            walk_forward_quality=_walk_forward_quality(latest_backtest),
+        )
+        _apply_lifecycle_transition(session, entry, rationale.recommended_state, "; ".join(rationale.notes))
     for result in session.exec(select(BacktestResult)).all():
         persist_backtest_duckdb(result)
 
@@ -315,6 +698,61 @@ def get_strategy(session: Session, strategy_name: str) -> StrategyRegistryEntry:
     return get_registry_entry(session, strategy_name)
 
 
+def strategy_list_view(session: Session, row: StrategyRegistryEntry) -> StrategyListView:
+    return StrategyListView(
+        name=row.name,
+        version=row.version,
+        template=row.template,
+        description=row.description,
+        underlying_symbol=row.underlying_symbol,
+        tradable_symbol=row.tradable_symbol,
+        timeframe=row.timeframe,
+        warmup_bars=row.warmup_bars,
+        fees_bps=row.fees_bps,
+        slippage_bps=row.slippage_bps,
+        proxy_grade=row.proxy_grade,
+        promoted=row.promoted,
+        lifecycle_state=row.lifecycle_state,
+        lifecycle_updated_at=row.lifecycle_updated_at or naive_utc_now(),
+        lifecycle_note=row.lifecycle_note or "",
+        tags=row.tags_json,
+        validation=row.validation_json,
+    )
+
+
+def strategy_detail_view(session: Session, row: StrategyRegistryEntry) -> StrategyDetailView:
+    backtests = session.exec(
+        select(BacktestResult)
+        .where(BacktestResult.strategy_name == row.name)
+        .order_by(desc(BacktestResult.created_at))
+    ).all()
+    latest_backtest = backtests[0] if backtests else None
+    robustness = float(latest_backtest.robustness_score) if latest_backtest else 0.0
+    walk_forward_quality = _walk_forward_quality(latest_backtest)
+    rationale = _promotion_rationale(session, row, robustness_score=robustness, walk_forward_quality=walk_forward_quality)
+    transitions = session.exec(
+        select(StrategyStateTransition)
+        .where(StrategyStateTransition.strategy_name == row.name)
+        .order_by(desc(StrategyStateTransition.changed_at))
+    ).all()
+    forward_records = session.exec(
+        select(ForwardValidationRecord)
+        .where(ForwardValidationRecord.strategy_name == row.name)
+        .order_by(desc(ForwardValidationRecord.opened_at))
+    ).all()
+    return StrategyDetailView(
+        **strategy_list_view(session, row).model_dump(),
+        search_space=row.search_space_json,
+        spec=row.spec_json,
+        promotion_rationale=rationale,
+        calibration_summary=_calibration_snapshots(session, row.name),
+        forward_validation_summary=_aggregate_forward_validation(session, row.name),
+        forward_validation_records=[_forward_validation_view(item) for item in forward_records],
+        data_realism_penalties=rationale.penalties,
+        transition_history=[_transition_view(item) for item in transitions],
+    )
+
+
 def list_backtests(session: Session) -> list[BacktestResult]:
     seed_strategy_lab(session)
     return session.exec(select(BacktestResult).order_by(BacktestResult.created_at.desc())).all()
@@ -323,6 +761,64 @@ def list_backtests(session: Session) -> list[BacktestResult]:
 def get_backtest(session: Session, run_id: int) -> BacktestResult | None:
     seed_strategy_lab(session)
     return session.exec(select(BacktestResult).where(BacktestResult.id == run_id)).first()
+
+
+def backtest_list_view(session: Session, row: BacktestResult) -> BacktestListView:
+    entry = get_registry_entry(session, row.strategy_name)
+    penalties = _data_realism_penalties(session, entry)
+    return BacktestListView(
+        id=row.id or 0,
+        strategy_name=row.strategy_name,
+        engine=row.engine,
+        status=row.status,
+        symbol=row.symbol,
+        timeframe=row.timeframe,
+        created_at=row.created_at,
+        proxy_grade=row.proxy_grade,
+        promoted_candidate=row.promoted_candidate,
+        search_method=row.search_method,
+        robustness_score=row.robustness_score,
+        net_return_pct=row.net_return_pct,
+        sharpe_ratio=row.sharpe_ratio,
+        max_drawdown_pct=row.max_drawdown_pct,
+        trade_count=row.trade_count,
+        lifecycle_state=entry.lifecycle_state,
+        data_realism_penalties=penalties,
+    )
+
+
+def backtest_detail_view(session: Session, row: BacktestResult) -> BacktestDetailView:
+    entry = get_registry_entry(session, row.strategy_name)
+    rationale = _promotion_rationale(
+        session,
+        entry,
+        robustness_score=row.robustness_score,
+        walk_forward_quality=_walk_forward_quality(row),
+    )
+    return BacktestDetailView(
+        **backtest_list_view(session, row).model_dump(),
+        completed_at=row.completed_at,
+        fees_bps=row.fees_bps,
+        slippage_bps=row.slippage_bps,
+        warmup_bars=row.warmup_bars,
+        validation=row.validation_json,
+        summary=row.summary_json,
+        equity_curve=row.equity_curve_json,
+        trades=row.trades_json,
+        stability_heatmap=row.stability_heatmap_json,
+        regime_summary=row.regime_summary_json,
+        metadata=row.metadata_json,
+        promotion_rationale=rationale,
+        forward_validation_summary=_aggregate_forward_validation(session, row.strategy_name),
+        calibration_summary=_calibration_snapshots(session, row.strategy_name),
+    )
+
+
+def transition_strategy_lifecycle(session: Session, strategy_name: str, request: StrategyLifecycleUpdateRequest) -> StrategyRegistryEntry:
+    entry = get_strategy(session, strategy_name)
+    updated = _apply_lifecycle_transition(session, entry, request.to_state, request.note)
+    sync_strategy_registry_duckdb(session.exec(select(StrategyRegistryEntry)).all())
+    return updated
 
 
 def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResult:
@@ -354,7 +850,7 @@ def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResul
     if request.promote_candidate and spec.validation.promote_requires_walk_forward and walk_forward["window_count"] == 0:
         raise ValueError("Walk-forward validation is required before promoting a strategy.")
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = naive_utc_now()
     run = BacktestRun(
         name=f"{spec.name}_{symbol}_{now:%Y%m%d%H%M%S}",
         engine="strategy_lab",
@@ -414,10 +910,43 @@ def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResul
     )
     session.add(result)
     registry_entry = get_registry_entry(session, spec.name)
-    registry_entry.promoted = promoted
-    session.add(registry_entry)
     session.commit()
     session.refresh(result)
+    trade_samples = evaluation["validation"]["trades"][:4]
+    for index, trade in enumerate(trade_samples):
+        session.add(
+            ForwardValidationRecord(
+                validation_id=f"{spec.name}_{result.id}_{index}",
+                strategy_name=spec.name,
+                mode="paper_trade",
+                signal_id=None,
+                risk_report_id=None,
+                trade_id=None,
+                opened_at=_parse_iso(str(trade["entry_time"])) if isinstance(trade["entry_time"], str) else trade["entry_time"],
+                closed_at=_parse_iso(str(trade["exit_time"])) if isinstance(trade["exit_time"], str) else trade["exit_time"],
+                entry_price=float(trade["entry_price"]),
+                exit_price=float(trade["exit_price"]),
+                pnl_pct=float(trade["pnl_pct"]),
+                drawdown_pct=float(min(0.0, trade["pnl_pct"])),
+                target_attained=float(trade["pnl_pct"]) > 1.5,
+                invalidated=float(trade["pnl_pct"]) < -1.0,
+                time_stopped=abs(float(trade["pnl_pct"])) < 0.4,
+                data_quality="paper",
+                notes="Persisted from validation runner.",
+            )
+        )
+    session.commit()
+    _recompute_calibration_snapshots(session)
+    rationale = _promotion_rationale(
+        session,
+        registry_entry,
+        robustness_score=robustness,
+        walk_forward_quality=float(walk_forward["positive_window_ratio"]),
+    )
+    next_state = rationale.recommended_state
+    if promoted and next_state == "paper_validating":
+        next_state = "paper_validating"
+    _apply_lifecycle_transition(session, registry_entry, next_state, "; ".join(rationale.notes))
     sync_strategy_registry_duckdb(session.exec(select(StrategyRegistryEntry)).all())
     persist_backtest_duckdb(result)
     return result

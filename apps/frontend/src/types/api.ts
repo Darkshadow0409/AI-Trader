@@ -163,13 +163,95 @@ export interface StrategyListView {
   slippage_bps: number;
   proxy_grade: boolean;
   promoted: boolean;
+  lifecycle_state: string;
+  lifecycle_updated_at: string;
+  lifecycle_note: string;
   tags: string[];
   validation: Record<string, unknown>;
+}
+
+export interface DataRealismPenaltyView {
+  code: string;
+  severity: string;
+  summary: string;
+  score_penalty: number;
+}
+
+export interface ForwardValidationSummaryView {
+  sample_size: number;
+  hit_rate: number;
+  expectancy_proxy: number;
+  drawdown: number;
+  target_attainment: number;
+  invalidation_rate: number;
+  time_stop_frequency: number;
+  modes: Record<string, number>;
+}
+
+export interface ForwardValidationRecordView {
+  validation_id: string;
+  strategy_name: string;
+  mode: string;
+  signal_id: string | null;
+  risk_report_id: string | null;
+  trade_id: string | null;
+  opened_at: string;
+  closed_at: string | null;
+  entry_price: number;
+  exit_price: number;
+  pnl_pct: number;
+  drawdown_pct: number;
+  target_attained: boolean;
+  invalidated: boolean;
+  time_stopped: boolean;
+  data_quality: string;
+  notes: string;
+}
+
+export interface CalibrationBucketView {
+  bucket: string;
+  sample_size: number;
+  avg_score: number;
+  avg_confidence: number;
+  hit_rate: number;
+  expectancy_proxy: number;
+  invalidation_rate: number;
+  target_attainment: number;
+}
+
+export interface CalibrationSnapshotView {
+  strategy_name: string;
+  created_at: string;
+  bucket_kind: string;
+  buckets: CalibrationBucketView[];
+  notes: string;
+}
+
+export interface PromotionTransitionView {
+  strategy_name: string;
+  from_state: string;
+  to_state: string;
+  changed_at: string;
+  note: string;
+}
+
+export interface PromotionRationaleView {
+  state: string;
+  recommended_state: string;
+  gate_results: Record<string, boolean>;
+  notes: string[];
+  penalties: DataRealismPenaltyView[];
 }
 
 export interface StrategyDetailView extends StrategyListView {
   search_space: Record<string, unknown>;
   spec: Record<string, unknown>;
+  promotion_rationale: PromotionRationaleView;
+  calibration_summary: CalibrationSnapshotView[];
+  forward_validation_summary: ForwardValidationSummaryView;
+  forward_validation_records: ForwardValidationRecordView[];
+  data_realism_penalties: DataRealismPenaltyView[];
+  transition_history: PromotionTransitionView[];
 }
 
 export interface EquityCurvePoint {
@@ -217,6 +299,8 @@ export interface BacktestListView {
   sharpe_ratio: number;
   max_drawdown_pct: number;
   trade_count: number;
+  lifecycle_state: string;
+  data_realism_penalties: DataRealismPenaltyView[];
 }
 
 export interface BacktestDetailView extends BacktestListView {
@@ -231,6 +315,9 @@ export interface BacktestDetailView extends BacktestListView {
   stability_heatmap: HeatmapView[];
   regime_summary: RegimeSummaryView[];
   metadata: Record<string, unknown>;
+  promotion_rationale: PromotionRationaleView | null;
+  forward_validation_summary: ForwardValidationSummaryView | null;
+  calibration_summary: CalibrationSnapshotView[];
 }
 
 export interface BacktestRunRequest {

@@ -322,13 +322,100 @@ class StrategyListView(BaseModel):
     slippage_bps: float
     proxy_grade: bool
     promoted: bool
+    lifecycle_state: str
+    lifecycle_updated_at: datetime
+    lifecycle_note: str
     tags: list[str]
     validation: dict[str, Any]
+
+
+class DataRealismPenaltyView(BaseModel):
+    code: str
+    severity: str
+    summary: str
+    score_penalty: float
+
+
+class ForwardValidationSummaryView(BaseModel):
+    sample_size: int
+    hit_rate: float
+    expectancy_proxy: float
+    drawdown: float
+    target_attainment: float
+    invalidation_rate: float
+    time_stop_frequency: float
+    modes: dict[str, int]
+
+
+class ForwardValidationRecordView(BaseModel):
+    validation_id: str
+    strategy_name: str
+    mode: str
+    signal_id: str | None
+    risk_report_id: str | None
+    trade_id: str | None
+    opened_at: datetime
+    closed_at: datetime | None
+    entry_price: float
+    exit_price: float
+    pnl_pct: float
+    drawdown_pct: float
+    target_attained: bool
+    invalidated: bool
+    time_stopped: bool
+    data_quality: str
+    notes: str
+
+
+class CalibrationBucketView(BaseModel):
+    bucket: str
+    sample_size: int
+    avg_score: float
+    avg_confidence: float
+    hit_rate: float
+    expectancy_proxy: float
+    invalidation_rate: float
+    target_attainment: float
+
+
+class CalibrationSnapshotView(BaseModel):
+    strategy_name: str
+    created_at: datetime
+    bucket_kind: str
+    buckets: list[CalibrationBucketView]
+    notes: str
+
+
+class PromotionTransitionView(BaseModel):
+    strategy_name: str
+    from_state: str
+    to_state: str
+    changed_at: datetime
+    note: str
+
+
+class PromotionRationaleView(BaseModel):
+    state: str
+    recommended_state: str
+    gate_results: dict[str, bool]
+    notes: list[str]
+    penalties: list[DataRealismPenaltyView]
 
 
 class StrategyDetailView(StrategyListView):
     search_space: dict[str, Any]
     spec: dict[str, Any]
+    promotion_rationale: PromotionRationaleView
+    calibration_summary: list[CalibrationSnapshotView]
+    forward_validation_summary: ForwardValidationSummaryView
+    forward_validation_records: list[ForwardValidationRecordView]
+    data_realism_penalties: list[DataRealismPenaltyView]
+    transition_history: list[PromotionTransitionView]
+
+
+class StrategyLifecycleUpdateRequest(BaseModel):
+    to_state: str
+    note: str = ""
 
 
 class BacktestRunRequest(BaseModel):
@@ -356,6 +443,8 @@ class BacktestListView(BaseModel):
     sharpe_ratio: float
     max_drawdown_pct: float
     trade_count: int
+    lifecycle_state: str = "experimental"
+    data_realism_penalties: list[DataRealismPenaltyView] = Field(default_factory=list)
 
 
 class BacktestDetailView(BacktestListView):
@@ -370,3 +459,6 @@ class BacktestDetailView(BacktestListView):
     stability_heatmap: list[dict[str, Any]]
     regime_summary: list[dict[str, Any]]
     metadata: dict[str, Any]
+    promotion_rationale: PromotionRationaleView | None = None
+    forward_validation_summary: ForwardValidationSummaryView | None = None
+    calibration_summary: list[CalibrationSnapshotView] = Field(default_factory=list)

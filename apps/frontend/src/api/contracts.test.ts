@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { mockAlerts, mockNews, mockOpportunities, mockRibbon, mockRisk, mockSignalDetail, mockSignals } from "./mockData";
-import type { AlertEnvelope, NewsView, OpportunityHunterView, RibbonView, RiskView, SignalDetailView, SignalView } from "../types/api";
+import { mockAlerts, mockBacktestDetail, mockNews, mockOpportunities, mockRibbon, mockRisk, mockSignalDetail, mockSignals, mockStrategyDetail } from "./mockData";
+import type {
+  AlertEnvelope,
+  BacktestDetailView,
+  NewsView,
+  OpportunityHunterView,
+  RibbonView,
+  RiskView,
+  SignalDetailView,
+  SignalView,
+  StrategyDetailView,
+} from "../types/api";
 
 describe("frontend contract alignment", () => {
   it("keeps representative mock payloads aligned with backend field names", () => {
@@ -11,6 +21,8 @@ describe("frontend contract alignment", () => {
     const signalDetail: SignalDetailView = mockSignalDetail;
     const opportunities: OpportunityHunterView = mockOpportunities;
     const alert: AlertEnvelope = mockAlerts[0];
+    const strategyDetail: StrategyDetailView = mockStrategyDetail;
+    const backtestDetail: BacktestDetailView = mockBacktestDetail;
 
     expect(signal).toMatchObject({
       signal_id: expect.stringMatching(/^sig_/),
@@ -63,6 +75,22 @@ describe("frontend contract alignment", () => {
       dedupe_key: expect.any(String),
       tags: expect.any(Array),
       status: expect.any(String),
+    });
+    expect(strategyDetail).toMatchObject({
+      lifecycle_state: expect.any(String),
+      lifecycle_updated_at: expect.any(String),
+      promotion_rationale: expect.any(Object),
+      calibration_summary: expect.any(Array),
+      forward_validation_summary: expect.any(Object),
+      data_realism_penalties: expect.any(Array),
+      transition_history: expect.any(Array),
+    });
+    expect(backtestDetail).toMatchObject({
+      lifecycle_state: expect.any(String),
+      data_realism_penalties: expect.any(Array),
+      promotion_rationale: expect.any(Object),
+      forward_validation_summary: expect.any(Object),
+      calibration_summary: expect.any(Array),
     });
   });
 });

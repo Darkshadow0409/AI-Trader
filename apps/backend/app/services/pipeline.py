@@ -36,7 +36,7 @@ from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
 from app.services.sample_data import generate_sample_ohlcv, seed_watchlist
 from app.services.signal_pipeline import generate_signals
-from app.strategy_lab.service import seed_strategy_lab
+from app.strategy_lab.service import _recompute_calibration_snapshots, seed_strategy_lab
 
 
 settings = get_settings()
@@ -307,6 +307,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         signals = generate_signals(latest_tradeables, correlations, next_event_payload)
         risk_reports = generate_risk_reports(signals)
         _persist_signals_and_risk(session, run, signals, risk_reports)
+        _recompute_calibration_snapshots(session)
         sync_trade_links(session)
         refresh_alerts(session)
 

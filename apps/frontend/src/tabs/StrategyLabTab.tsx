@@ -24,6 +24,10 @@ function formatPct(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
+function formatRatio(value: number): string {
+  return `${(value * 100).toFixed(0)}%`;
+}
+
 function titleize(value: string): string {
   return value.replace(/_/g, " ");
 }
@@ -168,6 +172,7 @@ export function StrategyLabTab() {
                 <p>{strategy.description}</p>
                 <div className="metric-row">
                   <span>{strategy.underlying_symbol}</span>
+                  <span>{titleize(strategy.lifecycle_state)}</span>
                   <span>{strategy.proxy_grade ? "Proxy-grade" : "Tradable"}</span>
                   <span>{strategy.promoted ? "Promoted" : "Research"}</span>
                 </div>
@@ -256,6 +261,14 @@ export function StrategyLabTab() {
                 {strategyDetail.fees_bps} / {strategyDetail.slippage_bps} bps
               </strong>
             </div>
+            <div>
+              <span className="metric-label">Lifecycle</span>
+              <strong>{titleize(strategyDetail.lifecycle_state)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Forward sample</span>
+              <strong>{strategyDetail.forward_validation_summary.sample_size}</strong>
+            </div>
           </div>
           <div className="detail-columns">
             <div>
@@ -294,6 +307,185 @@ export function StrategyLabTab() {
         </article>
       ) : null}
 
+      {strategyDetail ? (
+        <article className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Promotion Discipline</p>
+              <h2>Strategy Promotion / Validation</h2>
+            </div>
+            <span>{titleize(strategyDetail.promotion_rationale.recommended_state)}</span>
+          </div>
+          <div className="metric-strip">
+            <div>
+              <span className="metric-label">Current state</span>
+              <strong>{titleize(strategyDetail.promotion_rationale.state)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Recommended</span>
+              <strong>{titleize(strategyDetail.promotion_rationale.recommended_state)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Hit rate</span>
+              <strong>{formatRatio(strategyDetail.forward_validation_summary.hit_rate)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Expectancy proxy</span>
+              <strong>{formatPct(strategyDetail.forward_validation_summary.expectancy_proxy)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Invalidation</span>
+              <strong>{formatRatio(strategyDetail.forward_validation_summary.invalidation_rate)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Time-stop</span>
+              <strong>{formatRatio(strategyDetail.forward_validation_summary.time_stop_frequency)}</strong>
+            </div>
+          </div>
+          <div className="detail-columns">
+            <div>
+              <h3>Promotion rationale</h3>
+              <table className="data-table">
+                <tbody>
+                  {Object.entries(strategyDetail.promotion_rationale.gate_results).map(([name, value]) => (
+                    <tr key={name}>
+                      <td>{titleize(name)}</td>
+                      <td>{value ? "pass" : "fail"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3>Forward validation summary</h3>
+              <table className="data-table">
+                <tbody>
+                  <tr>
+                    <td>Sample size</td>
+                    <td>{strategyDetail.forward_validation_summary.sample_size}</td>
+                  </tr>
+                  <tr>
+                    <td>Target attainment</td>
+                    <td>{formatRatio(strategyDetail.forward_validation_summary.target_attainment)}</td>
+                  </tr>
+                  <tr>
+                    <td>Drawdown</td>
+                    <td>{formatPct(strategyDetail.forward_validation_summary.drawdown)}</td>
+                  </tr>
+                  <tr>
+                    <td>Modes</td>
+                    <td>{JSON.stringify(strategyDetail.forward_validation_summary.modes)}</td>
+                  </tr>
+                  <tr>
+                    <td>Lifecycle note</td>
+                    <td>{strategyDetail.lifecycle_note || "n/a"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="detail-columns">
+            <div>
+              <h3>Data-realism penalties</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Severity</th>
+                    <th>Penalty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {strategyDetail.data_realism_penalties.map((penalty) => (
+                    <tr key={penalty.code}>
+                      <td>{titleize(penalty.code)}</td>
+                      <td>{penalty.severity}</td>
+                      <td>{penalty.score_penalty.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3>Lifecycle transitions</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>From</th>
+                    <th>To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {strategyDetail.transition_history.map((transition) => (
+                    <tr key={`${transition.changed_at}-${transition.to_state}`}>
+                      <td>{new Date(transition.changed_at).toLocaleString()}</td>
+                      <td>{titleize(transition.from_state)}</td>
+                      <td>{titleize(transition.to_state)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="detail-columns">
+            <div>
+              <h3>Calibration summary</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Bucket set</th>
+                    <th>Top hit rate</th>
+                    <th>Top expectancy</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {strategyDetail.calibration_summary.map((snapshot) => {
+                    const topBucket = snapshot.buckets.find((bucket) => bucket.bucket === "top");
+                    return (
+                      <tr key={`${snapshot.bucket_kind}-${snapshot.created_at}`}>
+                        <td>{titleize(snapshot.bucket_kind)}</td>
+                        <td>{formatRatio(topBucket?.hit_rate ?? 0)}</td>
+                        <td>{formatPct(topBucket?.expectancy_proxy ?? 0)}</td>
+                        <td>{snapshot.notes}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3>Forward validation records</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Opened</th>
+                    <th>Mode</th>
+                    <th>PnL</th>
+                    <th>Flags</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {strategyDetail.forward_validation_records.map((record) => (
+                    <tr key={record.validation_id}>
+                      <td>{new Date(record.opened_at).toLocaleDateString()}</td>
+                      <td>{titleize(record.mode)}</td>
+                      <td>{formatPct(record.pnl_pct)}</td>
+                      <td>
+                        {record.target_attained ? "target " : ""}
+                        {record.invalidated ? "invalidated " : ""}
+                        {record.time_stopped ? "time-stop" : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      ) : null}
+
       <div className="tab-grid strategy-grid">
         <article className="panel">
           <div className="panel-header">
@@ -318,6 +510,7 @@ export function StrategyLabTab() {
                 <div className="metric-row">
                   <span>{formatPct(run.net_return_pct)}</span>
                   <span>DD {formatPct(run.max_drawdown_pct)}</span>
+                  <span>{titleize(run.lifecycle_state)}</span>
                   <span>Robustness {run.robustness_score.toFixed(1)}</span>
                 </div>
               </button>
@@ -398,6 +591,10 @@ export function StrategyLabTab() {
                         <td>{JSON.stringify(bestParameters)}</td>
                       </tr>
                       <tr>
+                        <td>Lifecycle state</td>
+                        <td>{titleize(backtestDetail.lifecycle_state)}</td>
+                      </tr>
+                      <tr>
                         <td>Walk-forward windows</td>
                         <td>{asNumber(walkForward.window_count).toFixed(0)}</td>
                       </tr>
@@ -405,6 +602,46 @@ export function StrategyLabTab() {
                         <td>Positive window ratio</td>
                         <td>{asNumber(walkForward.positive_window_ratio).toFixed(2)}</td>
                       </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="detail-columns">
+                <div>
+                  <h3>Promotion rationale</h3>
+                  <table className="data-table">
+                    <tbody>
+                      <tr>
+                        <td>Recommended state</td>
+                        <td>{titleize(backtestDetail.promotion_rationale?.recommended_state ?? "experimental")}</td>
+                      </tr>
+                      <tr>
+                        <td>Forward sample</td>
+                        <td>{backtestDetail.forward_validation_summary?.sample_size ?? 0}</td>
+                      </tr>
+                      <tr>
+                        <td>Forward hit rate</td>
+                        <td>{formatRatio(backtestDetail.forward_validation_summary?.hit_rate ?? 0)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div>
+                  <h3>Penalty stack</h3>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Penalty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backtestDetail.data_realism_penalties.map((penalty) => (
+                        <tr key={penalty.code}>
+                          <td>{titleize(penalty.code)}</td>
+                          <td>{penalty.score_penalty.toFixed(1)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

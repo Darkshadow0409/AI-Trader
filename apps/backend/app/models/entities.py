@@ -189,10 +189,51 @@ class StrategyRegistryEntry(SQLModel, table=True):
     slippage_bps: float
     proxy_grade: bool = False
     promoted: bool = False
+    lifecycle_state: str = Field(default="experimental", index=True)
+    lifecycle_updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    lifecycle_note: str = ""
     tags_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     validation_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     search_space_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     spec_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class StrategyStateTransition(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    strategy_name: str = Field(index=True)
+    from_state: str
+    to_state: str = Field(index=True)
+    changed_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    note: str = ""
+
+
+class ForwardValidationRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    validation_id: str = Field(index=True, unique=True)
+    strategy_name: str = Field(index=True)
+    mode: str = Field(index=True)
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    trade_id: str | None = Field(default=None, index=True)
+    opened_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    closed_at: datetime | None = Field(default=None, index=True)
+    entry_price: float = 0.0
+    exit_price: float = 0.0
+    pnl_pct: float = 0.0
+    drawdown_pct: float = 0.0
+    target_attained: bool = False
+    invalidated: bool = False
+    time_stopped: bool = False
+    data_quality: str = "fixture"
+    notes: str = ""
+
+
+class CalibrationSnapshot(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    strategy_name: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    bucket_kind: str = Field(index=True)
+    summary_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class BacktestResult(SQLModel, table=True):

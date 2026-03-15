@@ -6,10 +6,9 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from sqlalchemy import delete
 from sqlmodel import Session, desc, select
 
-from app.alerting import InAppAlertSink
+from app.alerting import choose_channel_targets, dispatch_alert, stable_alert_id
 from app.core.clock import naive_utc_now
 from app.models.entities import AlertRecord, ActiveTradeRecord, JournalEntry, RiskReport, SignalRecord, WatchlistItem
 from app.models.schemas import (
@@ -109,19 +108,20 @@ def _alert_view(row: AlertRecord) -> AlertEnvelope:
     return AlertEnvelope(
         alert_id=row.alert_id,
         created_at=row.created_at,
-        category=row.category,
-        severity=row.severity,
-        title=row.title,
-        message=row.message,
-        symbol=row.symbol,
         signal_id=row.signal_id,
         risk_report_id=row.risk_report_id,
-        trade_id=row.trade_id,
-        freshness_minutes=row.freshness_minutes,
-        data_quality=row.data_quality,
+        asset_ids=row.asset_ids_json,
+        severity=row.severity,
+        category=row.category,
+        channel_targets=row.channel_targets_json,
+        title=row.title,
+        body=row.body,
         tags=row.tags_json,
+        dedupe_key=row.dedupe_key,
         status=row.status,
-        metadata=row.metadata_json,
+        delivery_metadata=row.delivery_metadata_json,
+        data_quality=row.data_quality,
+        suppressed_reason=row.suppressed_reason,
     )
 
 
@@ -334,6 +334,122 @@ def list_alerts(session: Session) -> list[AlertEnvelope]:
     return [_alert_view(row) for row in rows]
 
 
+def _compose_signal_alert(signal: SignalView) -> AlertEnvelope:
+    return AlertEnvelope(
+        alert_id=stable_alert_id("signal_ranked", signal.signal_id),
+        created_at=naive_utc_now(),
+        signal_id=signal.signal_id,
+        risk_report_id=None,
+        asset_ids=signal.affected_assets or [signal.symbol],
+        severity="info",
+        category="signal_ranked",
+        channel_targets=choose_channel_targets("info"),
+        title=f"{signal.symbol} ranked signal",
+        body=f"Score {signal.score:.1f}, confidence {signal.confidence:.2f}, noise {signal.noise_probability:.2f}. {signal.thesis}",
+        tags=[signal.signal_type, signal.direction, signal.symbol],
+        dedupe_key=f"signal_ranked:{signal.signal_id}",
+        data_quality=signal.data_quality,
+    )
+
+
+def _compose_high_risk_alert(signal: SignalView) -> AlertEnvelope:
+    return AlertEnvelope(
+        alert_id=stable_alert_id("high_risk_signal", signal.signal_id),
+        created_at=naive_utc_now(),
+        signal_id=signal.signal_id,
+        risk_report_id=None,
+        asset_ids=signal.affected_assets or [signal.symbol],
+        severity="warning",
+        category="high_risk_signal",
+        channel_targets=choose_channel_targets("warning"),
+        title=f"{signal.symbol} high-risk signal",
+        body=f"Noise probability {signal.noise_probability:.2f} with uncertainty {signal.uncertainty:.2f}. Invalidation {signal.invalidation:.2f}.",
+        tags=["high-risk", signal.signal_type, signal.symbol],
+        dedupe_key=f"high_risk_signal:{signal.signal_id}",
+        data_quality=signal.data_quality,
+    )
+
+
+def _compose_focus_promotion_alert(item: OpportunityView) -> AlertEnvelope:
+    return AlertEnvelope(
+        alert_id=stable_alert_id("focus_promotion", item.symbol, item.signal_id or item.symbol),
+        created_at=naive_utc_now(),
+        signal_id=item.signal_id,
+        risk_report_id=item.risk_report_id,
+        asset_ids=[item.symbol],
+        severity="info",
+        category="scout_to_focus_promotion",
+        channel_targets=choose_channel_targets("info"),
+        title=f"{item.symbol} promoted to focus",
+        body=f"Opportunity score {item.score:.1f}. Reasons: {', '.join(item.promotion_reasons)}. Risk notes: {' | '.join(item.risk_notes)}",
+        tags=["opportunity", item.queue, item.symbol],
+        dedupe_key=f"focus_promotion:{item.symbol}:{item.signal_id or item.symbol}",
+        data_quality="fixture",
+    )
+
+
+def _compose_stale_data_alert(ribbon: Any) -> AlertEnvelope:
+    return AlertEnvelope(
+        alert_id=stable_alert_id("stale_data", ribbon.last_refresh or "none", ribbon.data_freshness_minutes),
+        created_at=naive_utc_now(),
+        signal_id=None,
+        risk_report_id=None,
+        asset_ids=[],
+        severity="warning",
+        category="stale_data_warning",
+        channel_targets=choose_channel_targets("warning"),
+        title="Data freshness warning",
+        body=f"Pipeline freshness is {ribbon.data_freshness_minutes} minutes and status is {ribbon.freshness_status}.",
+        tags=["stale-data", ribbon.source_mode],
+        dedupe_key=f"stale_data:{ribbon.freshness_status}:{ribbon.data_freshness_minutes}",
+        data_quality=ribbon.source_mode,
+    )
+
+
+def _compose_risk_budget_alert(ribbon: Any) -> AlertEnvelope:
+    return AlertEnvelope(
+        alert_id=stable_alert_id("risk_budget_breach", ribbon.last_refresh or "none", ribbon.risk_budget_used_pct),
+        created_at=naive_utc_now(),
+        signal_id=None,
+        risk_report_id=None,
+        asset_ids=[],
+        severity="critical",
+        category="risk_budget_breach",
+        channel_targets=choose_channel_targets("critical"),
+        title="Risk budget breached",
+        body=f"Used {ribbon.risk_budget_used_pct:.3f}% against total {ribbon.risk_budget_total_pct:.3f}%.",
+        tags=["risk-budget", ribbon.source_mode],
+        dedupe_key=f"risk_budget_breach:{ribbon.risk_budget_used_pct:.3f}:{ribbon.risk_budget_total_pct:.3f}",
+        data_quality=ribbon.source_mode,
+    )
+
+
+def _compose_daily_digest(signals: list[SignalView], opportunities: OpportunityHunterView, ribbon: Any) -> AlertEnvelope:
+    lead_signal = signals[0] if signals else None
+    title = "Daily operator digest"
+    body = (
+        f"Signals {len(signals)}, focus queue {len(opportunities.focus_queue)}, "
+        f"risk budget {ribbon.risk_budget_used_pct:.3f}/{ribbon.risk_budget_total_pct:.3f}."
+    )
+    if lead_signal is not None:
+        body += f" Lead signal: {lead_signal.symbol} {lead_signal.signal_type} score {lead_signal.score:.1f}."
+    return AlertEnvelope(
+        alert_id=stable_alert_id("daily_digest", naive_utc_now().date().isoformat()),
+        created_at=naive_utc_now(),
+        signal_id=lead_signal.signal_id if lead_signal else None,
+        risk_report_id=None,
+        asset_ids=[lead_signal.symbol] if lead_signal else [],
+        severity="info",
+        category="daily_digest_summary",
+        channel_targets=choose_channel_targets("info"),
+        title=title,
+        body=body,
+        tags=["daily-digest", ribbon.source_mode],
+        dedupe_key=f"daily_digest:{naive_utc_now().date().isoformat()}",
+        data_quality=ribbon.source_mode,
+    )
+
+
 def list_opportunities(session: Session) -> OpportunityHunterView:
     from app.services.dashboard_data import list_research_views, list_risk_views, list_signal_views
 
@@ -461,91 +577,22 @@ def get_risk_detail(session: Session, risk_report_id: str) -> RiskDetailView | N
     )
 
 
-def refresh_in_app_alerts(session: Session) -> None:
+def refresh_alerts(session: Session) -> None:
     from app.services.dashboard_data import dashboard_ribbon, list_high_risk_signal_views, list_signal_views
 
-    session.execute(delete(AlertRecord))
-    sink = InAppAlertSink(session)
-    for signal in list_signal_views(session):
-        sink.publish(
-            AlertEnvelope(
-                alert_id=_stable_id("alert", "signal_created", signal.signal_id),
-                created_at=naive_utc_now(),
-                category="signal_created",
-                severity="info",
-                title=f"{signal.symbol} signal created",
-                message=signal.thesis,
-                symbol=signal.symbol,
-                signal_id=signal.signal_id,
-                risk_report_id=None,
-                trade_id=None,
-                freshness_minutes=signal.freshness_minutes,
-                data_quality=signal.data_quality,
-                tags=[signal.signal_type, signal.direction, signal.symbol],
-                status="open",
-                metadata={"score": signal.score, "confidence": signal.confidence},
-            )
-        )
-    for signal in list_high_risk_signal_views(session):
-        sink.publish(
-            AlertEnvelope(
-                alert_id=_stable_id("alert", "high_risk", signal.signal_id),
-                created_at=naive_utc_now(),
-                category="high_risk_signal",
-                severity="warning",
-                title=f"{signal.symbol} marked high risk",
-                message=f"Noise {round(signal.noise_probability * 100, 0):.0f}% with uncertainty {signal.uncertainty:.2f}.",
-                symbol=signal.symbol,
-                signal_id=signal.signal_id,
-                risk_report_id=None,
-                trade_id=None,
-                freshness_minutes=signal.freshness_minutes,
-                data_quality=signal.data_quality,
-                tags=["high-risk", signal.signal_type, signal.symbol],
-                status="open",
-                metadata={"noise_probability": signal.noise_probability},
-            )
-        )
+    signals = list_signal_views(session)
+    high_risk = list_high_risk_signal_views(session)
     opportunities = list_opportunities(session)
-    for item in opportunities.focus_queue:
-        sink.publish(
-            AlertEnvelope(
-                alert_id=_stable_id("alert", "opportunity", item.symbol, item.signal_id or item.symbol),
-                created_at=naive_utc_now(),
-                category="opportunity_promotion",
-                severity="info",
-                title=f"{item.symbol} promoted to focus queue",
-                message=", ".join(item.promotion_reasons),
-                symbol=item.symbol,
-                signal_id=item.signal_id,
-                risk_report_id=item.risk_report_id,
-                trade_id=None,
-                freshness_minutes=item.freshness_minutes,
-                data_quality="fixture",
-                tags=["opportunity", item.queue, item.symbol],
-                status="open",
-                metadata={"score_decomposition": item.score_decomposition},
-            )
-        )
     ribbon = dashboard_ribbon(session)
+
+    for signal in signals:
+        dispatch_alert(session, _compose_signal_alert(signal))
+    for signal in high_risk:
+        dispatch_alert(session, _compose_high_risk_alert(signal))
+    for item in opportunities.focus_queue:
+        dispatch_alert(session, _compose_focus_promotion_alert(item))
     if ribbon.freshness_status == "stale":
-        sink.publish(
-            AlertEnvelope(
-                alert_id=_stable_id("alert", "stale_data", ribbon.last_refresh or "none"),
-                created_at=naive_utc_now(),
-                category="stale_data_warning",
-                severity="warning",
-                title="Data freshness warning",
-                message=f"Pipeline freshness is {ribbon.data_freshness_minutes} minutes and currently {ribbon.freshness_status}.",
-                symbol=None,
-                signal_id=None,
-                risk_report_id=None,
-                trade_id=None,
-                freshness_minutes=ribbon.data_freshness_minutes,
-                data_quality=ribbon.source_mode,
-                tags=["stale-data", ribbon.source_mode],
-                status="open",
-                metadata={"pipeline_status": ribbon.pipeline_status},
-            )
-        )
-    session.commit()
+        dispatch_alert(session, _compose_stale_data_alert(ribbon))
+    if ribbon.risk_budget_used_pct > ribbon.risk_budget_total_pct:
+        dispatch_alert(session, _compose_risk_budget_alert(ribbon))
+    dispatch_alert(session, _compose_daily_digest(signals, opportunities, ribbon))

@@ -377,17 +377,18 @@ export interface JournalEntryUpdateRequest {
 export interface AlertEnvelope {
   alert_id: string;
   created_at: string;
-  category: string;
-  severity: string;
-  title: string;
-  message: string;
-  symbol: string | null;
   signal_id: string | null;
   risk_report_id: string | null;
-  trade_id: string | null;
-  freshness_minutes: number;
-  data_quality: string;
+  asset_ids: string[];
+  severity: string;
+  category: string;
+  channel_targets: string[];
+  title: string;
+  body: string;
   tags: string[];
+  dedupe_key: string;
   status: string;
-  metadata: Record<string, unknown>;
+  delivery_metadata: Record<string, unknown>;
+  data_quality: string;
+  suppressed_reason: string | null;
 }

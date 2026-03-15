@@ -10,7 +10,7 @@ Local-first multi-asset trading research and signal platform for BTC and ETH wit
 - Signal engine: trend breakout and event-driven signals with uncertainty and data-quality fields
 - Risk engine: stop logic, size bands, scenario shocks, cluster exposure, and persisted risk reports
 - Strategy Lab and Backtesting layer with typed DSL specs, template registry, vectorbt research runs, backtesting.py validation runs, walk-forward windows, bounded search, robustness scoring, and DuckDB/SQLite persistence
-- Minimal React dashboard tabs: Signals, News, Watchlist, Risk, Strategy Lab
+- Dense React operator console tabs for signals, news, watchlist, risk, trades, journal, strategy lab, backtests, and alert visibility
 - Tests for API startup, seeding, signal scoring, risk sizing, strategy DSL parsing, walk-forward windows, robustness scoring, API serialization, and frontend adapters/components
 
 ## Repository layout
@@ -76,6 +76,7 @@ The default test mode is fixture-first and local-only:
 - no live API keys are required
 - pytest forces sample mode and disables the scheduler
 - frontend API calls fall back to deterministic mock payloads when the backend is unavailable
+- Telegram and Discord sinks are disabled by default and never required for tests
 
 Windows PowerShell commands:
 
@@ -97,6 +98,28 @@ The full local verification wrapper runs this exact sequence:
 3. `python -m pytest apps/backend/tests`
 4. `cd apps/frontend && npm run test -- --run`
 5. `cd apps/frontend && npm run build`
+
+## Alert delivery
+
+External alert delivery is thin and opt-in:
+
+- `in_app` is the default source of truth
+- Telegram and Discord are isolated sink implementations behind backend config
+- no command bot UX, no execution hooks, no broker routing
+
+Relevant env vars:
+
+```powershell
+AI_TRADER_ALERT_ENABLE_TELEGRAM=false
+AI_TRADER_ALERT_ENABLE_DISCORD=false
+AI_TRADER_TELEGRAM_BOT_TOKEN=
+AI_TRADER_TELEGRAM_CHAT_ID=
+AI_TRADER_DISCORD_WEBHOOK_URL=
+AI_TRADER_ALERT_TELEGRAM_MIN_SEVERITY=warning
+AI_TRADER_ALERT_DISCORD_MIN_SEVERITY=info
+AI_TRADER_ALERT_DEDUPE_WINDOW_MINUTES=240
+AI_TRADER_ALERT_COOLDOWN_MINUTES=60
+```
 
 ## First endpoints
 

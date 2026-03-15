@@ -104,16 +104,17 @@ export function ContextSidebar({
                   if (item.risk_report_id) {
                     onOpenRisk(item.risk_report_id);
                   }
-                  if (item.symbol) {
-                    onSelectSymbol(item.symbol);
+                  if (item.asset_ids[0]) {
+                    onSelectSymbol(item.asset_ids[0]);
                   }
                 }}
                 type="button"
               >
                 <strong>
-                  [{item.severity}] {item.title}
+                  [{item.status}/{item.severity}] {item.title}
                 </strong>
-                <small>{item.tags.join(" / ")}</small>
+                <small>{item.channel_targets.join(", ") || "in_app"} / {item.tags.join(" / ")}</small>
+                <small>{item.body}</small>
               </button>
             ))
           ) : (

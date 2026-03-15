@@ -63,6 +63,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert isinstance(journal.json(), list)
     assert "focus_queue" in opportunities.json()
     assert isinstance(alerts.json(), list)
+    assert "channel_targets" in alerts.json()[0]
+    assert "status" in alerts.json()[0]
     assert "evidence" in signal_detail.json()
     assert "stop_logic" in risk_detail.json()
     assert refresh.json()["source_mode"] == "sample"

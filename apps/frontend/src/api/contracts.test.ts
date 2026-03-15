@@ -55,9 +55,14 @@ describe("frontend contract alignment", () => {
     });
     expect(alert).toMatchObject({
       alert_id: expect.any(String),
+      asset_ids: expect.any(Array),
       category: expect.any(String),
+      channel_targets: expect.any(Array),
       severity: expect.any(String),
+      body: expect.any(String),
+      dedupe_key: expect.any(String),
       tags: expect.any(Array),
+      status: expect.any(String),
     });
   });
 });

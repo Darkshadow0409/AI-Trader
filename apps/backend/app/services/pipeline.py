@@ -31,7 +31,7 @@ from app.models.entities import (
     SignalRecord,
     WatchlistItem,
 )
-from app.services.operator_console import refresh_in_app_alerts, seed_console_records, sync_trade_links
+from app.services.operator_console import refresh_alerts, seed_console_records, sync_trade_links
 from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
 from app.services.sample_data import generate_sample_ohlcv, seed_watchlist
@@ -308,7 +308,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         risk_reports = generate_risk_reports(signals)
         _persist_signals_and_risk(session, run, signals, risk_reports)
         sync_trade_links(session)
-        refresh_in_app_alerts(session)
+        refresh_alerts(session)
 
         run.completed_at = naive_utc_now()
         run.bars_ingested = len(bars)

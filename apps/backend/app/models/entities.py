@@ -145,19 +145,26 @@ class AlertRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     alert_id: str = Field(index=True, unique=True)
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
-    category: str = Field(index=True)
-    severity: str = Field(index=True)
-    title: str
-    message: str
     symbol: str | None = Field(default=None, index=True)
     signal_id: str | None = Field(default=None, index=True)
     risk_report_id: str | None = Field(default=None, index=True)
     trade_id: str | None = Field(default=None, index=True)
+    asset_ids_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    severity: str = Field(index=True)
+    category: str = Field(index=True)
+    channel_targets_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    title: str
+    message: str = ""
+    body: str
+    dedupe_key: str = Field(index=True)
     freshness_minutes: int = 0
     data_quality: str = "fixture"
     tags_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
-    status: str = Field(default="open", index=True)
+    status: str = Field(default="queued", index=True)
     metadata_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    delivery_metadata_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    suppressed_reason: str | None = None
+    last_attempted_at: datetime | None = Field(default=None, index=True)
 
 
 class BacktestRun(SQLModel, table=True):

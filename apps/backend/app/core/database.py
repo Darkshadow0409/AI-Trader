@@ -43,6 +43,17 @@ def _ensure_contract_columns() -> None:
             "review_status": "TEXT DEFAULT 'logged'",
             "updated_at": "TIMESTAMP",
         },
+        "alertrecord": {
+            "signal_id": "TEXT",
+            "risk_report_id": "TEXT",
+            "asset_ids_json": "TEXT DEFAULT '[]'",
+            "channel_targets_json": "TEXT DEFAULT '[]'",
+            "body": "TEXT DEFAULT ''",
+            "dedupe_key": "TEXT DEFAULT ''",
+            "delivery_metadata_json": "TEXT DEFAULT '{}'",
+            "suppressed_reason": "TEXT",
+            "last_attempted_at": "TIMESTAMP",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -61,6 +72,9 @@ def _ensure_contract_columns() -> None:
         )
         connection.exec_driver_sql(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_journalentry_journal_id_unique ON journalentry (journal_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_alertrecord_dedupe_key ON alertrecord (dedupe_key)"
         )
 
 

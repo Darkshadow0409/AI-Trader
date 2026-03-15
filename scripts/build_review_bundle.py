@@ -36,6 +36,7 @@ CONTRACT_FILES = [
 ]
 
 TEST_FILES = [
+    "apps/backend/tests/test_alerting.py",
     "apps/backend/tests/test_api_smoke.py",
     "apps/backend/tests/test_contract_snapshots.py",
     "apps/backend/tests/test_pipeline_scripts.py",
@@ -77,6 +78,8 @@ CORE_FILES = [
     "apps/backend/app/api/routes/alerts.py",
     "apps/backend/app/api/routes/market.py",
     "apps/backend/app/api/routes/system.py",
+    "apps/backend/app/alerting/sinks.py",
+    "apps/backend/app/alerting/service.py",
     "apps/backend/app/services/operator_console.py",
     "apps/backend/app/connectors/eia_client.py",
     "apps/backend/app/connectors/fred_client.py",
@@ -302,7 +305,7 @@ def build_review_readme() -> str:
         """
         # Review Bundle
 
-        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, and a dense terminal-style operator console. It does not perform live order execution.
+        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, and thin external alert sinks for Telegram and Discord. It does not perform live order execution.
 
         ## Fixture-first mode
 
@@ -310,7 +313,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Early Milestone 2A operator-console work is now present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract.
 
         ## Intentionally stubbed
 
@@ -319,7 +322,7 @@ def build_review_readme() -> str:
         - Macro proxies such as WTI, GOLD, DXY, and US10Y are sample-backed context, not production-grade market feeds
         - OpenAI remote adapter and non-local alert sinks remain stubs or interfaces
         - UI updates currently rely on polling, not a fully wired websocket event stream
-        - External alert delivery remains interface-level only; alert rendering is in-app only in the current milestone
+        - External alert delivery remains notification-only; it does not change platform control flow and it does not expose bot commands
 
         ## Exact local run commands
 
@@ -385,6 +388,8 @@ def build_milestone_summary() -> str:
         - Risk reports with stop logic, size bands, scenario shocks, and cluster exposure
         - Seed and backfill scripts, dashboard routes, and a working local dashboard shell
         - Milestone 1.5 contract hardening for explicit signal and risk identities plus fixture API snapshots
+        - Milestone 2A operator-console workflows for detail views, trades, journal, opportunities, and in-app alerts
+        - Milestone 2B thin external delivery sinks for Telegram and Discord with dedupe, cooldowns, and persisted delivery state
 
         ## Hardened in the testing pass
 
@@ -407,13 +412,14 @@ def build_milestone_summary() -> str:
         ## Known technical debt
 
         - Operator-console write paths are local and last-write-wins; they do not have sync or conflict resolution
+        - External alert sinks are tested with mocks only; no live credential coverage is included
         - Polling-based frontend updates despite websocket scaffolding existing in the backend
         - Macro context assets are sample-proxy quality rather than exchange-grade feeds
         - Frontend mock data and backend contracts require continued alignment as routes evolve
 
         ## Immediate next recommended milestone
 
-        Focus on operator-console hardening rather than scope expansion: stabilize the new detail and CRUD contracts, add browser-level interaction coverage for trades and journal flows, tighten websocket or polling semantics, and improve macro proxy provenance before considering any broader asset or execution work.
+        Focus on operational hardening rather than scope expansion: tighten alert routing policy, add browser-level interaction coverage for trade and journal flows, improve alert status filtering and historical review, and tighten websocket or polling semantics before considering any broader asset or execution work.
         """
     ).strip() + "\n"
 
@@ -443,7 +449,7 @@ def build_arch_review() -> str:
 
         ## Route surface
 
-        Core milestone-1 review routes are `health`, `signals`, `news`, `watchlist`, `risk`, `market`, and `system refresh`. Additional routes for dashboard context, strategy lab, backtests, portfolio, journal, opportunity hunter, alerts, and signal or risk detail are already present.
+        Core milestone-1 review routes are `health`, `signals`, `news`, `watchlist`, `risk`, `market`, and `system refresh`. Additional routes for dashboard context, strategy lab, backtests, portfolio, journal, opportunity hunter, alerts, and signal or risk detail are already present. Alert delivery is composed in the backend and then fanned out to in-app, Telegram, and Discord sinks behind configuration.
 
         ## Where strategy lab fits
 
@@ -466,7 +472,7 @@ def build_data_quality_review() -> str:
         - Seeded OHLCV for BTC, ETH, WTI, GOLD, DXY, and US10Y
         - EIA news fixtures
         - FRED macro release fixtures
-        - Sample signals, risk reports, watchlist state, opportunity hunter state, wallet balance, active trades, journal items, and in-app alerts
+        - Sample signals, risk reports, watchlist state, opportunity hunter state, wallet balance, active trades, journal items, and persisted alert records
 
         ## Live-capable today
 
@@ -499,6 +505,7 @@ def build_testing_review() -> str:
 
         - Seed and backfill script determinism
         - API startup and core route smoke coverage, including signal or risk detail, opportunities, alerts, and local trade or journal write flows
+        - Alert creation, dedupe, cooldown, sink formatting, and external-delivery failure handling
         - Connector fallback behavior in fixture mode
         - Feature pipeline creation and warm-up sanity
         - Signal and risk route invariants
@@ -536,13 +543,14 @@ def build_known_issues() -> str:
         """
         # Known Issues
 
-        - Signal and risk payloads now have explicit IDs, but frontend and backend contracts are still maintained manually rather than generated from a shared schema.
+        - Signal, risk, and alert payloads now have explicit IDs or dedupe keys, but frontend and backend contracts are still maintained manually rather than generated from a shared schema.
         - Frontend and backend contracts are aligned today, but there is no automated cross-language schema generation, so route drift remains a maintenance risk.
         - The UI is polling-based even though backend websocket scaffolding exists; freshness expectations should be reviewed with that in mind.
         - Live and fixture paths can diverge in shape or market realism because fixtures are deterministic simulations rather than exchange captures.
         - Oil, metals, DXY, and US10Y context are not production-grade market feeds in the current local workflow.
         - `scripts/dev.py` is Windows-safe for npm resolution now, but it still does not manage frontend port overrides or port collisions automatically.
         - Active trades and journal entries are writable locally, but there is no conflict-resolution layer beyond last write wins.
+        - Telegram and Discord delivery are best-effort notifications; there is no retry worker or durable outbound queue beyond the local persisted status record.
         """
     ).strip() + "\n"
 
@@ -552,6 +560,7 @@ def build_test_notes() -> str:
         """
         # Test Notes
 
+        - `test_alerting.py`: covers alert creation, dedupe, cooldown, sink payload formatting, and mocked external-delivery failures.
         - `test_api_smoke.py`: proves the FastAPI app starts, core routes respond, and signal or risk detail, opportunities, alerts, trade CRUD, and journal writes do not break startup.
         - `test_pipeline_scripts.py`: locks the seed and backfill scripts to deterministic fixture-mode counts.
         - `test_contract_snapshots.py`: protects the saved fixture-mode API contracts for signals, risk, news, watchlist, and dashboard overview.

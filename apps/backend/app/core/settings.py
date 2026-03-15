@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     fred_api_key: str = ""
     openai_api_key: str = ""
     ollama_url: str = "http://127.0.0.1:11434"
+    alert_enable_in_app: bool = True
+    alert_enable_telegram: bool = False
+    alert_enable_discord: bool = False
+    alert_in_app_min_severity: str = "info"
+    alert_telegram_min_severity: str = "warning"
+    alert_discord_min_severity: str = "info"
+    alert_dedupe_window_minutes: int = 240
+    alert_cooldown_minutes: int = 60
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    discord_webhook_url: str = ""
     allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:5173", "http://localhost:5173"])
 
     @property

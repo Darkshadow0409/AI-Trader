@@ -293,19 +293,20 @@ class JournalEntryUpdateRequest(BaseModel):
 class AlertEnvelope(BaseModel):
     alert_id: str
     created_at: datetime
-    category: str
-    severity: str
-    title: str
-    message: str
-    symbol: str | None = None
     signal_id: str | None = None
     risk_report_id: str | None = None
-    trade_id: str | None = None
-    freshness_minutes: int
-    data_quality: str
+    asset_ids: list[str]
+    severity: str
+    category: str
+    channel_targets: list[str]
+    title: str
+    body: str
     tags: list[str]
-    status: str
-    metadata: dict[str, Any]
+    dedupe_key: str
+    status: str = "queued"
+    delivery_metadata: dict[str, Any] = Field(default_factory=dict)
+    data_quality: str = "fixture"
+    suppressed_reason: str | None = None
 
 
 class StrategyListView(BaseModel):

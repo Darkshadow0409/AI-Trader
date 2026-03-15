@@ -34,6 +34,10 @@ describe("frontend contract alignment", () => {
       noise_probability: expect.any(Number),
       invalidation: expect.any(Number),
       data_quality: expect.any(String),
+      data_reality: expect.objectContaining({
+        freshness_state: expect.any(String),
+        realism_score: expect.any(Number),
+      }),
     });
     expect(news).toMatchObject({
       source: expect.any(String),
@@ -48,6 +52,9 @@ describe("frontend contract alignment", () => {
       size_band: expect.any(String),
       scenario_shocks: expect.any(Object),
       exposure_cluster: expect.any(String),
+      data_reality: expect.objectContaining({
+        tradable_alignment_note: expect.any(String),
+      }),
     });
     expect(ribbon).toMatchObject({
       macro_regime: expect.any(String),
@@ -65,6 +72,10 @@ describe("frontend contract alignment", () => {
       focus_queue: expect.any(Array),
       scout_queue: expect.any(Array),
     });
+    expect(opportunities.focus_queue[0]?.data_reality).toMatchObject({
+      freshness_state: expect.any(String),
+      provenance: expect.any(Object),
+    });
     expect(alert).toMatchObject({
       alert_id: expect.any(String),
       asset_ids: expect.any(Array),
@@ -79,6 +90,7 @@ describe("frontend contract alignment", () => {
     expect(strategyDetail).toMatchObject({
       lifecycle_state: expect.any(String),
       lifecycle_updated_at: expect.any(String),
+      data_reality: expect.any(Object),
       promotion_rationale: expect.any(Object),
       calibration_summary: expect.any(Array),
       forward_validation_summary: expect.any(Object),
@@ -87,6 +99,7 @@ describe("frontend contract alignment", () => {
     });
     expect(backtestDetail).toMatchObject({
       lifecycle_state: expect.any(String),
+      data_reality: expect.any(Object),
       data_realism_penalties: expect.any(Array),
       promotion_rationale: expect.any(Object),
       forward_validation_summary: expect.any(Object),

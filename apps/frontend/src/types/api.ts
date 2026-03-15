@@ -15,6 +15,38 @@ export interface BarView {
   volume: number;
 }
 
+export interface DataRealismPenaltyView {
+  code: string;
+  severity: string;
+  summary: string;
+  score_penalty: number;
+}
+
+export interface AssetProvenanceView {
+  symbol: string;
+  underlying_asset: string;
+  tradable_symbol: string;
+  source_name: string;
+  source_type: string;
+  freshness_sla_minutes: number;
+  realism_grade: string;
+  proxy_mapping_notes: string;
+  asset_class: string;
+}
+
+export interface DataRealityView {
+  provenance: AssetProvenanceView;
+  freshness_minutes: number;
+  freshness_state: string;
+  realism_score: number;
+  ranking_penalty: number;
+  promotion_blocked: boolean;
+  alert_allowed: boolean;
+  ui_warning: string;
+  penalties: DataRealismPenaltyView[];
+  tradable_alignment_note: string;
+}
+
 export interface SignalView {
   signal_id: string;
   symbol: string;
@@ -32,6 +64,7 @@ export interface SignalView {
   data_quality: string;
   affected_assets: string[];
   features: Record<string, unknown>;
+  data_reality: DataRealityView | null;
 }
 
 export interface SignalEvidenceView {
@@ -77,6 +110,7 @@ export interface OpportunityView {
   signal_id: string | null;
   risk_report_id: string | null;
   status: string;
+  data_reality: DataRealityView | null;
 }
 
 export interface OpportunityHunterView {
@@ -99,6 +133,7 @@ export interface RiskView {
   data_quality: string;
   scenario_shocks: Record<string, number>;
   report: Record<string, unknown>;
+  data_reality: DataRealityView | null;
 }
 
 export interface RiskExposureView {
@@ -148,6 +183,7 @@ export interface ResearchView {
   breakout_distance: number;
   structure_score: number;
   data_quality: string;
+  data_reality: DataRealityView | null;
 }
 
 export interface StrategyListView {
@@ -168,13 +204,7 @@ export interface StrategyListView {
   lifecycle_note: string;
   tags: string[];
   validation: Record<string, unknown>;
-}
-
-export interface DataRealismPenaltyView {
-  code: string;
-  severity: string;
-  summary: string;
-  score_penalty: number;
+  data_reality: DataRealityView | null;
 }
 
 export interface ForwardValidationSummaryView {
@@ -301,6 +331,7 @@ export interface BacktestListView {
   trade_count: number;
   lifecycle_state: string;
   data_realism_penalties: DataRealismPenaltyView[];
+  data_reality: DataRealityView | null;
 }
 
 export interface BacktestDetailView extends BacktestListView {
@@ -336,6 +367,7 @@ export interface AssetContextView {
   research: ResearchView | null;
   related_news: NewsView[];
   latest_backtest: BacktestListView | null;
+  data_reality: DataRealityView | null;
 }
 
 export interface ActiveTradeView {

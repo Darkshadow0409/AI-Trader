@@ -95,6 +95,7 @@ function emptySignalDetail(signalId: string): SignalDetailView {
     data_quality: "loading",
     affected_assets: [],
     features: {},
+    data_reality: null,
     evidence: [],
     catalyst_news: [],
     related_risk: null,
@@ -117,6 +118,7 @@ function emptyRiskDetail(riskReportId: string): RiskDetailView {
     data_quality: "loading",
     scenario_shocks: {},
     report: {},
+    data_reality: null,
     linked_signal: null,
     stop_logic: {},
     risk_notes: [],
@@ -169,6 +171,7 @@ export function useDashboardData(selectedSymbol: string, selectedSignalId: strin
       research: null,
       related_news: [],
       latest_backtest: null,
+      data_reality: null,
     },
     [selectedSymbol],
   );

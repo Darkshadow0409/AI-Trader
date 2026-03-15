@@ -28,6 +28,7 @@ from app.models.schemas import (
     SignalEvidenceView,
     SignalView,
 )
+from app.services.data_reality import asset_reality
 
 
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
@@ -36,19 +37,6 @@ FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
 def _stable_id(prefix: str, *parts: object) -> str:
     key = "|".join(str(part) for part in parts)
     return f"{prefix}_{uuid5(NAMESPACE_URL, key).hex}"
-
-
-def _freshness_minutes(value: datetime) -> int:
-    return max(0, int((naive_utc_now() - value).total_seconds() // 60))
-
-
-def _freshness_status(minutes: int) -> str:
-    if minutes <= 240:
-        return "fresh"
-    if minutes <= 1440:
-        return "delayed"
-    return "stale"
-
 
 def _coalesce_risk_notes(report: RiskView | None) -> list[str]:
     if not report:
@@ -77,7 +65,7 @@ def _trade_view(row: ActiveTradeRecord) -> ActiveTradeView:
         risk_report_id=row.risk_report_id,
         notes=row.notes,
         updated_at=row.updated_at,
-        freshness_minutes=_freshness_minutes(row.updated_at),
+        freshness_minutes=max(0, int((naive_utc_now() - row.updated_at).total_seconds() // 60)),
     )
 
 
@@ -100,7 +88,7 @@ def _journal_view(row: JournalEntry) -> JournalReviewView:
         lessons=row.lessons,
         review_status=row.review_status,
         updated_at=row.updated_at,
-        freshness_minutes=_freshness_minutes(row.updated_at),
+        freshness_minutes=max(0, int((naive_utc_now() - row.updated_at).total_seconds() // 60)),
     )
 
 
@@ -466,9 +454,17 @@ def list_opportunities(session: Session) -> OpportunityHunterView:
         confidence_bonus = (signal.confidence * 15) if signal else 0.0
         noise_penalty = (signal.noise_probability * 18) if signal else 0.0
         freshness_source = signal.freshness_minutes if signal else max(0, int((naive_utc_now() - item.updated_at).total_seconds() // 60))
+        data_reality = asset_reality(
+            session,
+            item.symbol,
+            as_of=signal.timestamp if signal else item.updated_at,
+            data_quality=signal.data_quality if signal else "fixture",
+            features=signal.features if signal else None,
+        )
         freshness_penalty = min(freshness_source / 60, 12)
+        realism_penalty = data_reality.ranking_penalty
         trend_bonus = 6.0 if research and research.trend_state == "uptrend" else 0.0
-        total_score = round(signal_score + confidence_bonus + trend_bonus - noise_penalty - freshness_penalty, 2)
+        total_score = round(signal_score + confidence_bonus + trend_bonus - noise_penalty - freshness_penalty - realism_penalty, 2)
         reasons: list[str] = []
         if signal and signal.score >= 55:
             reasons.append("signal_score_above_focus_threshold")
@@ -493,6 +489,7 @@ def list_opportunities(session: Session) -> OpportunityHunterView:
                     "trend_bonus": round(trend_bonus, 2),
                     "noise_penalty": round(noise_penalty, 2),
                     "freshness_penalty": round(freshness_penalty, 2),
+                    "realism_penalty": round(realism_penalty, 2),
                 },
                 promotion_reasons=reasons,
                 freshness_minutes=freshness_source,
@@ -500,6 +497,7 @@ def list_opportunities(session: Session) -> OpportunityHunterView:
                 signal_id=signal.signal_id if signal else None,
                 risk_report_id=risk.risk_report_id if risk else None,
                 status=item.status,
+                data_reality=data_reality,
             )
         )
     focus_queue = sorted((row for row in opportunities if row.queue == "focus"), key=lambda row: row.score, reverse=True)
@@ -547,7 +545,7 @@ def get_signal_detail(session: Session, signal_id: str) -> SignalDetailView | No
         evidence=evidence,
         catalyst_news=catalyst_news,
         related_risk=related_risk,
-        freshness_status=_freshness_status(signal.freshness_minutes),
+        freshness_status=signal.data_reality.freshness_state if signal.data_reality else "fresh",
     )
 
 
@@ -573,7 +571,7 @@ def get_risk_detail(session: Session, risk_report_id: str) -> RiskDetailView | N
         stop_logic=stop_logic,
         risk_notes=_coalesce_risk_notes(risk),
         cluster_exposure=cluster if isinstance(cluster, RiskExposureView) else cluster,
-        freshness_status=_freshness_status(risk.freshness_minutes),
+        freshness_status=risk.data_reality.freshness_state if risk.data_reality else "fresh",
     )
 
 
@@ -586,12 +584,15 @@ def refresh_alerts(session: Session) -> None:
     ribbon = dashboard_ribbon(session)
 
     for signal in signals:
-        dispatch_alert(session, _compose_signal_alert(signal))
+        if signal.data_reality is None or signal.data_reality.alert_allowed:
+            dispatch_alert(session, _compose_signal_alert(signal))
     for signal in high_risk:
-        dispatch_alert(session, _compose_high_risk_alert(signal))
+        if signal.data_reality is None or signal.data_reality.alert_allowed:
+            dispatch_alert(session, _compose_high_risk_alert(signal))
     for item in opportunities.focus_queue:
-        dispatch_alert(session, _compose_focus_promotion_alert(item))
-    if ribbon.freshness_status == "stale":
+        if item.data_reality is None or item.data_reality.alert_allowed:
+            dispatch_alert(session, _compose_focus_promotion_alert(item))
+    if ribbon.freshness_status in {"stale", "degraded", "unusable"}:
         dispatch_alert(session, _compose_stale_data_alert(ribbon))
     if ribbon.risk_budget_used_pct > ribbon.risk_budget_total_pct:
         dispatch_alert(session, _compose_risk_budget_alert(ribbon))

@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlmodel import Session, desc, select
 
 from app.core.clock import naive_utc_now
-from app.models.entities import BacktestResult, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord
+from app.models.entities import BacktestResult, MacroEvent, MarketBar, NewsItem, RiskReport, SignalRecord
 from app.models.schemas import (
     ActiveTradeView,
     AssetContextView,
@@ -23,6 +23,7 @@ from app.models.schemas import (
     WalletBalanceLineView,
     WalletBalanceView,
 )
+from app.services.data_reality import asset_reality, freshness_minutes, freshness_state, latest_pipeline_run
 from app.services.feature_pipeline import build_feature_frame
 
 
@@ -55,18 +56,13 @@ def _infer_assets(text: str, tags: list[str]) -> list[str]:
         matched.append("ETH")
     return sorted(set(matched))
 
-
-def _freshness_minutes(value: datetime) -> int:
-    return max(0, int((naive_utc_now() - value).total_seconds() // 60))
-
-
 def _news_view(item: NewsItem) -> NewsView:
     affected_assets = _infer_assets(f"{item.title} {item.summary}", item.tags_json)
     entity_tags = sorted(set([*item.tags_json, *affected_assets]))
     return NewsView(
         source=item.source,
         published_at=item.published_at,
-        freshness_minutes=_freshness_minutes(item.published_at),
+        freshness_minutes=freshness_minutes(item.published_at),
         title=item.title,
         summary=item.summary,
         url=item.url,
@@ -83,7 +79,7 @@ def _risk_view(report: RiskReport) -> RiskView:
         signal_id=report.signal_id,
         symbol=report.symbol,
         as_of=report.as_of,
-        freshness_minutes=_freshness_minutes(report.as_of),
+        freshness_minutes=freshness_minutes(report.as_of),
         stop_price=report.stop_price,
         size_band=report.size_band,
         max_portfolio_risk_pct=report.max_portfolio_risk_pct,
@@ -92,6 +88,7 @@ def _risk_view(report: RiskReport) -> RiskView:
         data_quality=report.data_quality,
         scenario_shocks={key: float(value) for key, value in report.report_json.get("scenario_shocks", {}).items()},
         report=report.report_json,
+        data_reality=None,
     )
 
 
@@ -126,7 +123,7 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
         symbol=row.symbol,
         signal_type=row.signal_type,
         timestamp=row.timestamp,
-        freshness_minutes=_freshness_minutes(row.timestamp),
+        freshness_minutes=freshness_minutes(row.timestamp),
         direction=row.direction,
         score=row.score,
         confidence=confidence,
@@ -138,6 +135,7 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
         data_quality=row.data_quality,
         affected_assets=affected_assets,
         features=feature_snapshot,
+        data_reality=None,
     )
 
 
@@ -145,7 +143,16 @@ def list_signal_views(session: Session) -> list[SignalView]:
     signals = session.exec(select(SignalRecord).order_by(desc(SignalRecord.score), desc(SignalRecord.timestamp))).all()
     risk_reports = session.exec(select(RiskReport)).all()
     risk_map = {report.signal_id: report for report in risk_reports}
-    return [_signal_view(row, risk_map) for row in signals]
+    payload = [_signal_view(row, risk_map) for row in signals]
+    for row in payload:
+        row.data_reality = asset_reality(
+            session,
+            row.symbol,
+            as_of=row.timestamp,
+            data_quality=row.data_quality,
+            features=row.features,
+        )
+    return payload
 
 
 def list_high_risk_signal_views(session: Session) -> list[SignalView]:
@@ -166,7 +173,16 @@ def list_news_views(session: Session, symbol: str | None = None) -> list[NewsVie
 
 def list_risk_views(session: Session) -> list[RiskView]:
     rows = session.exec(select(RiskReport).order_by(desc(RiskReport.as_of))).all()
-    return [_risk_view(row) for row in rows]
+    payload = [_risk_view(row) for row in rows]
+    for row in payload:
+        row.data_reality = asset_reality(
+            session,
+            row.symbol,
+            as_of=row.as_of,
+            data_quality=row.data_quality,
+            features=row.report,
+        )
+    return payload
 
 
 def list_risk_exposure_views(session: Session) -> list[RiskExposureView]:
@@ -231,6 +247,13 @@ def list_research_views(session: Session) -> list[ResearchView]:
             breakout_distance=round(float(item.get("breakout_distance") or 0.0) * 100, 2),
             structure_score=round(float(item.get("structure_score") or 0.0), 2),
             data_quality=str(item.get("data_quality") or "fixture"),
+            data_reality=asset_reality(
+                session,
+                str(item["symbol"]),
+                as_of=cast(datetime, item.get("timestamp")) if item.get("timestamp") is not None else None,
+                data_quality=str(item.get("data_quality") or "fixture"),
+                features=cast(dict[str, Any], item),
+            ),
         )
         for item in latest
     ]
@@ -238,17 +261,13 @@ def list_research_views(session: Session) -> list[ResearchView]:
 
 def dashboard_ribbon(session: Session) -> RibbonView:
     latest_bar = session.exec(select(MarketBar).order_by(desc(MarketBar.timestamp))).first()
-    latest_run = session.exec(select(PipelineRun).order_by(desc(PipelineRun.started_at))).first()
+    latest_run = latest_pipeline_run(session)
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
     next_event = next((item for item in events if item.event_time >= naive_utc_now()), None)
     research_rows = list_research_views(session)
     btc_research = next((row for row in research_rows if row.symbol == "BTC"), None)
-    freshness_minutes = (
-        _freshness_minutes(latest_bar.timestamp)
-        if latest_bar
-        else 9999
-    )
-    freshness_status = "fresh" if freshness_minutes <= 240 else "delayed" if freshness_minutes <= 1440 else "stale"
+    freshness_age = freshness_minutes(latest_bar.timestamp) if latest_bar else 9999
+    freshness_status = freshness_state(freshness_age, 240)
     risk_budget_used = round(sum(report.max_portfolio_risk_pct for report in list_risk_views(session)), 3)
     macro_regime = "balanced"
     if next_event and next_event.impact == "high":
@@ -259,7 +278,7 @@ def dashboard_ribbon(session: Session) -> RibbonView:
         macro_regime = "defensive"
     return RibbonView(
         macro_regime=macro_regime,
-        data_freshness_minutes=freshness_minutes,
+        data_freshness_minutes=freshness_age,
         freshness_status=freshness_status,
         risk_budget_used_pct=risk_budget_used,
         risk_budget_total_pct=RISK_BUDGET_TOTAL_PCT,
@@ -301,9 +320,22 @@ def asset_context(session: Session, symbol: str) -> AssetContextView:
             sharpe_ratio=backtest.sharpe_ratio,
             max_drawdown_pct=backtest.max_drawdown_pct,
             trade_count=backtest.trade_count,
+            data_reality=asset_reality(
+                session,
+                symbol,
+                as_of=backtest.created_at,
+                data_quality=research.data_quality if research else "fixture",
+            ),
         )
         if backtest
         else None
+    )
+    context_reality = asset_reality(
+        session,
+        symbol,
+        as_of=signal.timestamp if signal else risk.as_of if risk else None,
+        data_quality=signal.data_quality if signal else risk.data_quality if risk else research.data_quality if research else "fixture",
+        features=signal.features if signal else None,
     )
     return AssetContextView(
         symbol=symbol,
@@ -312,6 +344,7 @@ def asset_context(session: Session, symbol: str) -> AssetContextView:
         research=research,
         related_news=related_news,
         latest_backtest=latest_backtest,
+        data_reality=context_reality,
     )
 
 

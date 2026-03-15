@@ -1,7 +1,7 @@
 {
   "macro_regime": "event-risk",
   "data_freshness_minutes": 2130,
-  "freshness_status": "stale",
+  "freshness_status": "unusable",
   "risk_budget_used_pct": 0.008,
   "risk_budget_total_pct": 2.5,
   "pipeline_status": "completed",

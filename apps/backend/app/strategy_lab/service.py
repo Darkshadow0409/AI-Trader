@@ -27,6 +27,7 @@ from app.models.schemas import (
     StrategyLifecycleUpdateRequest,
     StrategyListView,
 )
+from app.services.data_reality import asset_reality
 from app.strategy_lab.backtestingpy_runner import run_backtesting_validation
 from app.strategy_lab.optuna_search import optimize_with_optuna
 from app.strategy_lab.persistence import persist_backtest_duckdb, sync_strategy_registry_duckdb
@@ -301,61 +302,21 @@ def _calibration_snapshots(session: Session, strategy_name: str) -> list[Calibra
 
 
 def _data_realism_penalties(session: Session, entry: StrategyRegistryEntry) -> list[DataRealismPenaltyView]:
-    penalties: list[DataRealismPenaltyView] = []
     latest_run = session.exec(select(PipelineRun).order_by(desc(PipelineRun.started_at))).first()
     latest_signal = session.exec(
         select(SignalRecord)
         .where(SignalRecord.symbol == entry.underlying_symbol)
         .order_by(desc(SignalRecord.timestamp))
     ).first()
-    if latest_run and latest_run.source_mode == "sample":
-        penalties.append(
-            DataRealismPenaltyView(
-                code="fixture_only",
-                severity="warning",
-                summary="Current validation depends on fixture-first market data.",
-                score_penalty=14.0,
-            )
-        )
-    if latest_run and latest_run.completed_at is not None:
-        age_minutes = max(0, int((naive_utc_now() - latest_run.completed_at).total_seconds() // 60))
-        if age_minutes > 240:
-            penalties.append(
-                DataRealismPenaltyView(
-                    code="stale_data",
-                    severity="critical",
-                    summary=f"Latest pipeline refresh is {age_minutes} minutes old.",
-                    score_penalty=18.0,
-                )
-            )
-    if entry.proxy_grade:
-        penalties.append(
-            DataRealismPenaltyView(
-                code="proxy_grade",
-                severity="warning",
-                summary="Tradable symbol is a proxy mapping rather than a direct underlying market.",
-                score_penalty=12.0,
-            )
-        )
-    if entry.underlying_symbol in {"WTI", "GOLD", "SILVER"}:
-        penalties.append(
-            DataRealismPenaltyView(
-                code="weak_oil_metals_realism",
-                severity="warning",
-                summary="Oil or metals context is sample-backed and weaker than venue-grade feeds.",
-                score_penalty=9.0,
-            )
-        )
-    if latest_signal is None or len(latest_signal.features_json.get("cross_asset_positive", [])) == 0:
-        penalties.append(
-            DataRealismPenaltyView(
-                code="missing_cross_asset_confirmation",
-                severity="info",
-                summary="Cross-asset confirmation is weak or missing in the latest context.",
-                score_penalty=6.0,
-            )
-        )
-    return penalties
+    reality = asset_reality(
+        session,
+        entry.underlying_symbol,
+        as_of=latest_signal.timestamp if latest_signal else latest_run.completed_at if latest_run else None,
+        data_quality=latest_signal.data_quality if latest_signal else "fixture",
+        features=latest_signal.features_json if latest_signal else None,
+        tradable_symbol=entry.tradable_symbol,
+    )
+    return reality.penalties
 
 
 def _promotion_rationale(
@@ -365,14 +326,28 @@ def _promotion_rationale(
     walk_forward_quality: float,
 ) -> PromotionRationaleView:
     forward_summary = _aggregate_forward_validation(session, entry.name)
-    penalties = _data_realism_penalties(session, entry)
+    latest_run = session.exec(select(PipelineRun).order_by(desc(PipelineRun.started_at))).first()
+    latest_signal = session.exec(
+        select(SignalRecord)
+        .where(SignalRecord.symbol == entry.underlying_symbol)
+        .order_by(desc(SignalRecord.timestamp))
+    ).first()
+    reality = asset_reality(
+        session,
+        entry.underlying_symbol,
+        as_of=latest_signal.timestamp if latest_signal else latest_run.completed_at if latest_run else None,
+        data_quality=latest_signal.data_quality if latest_signal else "fixture",
+        features=latest_signal.features_json if latest_signal else None,
+        tradable_symbol=entry.tradable_symbol,
+    )
+    penalties = reality.penalties
     total_penalty = sum(item.score_penalty for item in penalties)
     gate_results = {
         "robustness_score": robustness_score >= 65,
         "walk_forward_quality": walk_forward_quality >= 0.55,
         "forward_results": forward_summary.expectancy_proxy > 0 and forward_summary.hit_rate >= 0.5,
         "minimum_sample_size": forward_summary.sample_size >= 3,
-        "data_quality": not any(item.severity == "critical" for item in penalties),
+        "data_quality": not reality.promotion_blocked,
         "proxy_grade_penalty": not entry.proxy_grade or total_penalty <= 24,
     }
     recommended_state = "experimental"
@@ -387,6 +362,8 @@ def _promotion_rationale(
     notes = [
         "Calibration buckets compare cohorts only. They are not probability-of-profit estimates.",
         f"Total realism penalty: {total_penalty:.1f}",
+        f"Freshness policy: {reality.freshness_state}",
+        f"Realism score: {reality.realism_score:.1f}",
     ]
     return PromotionRationaleView(
         state=entry.lifecycle_state,
@@ -699,6 +676,12 @@ def get_strategy(session: Session, strategy_name: str) -> StrategyRegistryEntry:
 
 
 def strategy_list_view(session: Session, row: StrategyRegistryEntry) -> StrategyListView:
+    latest_run = session.exec(select(PipelineRun).order_by(desc(PipelineRun.started_at))).first()
+    latest_signal = session.exec(
+        select(SignalRecord)
+        .where(SignalRecord.symbol == row.underlying_symbol)
+        .order_by(desc(SignalRecord.timestamp))
+    ).first()
     return StrategyListView(
         name=row.name,
         version=row.version,
@@ -717,6 +700,14 @@ def strategy_list_view(session: Session, row: StrategyRegistryEntry) -> Strategy
         lifecycle_note=row.lifecycle_note or "",
         tags=row.tags_json,
         validation=row.validation_json,
+        data_reality=asset_reality(
+            session,
+            row.underlying_symbol,
+            as_of=latest_signal.timestamp if latest_signal else latest_run.completed_at if latest_run else None,
+            data_quality=latest_signal.data_quality if latest_signal else "fixture",
+            features=latest_signal.features_json if latest_signal else None,
+            tradable_symbol=row.tradable_symbol,
+        ),
     )
 
 
@@ -766,6 +757,13 @@ def get_backtest(session: Session, run_id: int) -> BacktestResult | None:
 def backtest_list_view(session: Session, row: BacktestResult) -> BacktestListView:
     entry = get_registry_entry(session, row.strategy_name)
     penalties = _data_realism_penalties(session, entry)
+    reality = asset_reality(
+        session,
+        entry.underlying_symbol,
+        as_of=row.completed_at or row.created_at,
+        data_quality="fixture",
+        tradable_symbol=entry.tradable_symbol,
+    )
     return BacktestListView(
         id=row.id or 0,
         strategy_name=row.strategy_name,
@@ -784,6 +782,7 @@ def backtest_list_view(session: Session, row: BacktestResult) -> BacktestListVie
         trade_count=row.trade_count,
         lifecycle_state=entry.lifecycle_state,
         data_realism_penalties=penalties,
+        data_reality=reality,
     )
 
 

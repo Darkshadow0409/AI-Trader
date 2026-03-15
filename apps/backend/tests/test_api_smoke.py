@@ -66,7 +66,10 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "channel_targets" in alerts.json()[0]
     assert "status" in alerts.json()[0]
     assert "evidence" in signal_detail.json()
+    assert "data_reality" in signal_detail.json()
     assert "stop_logic" in risk_detail.json()
+    assert "data_reality" in risk_detail.json()
+    assert "data_reality" in asset_context.json()
     assert refresh.json()["source_mode"] == "sample"
 
     created_trade = client.post(
@@ -131,5 +134,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert backtest_detail.status_code == 200
     assert created.status_code == 200
     assert "search_space" in strategy_detail.json()
+    assert "data_reality" in strategy_detail.json()
     assert "equity_curve" in backtest_detail.json()
+    assert "data_reality" in backtest_detail.json()
     assert created.json()["strategy_name"] == "trend_breakout_v1"

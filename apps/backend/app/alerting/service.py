@@ -52,6 +52,10 @@ def _is_duplicate(session: Session, alert: AlertEnvelope) -> AlertRecord | None:
     ).first()
 
 
+def _existing_alert(session: Session, alert: AlertEnvelope) -> AlertRecord | None:
+    return session.exec(select(AlertRecord).where(AlertRecord.alert_id == alert.alert_id)).first()
+
+
 def _is_in_cooldown(session: Session, alert: AlertEnvelope) -> AlertRecord | None:
     if not alert.asset_ids:
         return None
@@ -102,6 +106,10 @@ def _suppressed_alert_id(session: Session, alert: AlertEnvelope, reason: str) ->
 
 
 def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
+    existing = _existing_alert(session, alert)
+    if existing is not None:
+        return existing
+
     duplicate = _is_duplicate(session, alert)
     if duplicate is not None:
         suppressed_alert = alert.model_copy(update={"alert_id": _suppressed_alert_id(session, alert, "dedupe_window")})

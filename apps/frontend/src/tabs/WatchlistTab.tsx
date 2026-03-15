@@ -21,6 +21,7 @@ export function WatchlistTab({ rows, opportunities, selectedSymbol, onSelectSymb
               <th>Asset</th>
               <th>Queue</th>
               <th>Score</th>
+              <th>Reality</th>
               <th>Reasons</th>
               <th>Risk Notes</th>
             </tr>
@@ -43,6 +44,9 @@ export function WatchlistTab({ rows, opportunities, selectedSymbol, onSelectSymb
                 <td>{item.symbol}</td>
                 <td>{item.queue}</td>
                 <td>{item.score.toFixed(1)}</td>
+                <td>
+                  {item.data_reality ? `${item.data_reality.provenance.realism_grade} / ${item.data_reality.freshness_state}` : "n/a"}
+                </td>
                 <td>{item.promotion_reasons.join(", ")}</td>
                 <td>{item.risk_notes.join(" | ")}</td>
               </tr>
@@ -70,6 +74,7 @@ export function WatchlistTab({ rows, opportunities, selectedSymbol, onSelectSymb
             <th>Status</th>
             <th>Priority</th>
             <th>Signal</th>
+            <th>Freshness</th>
             <th>Thesis</th>
           </tr>
         </thead>
@@ -85,6 +90,7 @@ export function WatchlistTab({ rows, opportunities, selectedSymbol, onSelectSymb
               <td>{item.status}</td>
               <td>{item.priority}</td>
               <td>{item.last_signal_score.toFixed(1)}</td>
+              <td>{item.freshness_minutes}m</td>
               <td>{item.thesis}</td>
             </tr>
           ))}

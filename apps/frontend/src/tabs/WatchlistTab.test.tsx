@@ -22,6 +22,7 @@ describe("WatchlistTab", () => {
 
     expect(screen.getByText("Focus Queue")).toBeInTheDocument();
     expect(screen.getByText("Scout Queue")).toBeInTheDocument();
+    expect(screen.getAllByText("B / fresh")).toHaveLength(2);
 
     fireEvent.click(screen.getAllByText("BTC")[0]);
 

@@ -25,6 +25,8 @@ def test_strategy_detail_exposes_promotion_and_validation_fields(client, seeded_
     assert payload["forward_validation_summary"]["sample_size"] == 3
     assert {item["bucket_kind"] for item in payload["calibration_summary"]} == {"score", "confidence"}
     assert any(item["code"] == "fixture_only" for item in payload["data_realism_penalties"])
+    assert payload["data_reality"]["provenance"]["underlying_asset"] == "BTC"
+    assert payload["data_reality"]["freshness_state"] in {"fresh", "aging"}
     assert len(payload["transition_history"]) >= 1
 
 
@@ -86,6 +88,7 @@ def test_demotion_logic_and_realism_penalties_are_explicit(seeded_summary) -> No
         rationale = _promotion_rationale(session, entry, robustness_score=51.6, walk_forward_quality=0.33)
 
     codes = {item.code for item in penalties}
-    assert {"fixture_only", "proxy_grade", "weak_oil_metals_realism"}.issubset(codes)
+    assert {"fixture_only", "proxy_grade_mapping", "tradable_mismatch", "weak_oil_realism"}.issubset(codes)
     assert rationale.recommended_state == "demoted"
     assert rationale.gate_results["forward_results"] is False
+    assert rationale.gate_results["data_quality"] is False

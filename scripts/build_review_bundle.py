@@ -41,6 +41,7 @@ TEST_FILES = [
     "apps/backend/tests/test_contract_snapshots.py",
     "apps/backend/tests/test_pipeline_scripts.py",
     "apps/backend/tests/test_connector_fallbacks.py",
+    "apps/backend/tests/test_data_reality.py",
     "apps/backend/tests/test_feature_pipeline.py",
     "apps/backend/tests/test_promotion_core.py",
     "apps/backend/tests/test_signal_and_risk_invariants.py",
@@ -48,6 +49,7 @@ TEST_FILES = [
     "apps/frontend/src/App.test.tsx",
     "apps/frontend/src/api/client.test.ts",
     "apps/frontend/src/api/contracts.test.ts",
+    "apps/frontend/src/components/SignalDetailsCard.test.tsx",
     "apps/frontend/src/components/TopRibbon.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.test.tsx",
@@ -68,6 +70,7 @@ CORE_FILES = [
     "apps/backend/app/core/clock.py",
     "apps/backend/app/core/database.py",
     "apps/backend/app/services/pipeline.py",
+    "apps/backend/app/services/data_reality.py",
     "apps/backend/app/services/feature_pipeline.py",
     "apps/backend/app/services/signal_pipeline.py",
     "apps/backend/app/services/risk_pipeline.py",
@@ -314,6 +317,12 @@ def collect_contracts(bundle_root: Path, runtime_env: dict[str, str]) -> dict[st
                 payload = response.json()
                 responses[f"/api/strategies/{strategy_name}"] = payload
                 write_json(bundle_root / "contracts/strategy_detail.json", payload)
+        for symbol in ("BTC", "WTI"):
+            response = client.get(f"/api/dashboard/assets/{symbol}")
+            response.raise_for_status()
+            payload = response.json()
+            responses[f"/api/dashboard/assets/{symbol}"] = payload
+            write_json(bundle_root / f"contracts/asset_context_{symbol}.json", payload)
         backtests = responses.get("/api/backtests")
         if isinstance(backtests, list) and backtests:
             run_id = backtests[0].get("id")
@@ -331,7 +340,7 @@ def build_review_readme() -> str:
         """
         # Review Bundle
 
-        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, thin external alert sinks for Telegram and Discord, and explicit strategy promotion plus validation tracking. It does not perform live order execution.
+        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, thin external alert sinks for Telegram and Discord, explicit strategy promotion plus validation tracking, and a first-class data-reality layer for provenance, freshness policy, and realism penalties. It does not perform live order execution.
 
         ## Fixture-first mode
 
@@ -339,7 +348,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, demotion rules, and explicit data-realism penalties.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries.
 
         ## Intentionally stubbed
 
@@ -418,6 +427,7 @@ def build_milestone_summary() -> str:
         - Milestone 2A operator-console workflows for detail views, trades, journal, opportunities, and in-app alerts
         - Milestone 2B thin external delivery sinks for Telegram and Discord with dedupe, cooldowns, and persisted delivery state
         - Milestone 3A promotion and validation core for lifecycle state transitions, forward validation summaries, calibration snapshots, and realism penalties
+        - Milestone 3B data-reality upgrades for provenance tracking, freshness policy, realism scoring, and promotion or alert penalties
 
         ## Hardened in the testing pass
 
@@ -580,6 +590,7 @@ def build_known_issues() -> str:
         - Signal, risk, and alert payloads now have explicit IDs or dedupe keys, but frontend and backend contracts are still maintained manually rather than generated from a shared schema.
         - Frontend and backend contracts are aligned today, but there is no automated cross-language schema generation, so route drift remains a maintenance risk.
         - Promotion state can change as new validation runs are persisted, so fixture-state screenshots should be reviewed alongside the exact verification output captured in the bundle.
+        - Data-reality penalties are deterministic but intentionally conservative in fixture mode, so realism scores should be interpreted as relative local trust signals rather than production-grade certifications.
         - The UI is polling-based even though backend websocket scaffolding exists; freshness expectations should be reviewed with that in mind.
         - Live and fixture paths can diverge in shape or market realism because fixtures are deterministic simulations rather than exchange captures.
         - Oil, metals, DXY, and US10Y context are not production-grade market feeds in the current local workflow.
@@ -602,6 +613,7 @@ def build_test_notes() -> str:
         - `test_contract_snapshots.py`: protects the saved fixture-mode API contracts for signals, risk, news, watchlist, and dashboard overview.
         - `test_connector_fallbacks.py`: protects offline local development by proving live connector failures fall back cleanly.
         - `test_feature_pipeline.py`: checks feature columns, seeded-asset coverage, and warm-up NaN containment.
+        - `test_data_reality.py`: locks provenance assignment, freshness policy transitions, realism scoring, and stronger proxy or oil penalties.
         - `test_promotion_core.py`: covers lifecycle transitions, demotion logic, forward-validation aggregation, calibration bucket summaries, and realism penalties.
         - `test_signal_and_risk_invariants.py`: asserts real API payloads expose the required fields and sane numeric ranges.
         - `test_risk_engine.py`: guards stop logic, size-band mapping, and risk report construction.
@@ -611,6 +623,7 @@ def build_test_notes() -> str:
         - `TopRibbon.test.tsx`: covers top-ribbon rendering for both normal and stale or missing data states.
         - `BacktestsTab.test.tsx`: proves the backtests tab does not crash when placeholder data is empty.
         - `StrategyLabTab.test.tsx`: protects the promotion or validation console rendering and run action wiring against contract drift.
+        - `SignalDetailsCard.test.tsx`: keeps the signal-detail data-reality block visible with provenance and penalty tags.
         - `WatchlistTab.test.tsx`: checks the opportunity hunter queues render and still support drill-down callbacks.
         """
     ).strip() + "\n"
@@ -648,6 +661,10 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
 
     if isinstance(signals, list) and signals:
         write_json(bundle_root / "samples/seeded_signal.json", signals[0])
+        strongest = max(signals, key=lambda item: (item.get("data_reality") or {}).get("realism_score", -1))
+        weakest = min(signals, key=lambda item: (item.get("data_reality") or {}).get("realism_score", 10_000))
+        write_json(bundle_root / "samples/strong_realism_signal.json", strongest)
+        write_json(bundle_root / "samples/degraded_realism_signal.json", weakest)
     if isinstance(risks, list) and risks:
         write_json(bundle_root / "samples/seeded_risk_report.json", risks[0])
     if isinstance(news, list) and news:
@@ -691,6 +708,26 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     )
     if isinstance(strategies, list) and strategies:
         write_json(bundle_root / "samples/strategy_registry_entry.json", strategies[0])
+    btc_asset = contracts.get("/api/dashboard/assets/BTC")
+    wti_asset = contracts.get("/api/dashboard/assets/WTI")
+    if isinstance(btc_asset, dict) or isinstance(wti_asset, dict):
+        write_json(
+            bundle_root / "samples/provenance_summary.json",
+            {
+                "BTC": (btc_asset or {}).get("data_reality"),
+                "WTI": (wti_asset or {}).get("data_reality"),
+            },
+        )
+    write_json(
+        bundle_root / "samples/freshness_state_examples.json",
+        {
+            "fresh": {"minutes": 120, "sla_minutes": 240},
+            "aging": {"minutes": 300, "sla_minutes": 240},
+            "stale": {"minutes": 700, "sla_minutes": 240},
+            "degraded": {"minutes": 1200, "sla_minutes": 240},
+            "unusable": {"minutes": 2200, "sla_minutes": 240},
+        },
+    )
 
 
 def collect_diagnostics(bundle_root: Path, runtime_env: dict[str, str]) -> None:

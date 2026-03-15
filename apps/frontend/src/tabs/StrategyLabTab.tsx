@@ -143,6 +143,8 @@ export function StrategyLabTab() {
   const bestParameters = asRecord(backtestDetail ? backtestDetail.summary["best_parameters"] : undefined);
   const walkForward = asRecord(backtestDetail ? backtestDetail.validation["walk_forward"] : undefined);
   const validationFlags = asRecord(backtestDetail ? backtestDetail.validation["flags"] : undefined);
+  const strategyReality = strategyDetail?.data_reality ?? null;
+  const backtestReality = backtestDetail?.data_reality ?? null;
 
   return (
     <section className="stack">
@@ -269,6 +271,14 @@ export function StrategyLabTab() {
               <span className="metric-label">Forward sample</span>
               <strong>{strategyDetail.forward_validation_summary.sample_size}</strong>
             </div>
+            {strategyReality ? (
+              <div>
+                <span className="metric-label">Data Reality</span>
+                <strong>
+                  {strategyReality.provenance.realism_grade} / {titleize(strategyReality.freshness_state)}
+                </strong>
+              </div>
+            ) : null}
           </div>
           <div className="detail-columns">
             <div>
@@ -385,6 +395,35 @@ export function StrategyLabTab() {
             </div>
           </div>
           <div className="detail-columns">
+            <div>
+              <h3>Data Reality</h3>
+              <table className="data-table">
+                <tbody>
+                  <tr>
+                    <td>Source</td>
+                    <td>
+                      {strategyReality?.provenance.source_type ?? "n/a"} / {strategyReality?.provenance.source_name ?? "n/a"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Realism</td>
+                    <td>{strategyReality ? `${strategyReality.realism_score.toFixed(1)} (${strategyReality.provenance.realism_grade})` : "n/a"}</td>
+                  </tr>
+                  <tr>
+                    <td>Freshness policy</td>
+                    <td>{strategyReality?.freshness_state ?? "n/a"}</td>
+                  </tr>
+                  <tr>
+                    <td>Alignment</td>
+                    <td>{strategyReality?.tradable_alignment_note ?? "n/a"}</td>
+                  </tr>
+                  <tr>
+                    <td>Promotion blocked</td>
+                    <td>{String(strategyReality?.promotion_blocked ?? false)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div>
               <h3>Data-realism penalties</h3>
               <table className="data-table">
@@ -549,6 +588,14 @@ export function StrategyLabTab() {
                   <span className="metric-label">Robustness</span>
                   <strong>{backtestDetail.robustness_score.toFixed(1)}</strong>
                 </div>
+                {backtestReality ? (
+                  <div>
+                    <span className="metric-label">Reality</span>
+                    <strong>
+                      {backtestReality.provenance.realism_grade} / {titleize(backtestReality.freshness_state)}
+                    </strong>
+                  </div>
+                ) : null}
               </div>
               <div className="detail-columns">
                 <div>
@@ -622,6 +669,25 @@ export function StrategyLabTab() {
                       <tr>
                         <td>Forward hit rate</td>
                         <td>{formatRatio(backtestDetail.forward_validation_summary?.hit_rate ?? 0)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div>
+                  <h3>Data Reality</h3>
+                  <table className="data-table">
+                    <tbody>
+                      <tr>
+                        <td>Source type</td>
+                        <td>{backtestReality?.provenance.source_type ?? "n/a"}</td>
+                      </tr>
+                      <tr>
+                        <td>Tradable alignment</td>
+                        <td>{backtestReality?.tradable_alignment_note ?? "n/a"}</td>
+                      </tr>
+                      <tr>
+                        <td>Alert allowed</td>
+                        <td>{String(backtestReality?.alert_allowed ?? false)}</td>
                       </tr>
                     </tbody>
                   </table>

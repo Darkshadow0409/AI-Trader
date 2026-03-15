@@ -23,6 +23,38 @@ class BarView(BaseModel):
     volume: float
 
 
+class DataRealismPenaltyView(BaseModel):
+    code: str
+    severity: str
+    summary: str
+    score_penalty: float
+
+
+class AssetProvenanceView(BaseModel):
+    symbol: str
+    underlying_asset: str
+    tradable_symbol: str
+    source_name: str
+    source_type: str
+    freshness_sla_minutes: int
+    realism_grade: str
+    proxy_mapping_notes: str
+    asset_class: str
+
+
+class DataRealityView(BaseModel):
+    provenance: AssetProvenanceView
+    freshness_minutes: int
+    freshness_state: str
+    realism_score: float
+    ranking_penalty: float
+    promotion_blocked: bool
+    alert_allowed: bool
+    ui_warning: str
+    penalties: list[DataRealismPenaltyView]
+    tradable_alignment_note: str
+
+
 class SignalView(BaseModel):
     signal_id: str
     symbol: str
@@ -40,6 +72,7 @@ class SignalView(BaseModel):
     data_quality: str
     affected_assets: list[str]
     features: dict[str, Any]
+    data_reality: DataRealityView | None = None
 
 
 class SignalEvidenceView(BaseModel):
@@ -85,6 +118,7 @@ class OpportunityView(BaseModel):
     signal_id: str | None
     risk_report_id: str | None
     status: str
+    data_reality: DataRealityView | None = None
 
 
 class OpportunityHunterView(BaseModel):
@@ -107,6 +141,7 @@ class RiskView(BaseModel):
     data_quality: str
     scenario_shocks: dict[str, float]
     report: dict[str, Any]
+    data_reality: DataRealityView | None = None
 
 
 class RiskExposureView(BaseModel):
@@ -141,6 +176,7 @@ class ResearchView(BaseModel):
     breakout_distance: float
     structure_score: float
     data_quality: str
+    data_reality: DataRealityView | None = None
 
 
 class AssetContextView(BaseModel):
@@ -150,6 +186,7 @@ class AssetContextView(BaseModel):
     research: ResearchView | None
     related_news: list[NewsView]
     latest_backtest: BacktestListView | None
+    data_reality: DataRealityView | None = None
 
 
 class SignalDetailView(SignalView):
@@ -327,13 +364,7 @@ class StrategyListView(BaseModel):
     lifecycle_note: str
     tags: list[str]
     validation: dict[str, Any]
-
-
-class DataRealismPenaltyView(BaseModel):
-    code: str
-    severity: str
-    summary: str
-    score_penalty: float
+    data_reality: DataRealityView | None = None
 
 
 class ForwardValidationSummaryView(BaseModel):
@@ -445,6 +476,7 @@ class BacktestListView(BaseModel):
     trade_count: int
     lifecycle_state: str = "experimental"
     data_realism_penalties: list[DataRealismPenaltyView] = Field(default_factory=list)
+    data_reality: DataRealityView | None = None
 
 
 class BacktestDetailView(BacktestListView):

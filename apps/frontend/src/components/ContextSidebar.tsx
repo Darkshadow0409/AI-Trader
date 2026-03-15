@@ -28,6 +28,7 @@ export function ContextSidebar({
   const event = ribbon.next_event as { title?: string; impact?: string; event_time?: string } | null;
   const risk = riskDetail ?? context.latest_risk;
   const detailRisk = riskDetail;
+  const reality = context.data_reality ?? context.latest_signal?.data_reality ?? context.latest_risk?.data_reality ?? context.research?.data_reality;
 
   return (
     <div className="context-stack">
@@ -76,6 +77,27 @@ export function ContextSidebar({
           </>
         ) : (
           <p className="muted-copy">No risk report for the selected asset.</p>
+        )}
+      </Panel>
+
+      <Panel title="Data Reality" eyebrow={context.symbol}>
+        {reality ? (
+          <>
+            <div className="metric-row">
+              <span>
+                {reality.provenance.realism_grade} / {reality.freshness_state}
+              </span>
+              <span>{reality.provenance.source_type}</span>
+            </div>
+            <div className="metric-row compact-row">
+              <span>{reality.provenance.tradable_symbol}</span>
+              <span>score {reality.realism_score.toFixed(1)}</span>
+            </div>
+            <small>{reality.tradable_alignment_note}</small>
+            {reality.ui_warning ? <small>{reality.ui_warning}</small> : null}
+          </>
+        ) : (
+          <p className="muted-copy">No provenance context is available for this asset.</p>
         )}
       </Panel>
 

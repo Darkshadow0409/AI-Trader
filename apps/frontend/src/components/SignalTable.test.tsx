@@ -26,6 +26,7 @@ describe("SignalTable", () => {
             data_quality: "fixture",
             affected_assets: ["BTC"],
             features: {},
+            data_reality: null,
           },
         ]}
         selectedSymbol="ETH"

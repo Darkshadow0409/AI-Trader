@@ -5,6 +5,7 @@ import type {
   BacktestDetailView,
   BacktestListView,
   BarView,
+  DataRealityView,
   HealthView,
   JournalReviewView,
   NewsView,
@@ -27,6 +28,139 @@ export const mockHealth: HealthView = {
   sqlite_path: "mock/sqlite.db",
   duckdb_path: "mock/analytics.duckdb",
   parquet_dir: "mock/parquet",
+};
+
+const btcDataReality: DataRealityView = {
+  provenance: {
+    symbol: "BTC",
+    underlying_asset: "BTC",
+    tradable_symbol: "BTCUSD",
+    source_name: "fixture_bars",
+    source_type: "fixture",
+    freshness_sla_minutes: 1440,
+    realism_grade: "B",
+    proxy_mapping_notes: "Direct crypto spot mapping in fixture mode.",
+    asset_class: "crypto",
+  },
+  freshness_minutes: 5,
+  freshness_state: "fresh",
+  realism_score: 52,
+  ranking_penalty: 32,
+  promotion_blocked: false,
+  alert_allowed: true,
+  ui_warning: "Current context is running in deterministic fixture-first mode.",
+  penalties: [
+    {
+      code: "fixture_only",
+      severity: "warning",
+      summary: "Current context is running in deterministic fixture-first mode.",
+      score_penalty: 14,
+    },
+    {
+      code: "fixture_source",
+      severity: "info",
+      summary: "Source is fixture-backed rather than exchange-verified.",
+      score_penalty: 18,
+    },
+  ],
+  tradable_alignment_note: "BTC aligns directly with BTCUSD.",
+};
+
+const ethDataReality: DataRealityView = {
+  provenance: {
+    symbol: "ETH",
+    underlying_asset: "ETH",
+    tradable_symbol: "ETHUSD",
+    source_name: "fixture_bars",
+    source_type: "fixture",
+    freshness_sla_minutes: 1440,
+    realism_grade: "B",
+    proxy_mapping_notes: "Direct crypto spot mapping in fixture mode.",
+    asset_class: "crypto",
+  },
+  freshness_minutes: 5,
+  freshness_state: "fresh",
+  realism_score: 46,
+  ranking_penalty: 38,
+  promotion_blocked: false,
+  alert_allowed: true,
+  ui_warning: "Current context is running in deterministic fixture-first mode.",
+  penalties: [
+    {
+      code: "fixture_only",
+      severity: "warning",
+      summary: "Current context is running in deterministic fixture-first mode.",
+      score_penalty: 14,
+    },
+    {
+      code: "fixture_source",
+      severity: "info",
+      summary: "Source is fixture-backed rather than exchange-verified.",
+      score_penalty: 18,
+    },
+    {
+      code: "missing_cross_asset_confirmation",
+      severity: "info",
+      summary: "Cross-asset confirmation is weak or missing in the latest context.",
+      score_penalty: 6,
+    },
+  ],
+  tradable_alignment_note: "ETH aligns directly with ETHUSD.",
+};
+
+const wtiDataReality: DataRealityView = {
+  provenance: {
+    symbol: "WTI",
+    underlying_asset: "WTI",
+    tradable_symbol: "USO",
+    source_name: "macro_fixture_proxy",
+    source_type: "proxy",
+    freshness_sla_minutes: 1440,
+    realism_grade: "D",
+    proxy_mapping_notes: "WTI context is approximated through a proxy-grade local series.",
+    asset_class: "commodity",
+  },
+  freshness_minutes: 10,
+  freshness_state: "fresh",
+  realism_score: 0,
+  ranking_penalty: 64,
+  promotion_blocked: true,
+  alert_allowed: false,
+  ui_warning:
+    "WTI context is approximated through a proxy-grade local series. | Oil context is materially weaker than direct venue-grade futures data.",
+  penalties: [
+    {
+      code: "fixture_only",
+      severity: "warning",
+      summary: "Current context is running in deterministic fixture-first mode.",
+      score_penalty: 18,
+    },
+    {
+      code: "proxy_grade_mapping",
+      severity: "warning",
+      summary: "WTI context is approximated through a proxy-grade local series.",
+      score_penalty: 14,
+    },
+    {
+      code: "tradable_mismatch",
+      severity: "warning",
+      summary: "Underlying WTI is represented through tradable proxy USO.",
+      score_penalty: 8,
+    },
+    {
+      code: "missing_cross_asset_confirmation",
+      severity: "info",
+      summary: "Cross-asset confirmation is weak or missing in the latest context.",
+      score_penalty: 6,
+    },
+    {
+      code: "weak_oil_realism",
+      severity: "critical",
+      summary: "Oil context is materially weaker than direct venue-grade futures data.",
+      score_penalty: 18,
+    },
+  ],
+  tradable_alignment_note: "WTI is mapped to tradable proxy USO.",
 };
 
 export const mockRibbon: RibbonView = {
@@ -62,7 +196,8 @@ export const mockSignals: SignalView[] = [
     uncertainty: 0.21,
     data_quality: "fixture",
     affected_assets: ["BTC", "ETH"],
-    features: { close: 71880, atr_14: 1720, trend_state: "uptrend", relative_volume: 1.22, breakout_distance: 0.018 },
+    features: { close: 71880, atr_14: 1720, trend_state: "uptrend", relative_volume: 1.22, breakout_distance: 0.018, cross_asset_positive: ["ETH"] },
+    data_reality: btcDataReality,
   },
   {
     signal_id: "sig_342ef03a8f4a559b9b1773fc5fd9f4ae",
@@ -80,7 +215,8 @@ export const mockSignals: SignalView[] = [
     uncertainty: 0.42,
     data_quality: "fixture",
     affected_assets: ["ETH", "BTC"],
-    features: { close: 3588, atr_14: 104, trend_state: "uptrend", relative_volume: 0.96, breakout_distance: 0.007 },
+    features: { close: 3588, atr_14: 104, trend_state: "uptrend", relative_volume: 0.96, breakout_distance: 0.007, cross_asset_positive: [] },
+    data_reality: ethDataReality,
   },
 ];
 
@@ -160,6 +296,7 @@ export const mockResearch: ResearchView[] = [
     breakout_distance: 1.8,
     structure_score: 2.4,
     data_quality: "fixture",
+    data_reality: btcDataReality,
   },
   {
     symbol: "ETH",
@@ -174,6 +311,7 @@ export const mockResearch: ResearchView[] = [
     breakout_distance: 0.7,
     structure_score: 1.4,
     data_quality: "fixture",
+    data_reality: ethDataReality,
   },
   {
     symbol: "WTI",
@@ -188,6 +326,7 @@ export const mockResearch: ResearchView[] = [
     breakout_distance: 0.2,
     structure_score: 0.8,
     data_quality: "fixture",
+    data_reality: wtiDataReality,
   },
 ];
 
@@ -206,6 +345,7 @@ export const mockRisk: RiskView[] = [
     data_quality: "fixture",
     scenario_shocks: { risk_off_pct: -8, liquidity_gap_pct: -4.5, macro_repricing_pct: -6 },
     report: { entry_reference: 71880, atr_14: 1720, risk_notes: ["No live execution enabled."] },
+    data_reality: btcDataReality,
   },
   {
     risk_report_id: "risk_3490fc4bf0305fbcbe6c1765fcc4fed8",
@@ -221,6 +361,7 @@ export const mockRisk: RiskView[] = [
     data_quality: "fixture",
     scenario_shocks: { risk_off_pct: -10.5, liquidity_gap_pct: -5.8, macro_repricing_pct: -7.2 },
     report: { entry_reference: 3588, atr_14: 104, risk_notes: ["Reduce conviction near CPI."] },
+    data_reality: ethDataReality,
   },
 ];
 
@@ -323,6 +464,7 @@ export const mockOpportunities: OpportunityHunterView = {
         trend_bonus: 6,
         noise_penalty: 3.96,
         freshness_penalty: 0.08,
+        realism_penalty: 32,
       },
       promotion_reasons: ["signal_score_above_focus_threshold", "trend_state_uptrend", "risk_budget_acceptable"],
       freshness_minutes: 5,
@@ -330,6 +472,7 @@ export const mockOpportunities: OpportunityHunterView = {
       signal_id: mockSignals[0].signal_id,
       risk_report_id: mockRisk[0].risk_report_id,
       status: "active",
+      data_reality: btcDataReality,
     },
   ],
   scout_queue: [
@@ -344,6 +487,7 @@ export const mockOpportunities: OpportunityHunterView = {
         trend_bonus: 6,
         noise_penalty: 7.38,
         freshness_penalty: 0.08,
+        realism_penalty: 38,
       },
       promotion_reasons: ["trend_state_uptrend", "awaiting_confirmation"],
       freshness_minutes: 5,
@@ -351,6 +495,7 @@ export const mockOpportunities: OpportunityHunterView = {
       signal_id: mockSignals[1].signal_id,
       risk_report_id: mockRisk[1].risk_report_id,
       status: "active",
+      data_reality: ethDataReality,
     },
   ],
 };
@@ -401,7 +546,9 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
       trade_count: 7,
       lifecycle_state: "promoted",
       data_realism_penalties: mockTrendPenalties,
+      data_reality: btcDataReality,
     },
+    data_reality: btcDataReality,
   },
   ETH: {
     symbol: "ETH",
@@ -410,6 +557,7 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
     research: mockResearch[1],
     related_news: mockNews,
     latest_backtest: null,
+    data_reality: ethDataReality,
   },
   WTI: {
     symbol: "WTI",
@@ -418,6 +566,7 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
     research: mockResearch[2],
     related_news: mockNews.filter((item) => item.affected_assets.includes("WTI")),
     latest_backtest: null,
+    data_reality: wtiDataReality,
   },
 };
 
@@ -560,6 +709,7 @@ export const mockStrategies: StrategyListView[] = [
     lifecycle_note: "Forward validation held up under fixture-mode penalties.",
     tags: ["trend", "breakout"],
     validation: { walk_forward_required: true, robustness_required: true },
+    data_reality: btcDataReality,
   },
 ];
 
@@ -672,6 +822,7 @@ export const mockBacktests: BacktestListView[] = [
     trade_count: 7,
     lifecycle_state: "promoted",
     data_realism_penalties: mockTrendPenalties,
+    data_reality: btcDataReality,
   },
 ];
 

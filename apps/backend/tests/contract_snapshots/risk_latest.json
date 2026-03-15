@@ -19,6 +19,7 @@
     "report": {
       "entry_reference": 4505.5777,
       "atr_14": 58.1021,
+      "cross_asset_positive": [],
       "scenario_shocks": {
         "risk_off_pct": -10.5,
         "liquidity_gap_pct": -5.8,
@@ -28,6 +29,53 @@
         "No live execution is enabled in this platform.",
         "Macro event proximity should reduce conviction when high-impact releases are pending."
       ]
+    },
+    "data_reality": {
+      "provenance": {
+        "symbol": "ETH",
+        "underlying_asset": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_type": "fixture",
+        "freshness_sla_minutes": 1440,
+        "realism_grade": "B",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "asset_class": "crypto"
+      },
+      "freshness_minutes": 2130,
+      "freshness_state": "aging",
+      "realism_score": 42.0,
+      "ranking_penalty": 42.0,
+      "promotion_blocked": true,
+      "alert_allowed": true,
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Freshness policy is aging at 2130 minutes against an SLA of 1440.",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode.",
+          "score_penalty": 14.0
+        },
+        {
+          "code": "fixture_source",
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified.",
+          "score_penalty": 18.0
+        },
+        {
+          "code": "freshness_aging",
+          "severity": "warning",
+          "summary": "Freshness policy is aging at 2130 minutes against an SLA of 1440.",
+          "score_penalty": 4.0
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context.",
+          "score_penalty": 6.0
+        }
+      ],
+      "tradable_alignment_note": "ETH aligns directly with ETHUSD."
     }
   },
   {
@@ -50,6 +98,7 @@
     "report": {
       "entry_reference": 85593.4967,
       "atr_14": 1087.2386,
+      "cross_asset_positive": [],
       "scenario_shocks": {
         "risk_off_pct": -8.0,
         "liquidity_gap_pct": -4.5,
@@ -59,6 +108,53 @@
         "No live execution is enabled in this platform.",
         "Macro event proximity should reduce conviction when high-impact releases are pending."
       ]
+    },
+    "data_reality": {
+      "provenance": {
+        "symbol": "BTC",
+        "underlying_asset": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_type": "fixture",
+        "freshness_sla_minutes": 1440,
+        "realism_grade": "B",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "asset_class": "crypto"
+      },
+      "freshness_minutes": 2130,
+      "freshness_state": "aging",
+      "realism_score": 42.0,
+      "ranking_penalty": 42.0,
+      "promotion_blocked": true,
+      "alert_allowed": true,
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Freshness policy is aging at 2130 minutes against an SLA of 1440.",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode.",
+          "score_penalty": 14.0
+        },
+        {
+          "code": "fixture_source",
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified.",
+          "score_penalty": 18.0
+        },
+        {
+          "code": "freshness_aging",
+          "severity": "warning",
+          "summary": "Freshness policy is aging at 2130 minutes against an SLA of 1440.",
+          "score_penalty": 4.0
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context.",
+          "score_penalty": 6.0
+        }
+      ],
+      "tradable_alignment_note": "BTC aligns directly with BTCUSD."
     }
   }
 ]

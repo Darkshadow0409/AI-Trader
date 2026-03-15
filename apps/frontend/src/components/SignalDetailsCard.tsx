@@ -13,6 +13,7 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
   const signal = detail ?? context.latest_signal;
   const risk = detail?.related_risk ?? context.latest_risk;
   const signalDetail = detail;
+  const reality = signalDetail?.data_reality ?? signal?.data_reality ?? context.data_reality;
 
   return (
     <Panel
@@ -57,7 +58,30 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
                 <strong>{signalDetail.freshness_status}</strong>
               </div>
             ) : null}
+            {reality ? (
+              <div>
+                <span className="metric-label">Reality</span>
+                <strong>
+                  {reality.provenance.realism_grade} / {reality.freshness_state}
+                </strong>
+              </div>
+            ) : null}
           </div>
+          {reality ? (
+            <div className="stack">
+              <div className="metric-row compact-row">
+                <span>
+                  {reality.provenance.source_type} via {reality.provenance.source_name}
+                </span>
+                <span>score {reality.realism_score.toFixed(1)}</span>
+              </div>
+              <div className="metric-row compact-row">
+                <span>{reality.tradable_alignment_note}</span>
+                <span>SLA {reality.provenance.freshness_sla_minutes}m</span>
+              </div>
+              {reality.ui_warning ? <small>{reality.ui_warning}</small> : null}
+            </div>
+          ) : null}
           {signalDetail ? (
             <div className="stack">
               {signalDetail.evidence.slice(0, 4).map((item) => (
@@ -75,6 +99,15 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
               <span className="tag">risk {risk.max_portfolio_risk_pct.toFixed(3)}%</span>
               <span className="tag">{risk.size_band}</span>
               <span className="tag">{risk.exposure_cluster}</span>
+            </div>
+          ) : null}
+          {reality && reality.penalties.length > 0 ? (
+            <div className="inline-tags">
+              {reality.penalties.slice(0, 3).map((penalty) => (
+                <span className="tag" key={penalty.code}>
+                  {penalty.code}
+                </span>
+              ))}
             </div>
           ) : null}
           {signalDetail && signalDetail.catalyst_news.length > 0 ? (

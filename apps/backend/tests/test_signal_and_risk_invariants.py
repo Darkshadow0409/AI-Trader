@@ -30,6 +30,9 @@ def test_signal_payloads_expose_required_fields_and_sane_ranges(client, seeded_s
         assert row["data_quality"]
         assert row["features"]
         assert row["symbol"] in row["affected_assets"]
+        assert row["data_reality"]["provenance"]["symbol"] == row["symbol"]
+        assert row["data_reality"]["freshness_state"] in {"fresh", "aging", "stale", "degraded", "unusable"}
+        assert isfinite(row["data_reality"]["realism_score"])
         for field in ("signal_id", "symbol", "signal_type", "timestamp", "score", "confidence", "noise_probability", "invalidation"):
             assert row[field] is not None
 
@@ -56,6 +59,8 @@ def test_risk_payloads_expose_required_fields_and_non_empty_shocks(client, seede
         assert row["scenario_shocks"]
         assert all(isfinite(value) for value in row["scenario_shocks"].values())
         assert row["report"].get("atr_14") is not None
+        assert row["data_reality"]["provenance"]["symbol"] == row["symbol"]
+        assert row["data_reality"]["tradable_alignment_note"]
 
 
 def test_risk_exposure_rows_remain_sane(client, seeded_summary) -> None:

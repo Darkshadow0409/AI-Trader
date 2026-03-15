@@ -32,6 +32,7 @@ from app.models.entities import (
     WatchlistItem,
 )
 from app.services.operator_console import refresh_alerts, seed_console_records, sync_trade_links
+from app.services.data_reality import PROVENANCE_DEFAULTS, sync_asset_provenance
 from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
 from app.services.sample_data import generate_sample_ohlcv, seed_watchlist
@@ -103,17 +104,24 @@ def _seed_static_records(session: Session) -> None:
     if session.exec(select(Asset)).first() is None:
         session.add_all(
             [
-                Asset(symbol="BTC", name="Bitcoin", asset_class="crypto", venue="binance"),
-                Asset(symbol="ETH", name="Ethereum", asset_class="crypto", venue="binance"),
-                Asset(symbol="WTI", name="WTI crude proxy", asset_class="commodity", venue="macro"),
-                Asset(symbol="GOLD", name="Gold", asset_class="commodity", venue="macro"),
-                Asset(symbol="SILVER", name="Silver", asset_class="commodity", venue="macro"),
-                Asset(symbol="DXY", name="US Dollar Index", asset_class="macro", venue="macro"),
-                Asset(symbol="US10Y", name="US 10Y Treasury", asset_class="macro", venue="macro"),
-                Asset(symbol="VIX", name="CBOE Volatility Index", asset_class="macro", venue="macro"),
+                Asset(
+                    symbol=symbol,
+                    name=seed.name,
+                    asset_class=seed.asset_class,
+                    venue=seed.venue,
+                    underlying_asset=seed.underlying_asset,
+                    tradable_symbol=seed.tradable_symbol,
+                    source_name=seed.source_name,
+                    source_type=seed.source_type,
+                    freshness_sla_minutes=seed.freshness_sla_minutes,
+                    realism_grade=seed.realism_grade,
+                    proxy_mapping_notes=seed.proxy_mapping_notes,
+                )
+                for symbol, seed in PROVENANCE_DEFAULTS.items()
             ]
         )
         session.commit()
+    sync_asset_provenance(session, "sample")
 
     if session.exec(select(WatchlistItem)).first() is None:
         session.add_all([WatchlistItem(**item) for item in seed_watchlist()])
@@ -272,6 +280,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
     with Session(engine) as session:
         _seed_static_records(session)
         bars, source_mode = _collect_market_data(force_live=force_live)
+        sync_asset_provenance(session, source_mode)
         run = PipelineRun(started_at=naive_utc_now(), source_mode=source_mode, status="running")
         session.add(run)
         session.commit()

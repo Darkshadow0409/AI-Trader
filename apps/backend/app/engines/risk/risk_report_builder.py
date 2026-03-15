@@ -34,6 +34,7 @@ def build_risk_report(signal: dict[str, Any]) -> dict[str, Any]:
         "report_json": {
             "entry_reference": close,
             "atr_14": round(atr, 4),
+            "cross_asset_positive": list(feature.get("cross_asset_positive") or []),
             "scenario_shocks": shocks,
             "risk_notes": [
                 "No live execution is enabled in this platform.",

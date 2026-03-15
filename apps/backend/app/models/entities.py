@@ -13,6 +13,13 @@ class Asset(SQLModel, table=True):
     name: str
     asset_class: str
     venue: str
+    underlying_asset: str = Field(default="")
+    tradable_symbol: str = Field(default="")
+    source_name: str = Field(default="fixture")
+    source_type: str = Field(default="fixture")
+    freshness_sla_minutes: int = 240
+    realism_grade: str = Field(default="C")
+    proxy_mapping_notes: str = ""
     is_active: bool = True
     metadata_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from time import perf_counter
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import alerts, backtests, dashboard, health, journal, market, news, portfolio, research, risk, signals, strategies, system, watchlist
 from app.core.settings import get_settings
+from app.core.telemetry import record_route_timing
 from app.services.pipeline import seed_and_refresh
 from app.websocket.manager import manager
 
@@ -48,6 +50,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def route_timing_middleware(request: Request, call_next):
+    started = perf_counter()
+    response = await call_next(request)
+    duration_ms = (perf_counter() - started) * 1000
+    if request.url.path.startswith("/api/"):
+        record_route_timing(request.method, request.url.path, response.status_code, duration_ms)
+    return response
 
 app.include_router(health.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")

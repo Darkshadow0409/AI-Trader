@@ -33,6 +33,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     opportunities = client.get("/api/watchlist/opportunity-hunter")
     alerts = client.get("/api/alerts")
     risk_detail = client.get(f"/api/risk/{risk.json()[0]['risk_report_id']}") if risk.json() else None
+    proposed_paper = client.get("/api/portfolio/paper-trades/proposed")
+    active_paper = client.get("/api/portfolio/paper-trades/active")
+    closed_paper = client.get("/api/portfolio/paper-trades/closed")
+    paper_analytics = client.get("/api/portfolio/paper-trades/analytics")
+    paper_reviews = client.get("/api/journal/paper-trade-reviews")
     refresh = client.post("/api/system/refresh")
     assert news.status_code == 200
     assert watchlist.status_code == 200
@@ -52,6 +57,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert opportunities.status_code == 200
     assert alerts.status_code == 200
     assert risk_detail is not None and risk_detail.status_code == 200
+    assert proposed_paper.status_code == 200
+    assert active_paper.status_code == 200
+    assert closed_paper.status_code == 200
+    assert paper_analytics.status_code == 200
+    assert paper_reviews.status_code == 200
     assert refresh.status_code == 200
     assert len(bars.json()) > 0
     assert len(strategies.json()) >= 3
@@ -63,6 +73,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert isinstance(journal.json(), list)
     assert "focus_queue" in opportunities.json()
     assert isinstance(alerts.json(), list)
+    assert isinstance(proposed_paper.json(), list)
+    assert isinstance(active_paper.json(), list)
+    assert isinstance(closed_paper.json(), list)
+    assert "by_asset" in paper_analytics.json()
+    assert isinstance(paper_reviews.json(), list)
     assert "channel_targets" in alerts.json()[0]
     assert "status" in alerts.json()[0]
     assert "evidence" in signal_detail.json()
@@ -71,6 +86,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "data_reality" in risk_detail.json()
     assert "data_reality" in asset_context.json()
     assert refresh.json()["source_mode"] == "sample"
+
+    active_paper_detail = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}") if active_paper.json() else None
+    assert active_paper_detail is not None and active_paper_detail.status_code == 200
+    assert "outcome" in active_paper_detail.json()
+    assert "lifecycle_events" in active_paper_detail.json()
 
     created_trade = client.post(
         "/api/portfolio/active-trades",

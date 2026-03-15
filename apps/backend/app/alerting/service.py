@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from time import perf_counter
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -9,6 +10,7 @@ from sqlmodel import Session, desc, select
 from app.alerting.sinks import DiscordAlertSink, InAppAlertSink, TelegramAlertSink, severity_allowed
 from app.core.clock import naive_utc_now
 from app.core.settings import get_settings
+from app.core.telemetry import record_alert_metric
 from app.models.entities import AlertRecord
 from app.models.schemas import AlertEnvelope
 
@@ -106,8 +108,10 @@ def _suppressed_alert_id(session: Session, alert: AlertEnvelope, reason: str) ->
 
 
 def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
+    started = perf_counter()
     existing = _existing_alert(session, alert)
     if existing is not None:
+        record_alert_metric(alert.category, alert.channel_targets, existing.status, (perf_counter() - started) * 1000)
         return existing
 
     duplicate = _is_duplicate(session, alert)
@@ -122,6 +126,7 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
         session.add(record)
         session.commit()
         session.refresh(record)
+        record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
         return record
 
     cooldown = _is_in_cooldown(session, alert)
@@ -136,6 +141,7 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
         session.add(record)
         session.commit()
         session.refresh(record)
+        record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
         return record
 
     targets = alert.channel_targets
@@ -150,6 +156,7 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
         session.add(record)
         session.commit()
         session.refresh(record)
+        record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
         return record
     deliveries: dict[str, Any] = {}
     sent_channels: list[str] = []
@@ -175,4 +182,5 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
     session.add(record)
     session.commit()
     session.refresh(record)
+    record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
     return record

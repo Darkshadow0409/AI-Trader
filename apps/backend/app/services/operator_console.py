@@ -29,6 +29,7 @@ from app.models.schemas import (
     SignalView,
 )
 from app.services.data_reality import asset_reality
+from app.services.paper_trading import refresh_paper_trade_alerts
 
 
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
@@ -597,3 +598,4 @@ def refresh_alerts(session: Session) -> None:
     if ribbon.risk_budget_used_pct > ribbon.risk_budget_total_pct:
         dispatch_alert(session, _compose_risk_budget_alert(ribbon))
     dispatch_alert(session, _compose_daily_digest(signals, opportunities, ribbon))
+    refresh_paper_trade_alerts(session)

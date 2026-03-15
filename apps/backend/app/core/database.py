@@ -93,10 +93,19 @@ def _ensure_contract_columns() -> None:
         connection.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_strategyregistryentry_lifecycle_state ON strategyregistryentry (lifecycle_state)"
         )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_papertraderecord_trade_id_unique ON papertraderecord (trade_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_papertraderecord_status ON papertraderecord (status)"
+        )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_papertradereviewrecord_trade_id_unique ON papertradereviewrecord (trade_id)"
+        )
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

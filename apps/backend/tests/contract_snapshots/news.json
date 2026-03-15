@@ -1,42 +1,48 @@
 [
   {
-    "source": "EIA: Press Releases",
-    "published_at": "2026-03-10T11:30:00",
-    "freshness_minutes": 7200,
-    "title": "EIA releases latest Short-Term Energy Outlook amid Middle East conflict",
-    "summary": "Crude oil price movements. The Brent crude oil spot price has risen sharply following the onset of military action in the Middle East. Brent settled at $94 per barrel (b) on March 9, up about 50% from the beginning of the year and the highest since September 2023. Crude oil prices have risen as petroleum shipments through the Strait of Hormuz have fallen, and some Middle East oil production has been shut in.",
-    "url": "/pressroom/releases/press584.php",
-    "tags": [],
+    "source": "EIA",
+    "published_at": "2026-03-10T14:30:00",
+    "freshness_minutes": 7020,
+    "title": "Weekly petroleum status report shows tighter crude inventories",
+    "summary": "The latest release points to a larger-than-expected crude draw, reinforcing cross-asset inflation sensitivity and energy-led macro volatility.",
+    "url": "https://www.eia.gov/petroleum/supply/weekly/",
+    "tags": [
+      "oil",
+      "inventory",
+      "macro",
+      "inflation"
+    ],
     "entity_tags": [
-      "WTI"
+      "VIX",
+      "WTI",
+      "inflation",
+      "inventory",
+      "macro",
+      "oil"
     ],
     "affected_assets": [
+      "VIX",
       "WTI"
     ],
     "data_quality": "fixture"
   },
   {
-    "source": "EIA: Press Releases",
-    "published_at": "2026-02-10T11:30:00",
-    "freshness_minutes": 47520,
-    "title": "EIA raises natural gas price forecast following increased heating demand amid severe winter weather",
-    "summary": "Natural gas prices rose sharply in January, averaging $7.72 per million British thermal units (MMBtu), as cold weather increased heating demand, reduced production, and led to record storage withdrawals during Winter Storm Fern. The drawdown for the week ending January 30 was the largest weekly net withdrawal recorded in the history of EIA's Weekly Natural Gas Storage Report.",
-    "url": "/pressroom/releases/press583.php",
-    "tags": [],
-    "entity_tags": [],
-    "affected_assets": [],
-    "data_quality": "fixture"
-  },
-  {
-    "source": "EIA: Press Releases",
-    "published_at": "2026-01-13T11:30:00",
-    "freshness_minutes": 87840,
-    "title": "EIA forecasts strongest four-year growth in U.S. electricity demand since 2000, fueled by data centers",
-    "summary": "The U.S. Energy Information Administration (EIA) published its first energy-sector forecasts through 2027 in the January Short-Term Energy Outlook (STEO).",
-    "url": "/pressroom/releases/press582.php",
-    "tags": [],
+    "source": "EIA",
+    "published_at": "2026-03-07T13:00:00",
+    "freshness_minutes": 11430,
+    "title": "Short-term energy outlook highlights mixed demand growth",
+    "summary": "EIA's monthly outlook flagged softer global demand assumptions while maintaining a volatile supply baseline.",
+    "url": "https://www.eia.gov/outlooks/steo/",
+    "tags": [
+      "outlook",
+      "demand",
+      "energy"
+    ],
     "entity_tags": [
-      "WTI"
+      "WTI",
+      "demand",
+      "energy",
+      "outlook"
     ],
     "affected_assets": [
       "WTI"

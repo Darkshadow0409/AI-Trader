@@ -422,6 +422,139 @@ export interface ActiveTradeUpdateRequest {
   risk_report_id?: string | null;
 }
 
+export interface PaperTradeOutcomeView {
+  entry_quality_label: string;
+  entry_zone_delta_pct: number;
+  stop_adherence: boolean;
+  target_attainment: string;
+  time_to_outcome_minutes: number;
+  mfe_pct: number;
+  mae_pct: number;
+  plan_adherence_flags: Record<string, boolean>;
+  realized_pnl_pct: number;
+}
+
+export interface PaperTradeReviewView {
+  review_id: string;
+  trade_id: string;
+  thesis_respected: boolean | null;
+  invalidation_respected: boolean | null;
+  entered_too_early: boolean | null;
+  entered_too_late: boolean | null;
+  oversized: boolean | null;
+  undersized: boolean | null;
+  realism_warning_ignored: boolean | null;
+  catalyst_mattered: boolean | null;
+  failure_category: string;
+  operator_notes: string;
+  updated_at: string;
+}
+
+export interface PaperTradeView {
+  trade_id: string;
+  signal_id: string | null;
+  risk_report_id: string | null;
+  strategy_id: string | null;
+  symbol: string;
+  side: string;
+  proposed_entry_zone: Record<string, number>;
+  actual_entry: number | null;
+  stop: number;
+  targets: Record<string, number>;
+  size_plan: Record<string, unknown>;
+  actual_size: number;
+  status: string;
+  opened_at: string | null;
+  closed_at: string | null;
+  close_reason: string;
+  close_price: number | null;
+  notes: string;
+  freshness_minutes: number;
+  data_quality: string;
+  lifecycle_events: Array<Record<string, unknown>>;
+  outcome: PaperTradeOutcomeView | null;
+  review_due: boolean;
+  data_reality: DataRealityView | null;
+}
+
+export interface PaperTradeDetailView extends PaperTradeView {
+  linked_signal: SignalView | null;
+  linked_risk: RiskView | null;
+  review: PaperTradeReviewView | null;
+}
+
+export interface PaperTradeProposalRequest {
+  signal_id: string;
+  risk_report_id?: string | null;
+  strategy_id?: string | null;
+  symbol?: string | null;
+  side?: string | null;
+  notes?: string;
+}
+
+export interface PaperTradeOpenRequest {
+  actual_entry: number;
+  actual_size: number;
+  opened_at?: string;
+  notes?: string;
+}
+
+export interface PaperTradeScaleRequest {
+  actual_entry: number;
+  added_size: number;
+  notes?: string;
+}
+
+export interface PaperTradePartialExitRequest {
+  exit_price: number;
+  exit_size: number;
+  closed_at?: string;
+  close_reason?: string;
+  notes?: string;
+}
+
+export interface PaperTradeCloseRequest {
+  close_price: number;
+  closed_at?: string;
+  close_reason: string;
+  notes?: string;
+}
+
+export interface PaperTradeReviewRequest {
+  thesis_respected?: boolean | null;
+  invalidation_respected?: boolean | null;
+  entered_too_early?: boolean | null;
+  entered_too_late?: boolean | null;
+  oversized?: boolean | null;
+  undersized?: boolean | null;
+  realism_warning_ignored?: boolean | null;
+  catalyst_mattered?: boolean | null;
+  failure_category?: string;
+  operator_notes?: string;
+}
+
+export interface PaperTradeAnalyticsBucketView {
+  grouping: string;
+  key: string;
+  trade_count: number;
+  hit_rate: number;
+  expectancy_proxy: number;
+  target_attainment_rate: number;
+  invalidation_rate: number;
+  avg_entry_zone_delta_pct: number;
+  avg_mfe_pct: number;
+  avg_mae_pct: number;
+}
+
+export interface PaperTradeAnalyticsView {
+  generated_at: string;
+  by_signal_family: PaperTradeAnalyticsBucketView[];
+  by_strategy: PaperTradeAnalyticsBucketView[];
+  by_score_bucket: PaperTradeAnalyticsBucketView[];
+  by_realism_bucket: PaperTradeAnalyticsBucketView[];
+  by_asset: PaperTradeAnalyticsBucketView[];
+}
+
 export interface WalletBalanceLineView {
   asset: string;
   free: number;

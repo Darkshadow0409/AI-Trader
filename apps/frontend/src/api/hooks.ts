@@ -10,6 +10,10 @@ import type {
   JournalReviewView,
   NewsView,
   OpportunityHunterView,
+  PaperTradeAnalyticsView,
+  PaperTradeDetailView,
+  PaperTradeReviewView,
+  PaperTradeView,
   ResearchView,
   RibbonView,
   RiskDetailView,
@@ -127,7 +131,44 @@ function emptyRiskDetail(riskReportId: string): RiskDetailView {
   };
 }
 
-export function useDashboardData(selectedSymbol: string, selectedSignalId: string | null, selectedRiskReportId: string | null) {
+function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
+  return {
+    trade_id: tradeId,
+    signal_id: null,
+    risk_report_id: null,
+    strategy_id: null,
+    symbol: "",
+    side: "",
+    proposed_entry_zone: {},
+    actual_entry: null,
+    stop: 0,
+    targets: {},
+    size_plan: {},
+    actual_size: 0,
+    status: "",
+    opened_at: null,
+    closed_at: null,
+    close_reason: "",
+    close_price: null,
+    notes: "",
+    freshness_minutes: 0,
+    data_quality: "loading",
+    lifecycle_events: [],
+    outcome: null,
+    review_due: false,
+    data_reality: null,
+    linked_signal: null,
+    linked_risk: null,
+    review: null,
+  };
+}
+
+export function useDashboardData(
+  selectedSymbol: string,
+  selectedSignalId: string | null,
+  selectedRiskReportId: string | null,
+  selectedTradeId: string | null,
+) {
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
     status: "loading",
     sqlite_path: "",
@@ -157,6 +198,14 @@ export function useDashboardData(selectedSymbol: string, selectedSignalId: strin
   const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), []);
   const riskExposure = usePollingResource<RiskExposureView[]>(() => apiClient.riskExposure(), []);
   const activeTrades = usePollingResource<ActiveTradeView[]>(() => apiClient.activeTrades(), []);
+  const proposedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.proposedPaperTrades(), []);
+  const activePaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.activePaperTrades(), []);
+  const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), []);
+  const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
+    () => apiClient.paperTradeAnalytics(),
+    { generated_at: "", by_signal_family: [], by_strategy: [], by_score_bucket: [], by_realism_bucket: [], by_asset: [] },
+  );
+  const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(() => apiClient.paperTradeReviews(), []);
   const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), []);
   const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), []);
   const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), []);
@@ -185,6 +234,11 @@ export function useDashboardData(selectedSymbol: string, selectedSignalId: strin
     selectedRiskReportId ? emptyRiskDetail(selectedRiskReportId) : null,
     [selectedRiskReportId],
   );
+  const paperTradeDetail = usePollingResource<PaperTradeDetailView | null>(
+    () => (selectedTradeId ? apiClient.paperTradeDetail(selectedTradeId) : Promise.resolve(null)),
+    selectedTradeId ? emptyPaperTradeDetail(selectedTradeId) : null,
+    [selectedTradeId],
+  );
 
   return {
     health,
@@ -200,6 +254,12 @@ export function useDashboardData(selectedSymbol: string, selectedSignalId: strin
     riskDetail,
     riskExposure,
     activeTrades,
+    proposedPaperTrades,
+    activePaperTrades,
+    closedPaperTrades,
+    paperTradeAnalytics,
+    paperTradeReviews,
+    paperTradeDetail,
     walletBalance,
     journal,
     alerts,

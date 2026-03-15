@@ -27,7 +27,12 @@ CONTRACT_FILES = [
     ("/api/risk/latest", "GET", "contracts/risk_latest.json"),
     ("/api/alerts", "GET", "contracts/alerts.json"),
     ("/api/portfolio/active-trades", "GET", "contracts/active_trades.json"),
+    ("/api/portfolio/paper-trades/proposed", "GET", "contracts/paper_trades_proposed.json"),
+    ("/api/portfolio/paper-trades/active", "GET", "contracts/paper_trades_active.json"),
+    ("/api/portfolio/paper-trades/closed", "GET", "contracts/paper_trades_closed.json"),
+    ("/api/portfolio/paper-trades/analytics", "GET", "contracts/paper_trade_analytics.json"),
     ("/api/journal", "GET", "contracts/journal.json"),
+    ("/api/journal/paper-trade-reviews", "GET", "contracts/paper_trade_reviews.json"),
     ("/api/market/bars/BTC", "GET", "contracts/market_bars_BTC.json"),
     ("/api/system/refresh", "POST", "contracts/system_refresh.json"),
     ("/api/strategies", "GET", "contracts/strategies.json"),
@@ -43,6 +48,7 @@ TEST_FILES = [
     "apps/backend/tests/test_connector_fallbacks.py",
     "apps/backend/tests/test_data_reality.py",
     "apps/backend/tests/test_feature_pipeline.py",
+    "apps/backend/tests/test_paper_trading.py",
     "apps/backend/tests/test_promotion_core.py",
     "apps/backend/tests/test_signal_and_risk_invariants.py",
     "apps/backend/tests/test_risk_engine.py",
@@ -51,7 +57,9 @@ TEST_FILES = [
     "apps/frontend/src/api/contracts.test.ts",
     "apps/frontend/src/components/SignalDetailsCard.test.tsx",
     "apps/frontend/src/components/TopRibbon.test.tsx",
+    "apps/frontend/src/tabs/ActiveTradesTab.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
+    "apps/frontend/src/tabs/JournalTab.test.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.test.tsx",
     "apps/frontend/src/tabs/WatchlistTab.test.tsx",
 ]
@@ -88,6 +96,7 @@ CORE_FILES = [
     "apps/backend/app/alerting/sinks.py",
     "apps/backend/app/alerting/service.py",
     "apps/backend/app/services/operator_console.py",
+    "apps/backend/app/services/paper_trading.py",
     "apps/backend/app/strategy_lab/registry.py",
     "apps/backend/app/strategy_lab/service.py",
     "apps/backend/app/connectors/eia_client.py",
@@ -102,6 +111,8 @@ CORE_FILES = [
     "apps/backend/app/models/schemas.py",
     "apps/backend/app/models/entities.py",
     "apps/backend/fixtures/forward_validation_samples.json",
+    "apps/backend/fixtures/paper_trades.json",
+    "apps/backend/fixtures/paper_trade_reviews.json",
     "apps/frontend/src/App.tsx",
     "apps/frontend/src/api/client.ts",
     "apps/frontend/src/api/hooks.ts",
@@ -116,6 +127,22 @@ CORE_FILES = [
     "apps/frontend/src/components/ContextSidebar.tsx",
     "apps/frontend/src/components/SignalTable.tsx",
     "apps/frontend/src/components/SignalDetailsCard.tsx",
+]
+
+REPO_DOC_FILES = [
+    "docs/ARCHITECTURE_OVERVIEW.md",
+    "docs/SERVICE_OWNERSHIP_MAP.md",
+    "docs/ENTITY_RELATIONSHIPS.md",
+    "docs/SIGNAL_TO_PAPER_TRADE_FLOW.md",
+    "docs/PROMOTION_VALIDATION_FLOW.md",
+    "docs/VERIFICATION_TIERS.md",
+]
+
+RUNTIME_DIAGNOSTIC_FILES = [
+    "data/diagnostics/latest_pipeline_timings.json",
+    "data/diagnostics/route_timings.json",
+    "data/diagnostics/alert_metrics.json",
+    "data/diagnostics/service_boundary_snapshot.json",
 ]
 
 
@@ -153,6 +180,15 @@ def copy_relative_file(relative_path: str, destination_root: Path) -> None:
     if not source.exists():
         return
     destination = destination_root / relative_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+
+
+def copy_by_name(relative_path: str, destination_root: Path) -> None:
+    source = ROOT / relative_path
+    if not source.exists():
+        return
+    destination = destination_root / Path(relative_path).name
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
 
@@ -332,6 +368,20 @@ def collect_contracts(bundle_root: Path, runtime_env: dict[str, str]) -> dict[st
                 payload = response.json()
                 responses[f"/api/backtests/{run_id}"] = payload
                 write_json(bundle_root / "contracts/backtest_detail.json", payload)
+        for route_name, output_name in (
+            ("/api/portfolio/paper-trades/proposed", "contracts/paper_trade_detail_proposed.json"),
+            ("/api/portfolio/paper-trades/active", "contracts/paper_trade_detail_active.json"),
+            ("/api/portfolio/paper-trades/closed", "contracts/paper_trade_detail_closed.json"),
+        ):
+            rows = responses.get(route_name)
+            if isinstance(rows, list) and rows:
+                trade_id = rows[0].get("trade_id")
+                if trade_id:
+                    response = client.get(f"/api/portfolio/paper-trades/{trade_id}")
+                    response.raise_for_status()
+                    payload = response.json()
+                    responses[f"/api/portfolio/paper-trades/{trade_id}"] = payload
+                    write_json(bundle_root / output_name, payload)
     return responses
 
 
@@ -348,7 +398,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts.
 
         ## Intentionally stubbed
 
@@ -428,6 +478,7 @@ def build_milestone_summary() -> str:
         - Milestone 2B thin external delivery sinks for Telegram and Discord with dedupe, cooldowns, and persisted delivery state
         - Milestone 3A promotion and validation core for lifecycle state transitions, forward validation summaries, calibration snapshots, and realism penalties
         - Milestone 3B data-reality upgrades for provenance tracking, freshness policy, realism scoring, and promotion or alert penalties
+        - Milestone 4 paper-trading operations with a first-class ledger, lifecycle state changes, structured review, outcome analytics, and lifecycle alerts
 
         ## Hardened in the testing pass
 
@@ -614,6 +665,7 @@ def build_test_notes() -> str:
         - `test_connector_fallbacks.py`: protects offline local development by proving live connector failures fall back cleanly.
         - `test_feature_pipeline.py`: checks feature columns, seeded-asset coverage, and warm-up NaN containment.
         - `test_data_reality.py`: locks provenance assignment, freshness policy transitions, realism scoring, and stronger proxy or oil penalties.
+        - `test_paper_trading.py`: covers paper-trade lifecycle transitions, structured review persistence, analytics summaries, and lifecycle-alert generation.
         - `test_promotion_core.py`: covers lifecycle transitions, demotion logic, forward-validation aggregation, calibration bucket summaries, and realism penalties.
         - `test_signal_and_risk_invariants.py`: asserts real API payloads expose the required fields and sane numeric ranges.
         - `test_risk_engine.py`: guards stop logic, size-band mapping, and risk report construction.
@@ -621,7 +673,9 @@ def build_test_notes() -> str:
         - `client.test.ts`: protects typed client routing and mock fallback behavior.
         - `contracts.test.ts`: keeps representative frontend payload shapes aligned with backend field names.
         - `TopRibbon.test.tsx`: covers top-ribbon rendering for both normal and stale or missing data states.
+        - `ActiveTradesTab.test.tsx`: protects the paper-trade operator surface and create-proposal flow.
         - `BacktestsTab.test.tsx`: proves the backtests tab does not crash when placeholder data is empty.
+        - `JournalTab.test.tsx`: protects structured paper-trade review saves and analytics rendering.
         - `StrategyLabTab.test.tsx`: protects the promotion or validation console rendering and run action wiring against contract drift.
         - `SignalDetailsCard.test.tsx`: keeps the signal-detail data-reality block visible with provenance and penalty tags.
         - `WatchlistTab.test.tsx`: checks the opportunity hunter queues render and still support drill-down callbacks.
@@ -646,6 +700,36 @@ def build_dev_launch_notes() -> str:
     ).strip() + "\n"
 
 
+def build_paper_trading_review() -> str:
+    return textwrap.dedent(
+        """
+        # Paper Trading Review
+
+        Milestone 4 adds a first-class paper-trade ledger without adding real execution.
+
+        ## Lifecycle states
+
+        - proposed
+        - opened
+        - scaled_in
+        - partially_exited
+        - closed_win
+        - closed_loss
+        - invalidated
+        - timed_out
+        - cancelled
+
+        ## Review and analytics
+
+        Paper trades now persist deterministic local attribution such as entry quality versus zone, stop adherence, target attainment, time to outcome, and MFE or MAE proxies. Structured post-trade review is stored separately and linked by `trade_id`. Outcome analytics are exposed as empirical bucket summaries by signal family, strategy, score bucket, realism bucket, and asset.
+
+        ## Alerts
+
+        Lifecycle alerts are notification-only and cover review due, time stop reached, invalidation breached, target reached, stale open trade, and promoted strategy degradation.
+        """
+    ).strip() + "\n"
+
+
 def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     signals = contracts["/api/signals"]
     risks = contracts["/api/risk/latest"]
@@ -654,6 +738,11 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     opportunities = contracts["/api/watchlist/opportunity-hunter"]
     alerts = contracts["/api/alerts"]
     active_trades = contracts["/api/portfolio/active-trades"]
+    proposed_paper_trades = contracts["/api/portfolio/paper-trades/proposed"]
+    active_paper_trades = contracts["/api/portfolio/paper-trades/active"]
+    closed_paper_trades = contracts["/api/portfolio/paper-trades/closed"]
+    paper_trade_analytics = contracts["/api/portfolio/paper-trades/analytics"]
+    paper_trade_reviews = contracts["/api/journal/paper-trade-reviews"]
     journal = contracts["/api/journal"]
     strategies = contracts["/api/strategies"]
     backtests = contracts["/api/backtests"]
@@ -677,6 +766,16 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/seeded_alert.json", alerts[0])
     if isinstance(active_trades, list) and active_trades:
         write_json(bundle_root / "samples/seeded_active_trade.json", active_trades[0])
+    if isinstance(proposed_paper_trades, list) and proposed_paper_trades:
+        write_json(bundle_root / "samples/paper_trade_proposed.json", proposed_paper_trades[0])
+    if isinstance(active_paper_trades, list) and active_paper_trades:
+        write_json(bundle_root / "samples/paper_trade_active.json", active_paper_trades[0])
+    if isinstance(closed_paper_trades, list) and closed_paper_trades:
+        write_json(bundle_root / "samples/paper_trade_closed.json", closed_paper_trades[0])
+    if isinstance(paper_trade_reviews, list) and paper_trade_reviews:
+        write_json(bundle_root / "samples/paper_trade_review.json", paper_trade_reviews[0])
+    if isinstance(paper_trade_analytics, dict):
+        write_json(bundle_root / "samples/paper_trade_analytics_summary.json", paper_trade_analytics)
     if isinstance(journal, list) and journal:
         write_json(bundle_root / "samples/seeded_journal_entry.json", journal[0])
     shutil.copy2(
@@ -801,6 +900,9 @@ def main() -> int:
         write_text(BUNDLE_DIR / "docs/DATA_QUALITY_REVIEW.md", build_data_quality_review())
         write_text(BUNDLE_DIR / "docs/TESTING_REVIEW.md", build_testing_review())
         write_text(BUNDLE_DIR / "docs/KNOWN_ISSUES.md", build_known_issues())
+        write_text(BUNDLE_DIR / "docs/PAPER_TRADING_REVIEW.md", build_paper_trading_review())
+        for relative_path in REPO_DOC_FILES:
+            copy_by_name(relative_path, BUNDLE_DIR / "docs")
 
         for relative_path in TEST_FILES:
             copy_relative_file(relative_path, BUNDLE_DIR / "tests")
@@ -813,6 +915,8 @@ def main() -> int:
 
         write_samples(BUNDLE_DIR, contracts)
         collect_diagnostics(BUNDLE_DIR, runtime_env)
+        for relative_path in RUNTIME_DIAGNOSTIC_FILES:
+            copy_by_name(relative_path, BUNDLE_DIR / "diagnostics")
 
         if failures:
             write_text(BUNDLE_DIR / "diagnostics/failed_commands.txt", "\n".join(failures) + "\n")

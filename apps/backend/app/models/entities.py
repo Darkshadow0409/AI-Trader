@@ -148,6 +148,49 @@ class ActiveTradeRecord(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class PaperTradeRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    trade_id: str = Field(index=True, unique=True)
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    strategy_id: str | None = Field(default=None, index=True)
+    symbol: str = Field(index=True)
+    side: str
+    proposed_entry_zone_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    actual_entry: float | None = None
+    stop_price: float
+    targets_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    size_plan_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    actual_size: float = 0.0
+    status: str = Field(default="proposed", index=True)
+    opened_at: datetime | None = Field(default=None, index=True)
+    closed_at: datetime | None = Field(default=None, index=True)
+    close_reason: str = ""
+    close_price: float | None = None
+    notes: str = ""
+    lifecycle_events_json: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    outcome_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    data_quality: str = "fixture"
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class PaperTradeReviewRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    review_id: str = Field(index=True, unique=True)
+    trade_id: str = Field(index=True, unique=True)
+    thesis_respected: bool | None = None
+    invalidation_respected: bool | None = None
+    entered_too_early: bool | None = None
+    entered_too_late: bool | None = None
+    oversized: bool | None = None
+    undersized: bool | None = None
+    realism_warning_ignored: bool | None = None
+    catalyst_mattered: bool | None = None
+    failure_category: str = ""
+    operator_notes: str = ""
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
 class AlertRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     alert_id: str = Field(index=True, unique=True)

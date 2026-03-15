@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "vitest"
+    "test": "vitest",
+    "test:fast": "vitest run src/api/client.test.ts src/api/contracts.test.ts src/components/TopRibbon.test.tsx src/components/SignalTable.test.tsx"
   },
   "dependencies": {
     "lightweight-charts": "^5.0.8",
@@ -26,4 +27,3 @@
     "vitest": "^2.1.8"
   }
 }
-

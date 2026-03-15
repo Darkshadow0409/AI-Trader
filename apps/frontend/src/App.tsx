@@ -55,7 +55,11 @@ export default function App() {
   const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [selectedRiskReportId, setSelectedRiskReportId] = useState<string | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
-  const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId);
+  const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId, selectedTradeId);
+  const paperTradeRows = useMemo(
+    () => [...resources.proposedPaperTrades.data, ...resources.activePaperTrades.data, ...resources.closedPaperTrades.data],
+    [resources.activePaperTrades.data, resources.closedPaperTrades.data, resources.proposedPaperTrades.data],
+  );
 
   useEffect(() => {
     const preferredSymbol = resources.watchlist.data[0]?.symbol ?? resources.signals.data[0]?.symbol;
@@ -78,9 +82,12 @@ export default function App() {
   }, [resources.assetContext.data.latest_risk, resources.assetContext.data.latest_signal, resources.risk.data, resources.signals.data, selectedSymbol]);
 
   useEffect(() => {
-    const tradeId = resources.activeTrades.data.find((row) => row.symbol === selectedSymbol)?.trade_id ?? null;
-    setSelectedTradeId(tradeId);
-  }, [resources.activeTrades.data, selectedSymbol]);
+    const nextTradeId = paperTradeRows.find((row) => row.trade_id === selectedTradeId && row.symbol === selectedSymbol)?.trade_id
+      ?? paperTradeRows.find((row) => row.symbol === selectedSymbol)?.trade_id
+      ?? paperTradeRows[0]?.trade_id
+      ?? null;
+    setSelectedTradeId(nextTradeId);
+  }, [paperTradeRows, selectedSymbol, selectedTradeId]);
 
   function focusSymbol(symbol: string, signalId?: string | null, riskReportId?: string | null) {
     setSelectedSymbol(symbol);
@@ -89,6 +96,21 @@ export default function App() {
     }
     if (riskReportId !== undefined) {
       setSelectedRiskReportId(riskReportId);
+    }
+  }
+
+  function focusTrade(tradeId: string | null) {
+    setSelectedTradeId(tradeId);
+    const trade = paperTradeRows.find((row) => row.trade_id === tradeId);
+    if (!trade) {
+      return;
+    }
+    setSelectedSymbol(trade.symbol);
+    if (trade.signal_id) {
+      setSelectedSignalId(trade.signal_id);
+    }
+    if (trade.risk_report_id) {
+      setSelectedRiskReportId(trade.risk_report_id);
     }
   }
 
@@ -133,14 +155,31 @@ export default function App() {
       case "active_trades":
         return (
           <ActiveTradesTab
-            onChanged={resources.activeTrades.refresh}
+            activeRows={resources.activePaperTrades.data}
+            closedRows={resources.closedPaperTrades.data}
+            detail={resources.paperTradeDetail.data}
+            onChanged={async () => {
+              await Promise.all([
+                resources.proposedPaperTrades.refresh(),
+                resources.activePaperTrades.refresh(),
+                resources.closedPaperTrades.refresh(),
+                resources.paperTradeAnalytics.refresh(),
+                resources.paperTradeReviews.refresh(),
+                resources.alerts.refresh(),
+              ]);
+              if (selectedTradeId) {
+                await resources.paperTradeDetail.refresh();
+              }
+            }}
             onOpenRisk={setSelectedRiskReportId}
             onOpenSignal={setSelectedSignalId}
+            onSelectTrade={focusTrade}
             onSelectSymbol={setSelectedSymbol}
-            rows={resources.activeTrades.data}
+            proposedRows={resources.proposedPaperTrades.data}
             selectedRiskReportId={selectedRiskReportId}
             selectedSignalId={selectedSignalId}
             selectedSymbol={selectedSymbol}
+            selectedTradeId={selectedTradeId}
           />
         );
       case "wallet_balance":
@@ -173,12 +212,27 @@ export default function App() {
       case "journal":
         return (
           <JournalTab
-            onChanged={resources.journal.refresh}
+            analytics={resources.paperTradeAnalytics.data}
+            detail={resources.paperTradeDetail.data}
+            onChanged={async () => {
+              await Promise.all([
+                resources.paperTradeReviews.refresh(),
+                resources.paperTradeAnalytics.refresh(),
+                resources.closedPaperTrades.refresh(),
+                resources.alerts.refresh(),
+              ]);
+              if (selectedTradeId) {
+                await resources.paperTradeDetail.refresh();
+              }
+            }}
+            onSelectTrade={focusTrade}
+            reviews={resources.paperTradeReviews.data}
             rows={resources.journal.data}
             selectedRiskReportId={selectedRiskReportId}
             selectedSignalId={selectedSignalId}
             selectedSymbol={selectedSymbol}
             selectedTradeId={selectedTradeId}
+            trades={paperTradeRows}
           />
         );
       default:

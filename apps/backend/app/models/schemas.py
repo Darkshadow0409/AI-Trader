@@ -256,6 +256,139 @@ class ActiveTradeUpdateRequest(BaseModel):
     risk_report_id: str | None = None
 
 
+class PaperTradeOutcomeView(BaseModel):
+    entry_quality_label: str
+    entry_zone_delta_pct: float
+    stop_adherence: bool
+    target_attainment: str
+    time_to_outcome_minutes: int
+    mfe_pct: float
+    mae_pct: float
+    plan_adherence_flags: dict[str, bool]
+    realized_pnl_pct: float
+
+
+class PaperTradeReviewView(BaseModel):
+    review_id: str
+    trade_id: str
+    thesis_respected: bool | None = None
+    invalidation_respected: bool | None = None
+    entered_too_early: bool | None = None
+    entered_too_late: bool | None = None
+    oversized: bool | None = None
+    undersized: bool | None = None
+    realism_warning_ignored: bool | None = None
+    catalyst_mattered: bool | None = None
+    failure_category: str = ""
+    operator_notes: str = ""
+    updated_at: datetime
+
+
+class PaperTradeView(BaseModel):
+    trade_id: str
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    strategy_id: str | None = None
+    symbol: str
+    side: str
+    proposed_entry_zone: dict[str, float]
+    actual_entry: float | None = None
+    stop: float
+    targets: dict[str, float]
+    size_plan: dict[str, Any]
+    actual_size: float
+    status: str
+    opened_at: datetime | None = None
+    closed_at: datetime | None = None
+    close_reason: str = ""
+    close_price: float | None = None
+    notes: str = ""
+    freshness_minutes: int
+    data_quality: str
+    lifecycle_events: list[dict[str, Any]] = Field(default_factory=list)
+    outcome: PaperTradeOutcomeView | None = None
+    review_due: bool = False
+    data_reality: DataRealityView | None = None
+
+
+class PaperTradeDetailView(PaperTradeView):
+    linked_signal: SignalView | None = None
+    linked_risk: RiskView | None = None
+    review: PaperTradeReviewView | None = None
+
+
+class PaperTradeProposalRequest(BaseModel):
+    signal_id: str
+    risk_report_id: str | None = None
+    strategy_id: str | None = None
+    symbol: str | None = None
+    side: str | None = None
+    notes: str = ""
+
+
+class PaperTradeOpenRequest(BaseModel):
+    actual_entry: float
+    actual_size: float
+    opened_at: datetime = Field(default_factory=datetime.utcnow)
+    notes: str = ""
+
+
+class PaperTradeScaleRequest(BaseModel):
+    actual_entry: float
+    added_size: float
+    notes: str = ""
+
+
+class PaperTradePartialExitRequest(BaseModel):
+    exit_price: float
+    exit_size: float
+    closed_at: datetime = Field(default_factory=datetime.utcnow)
+    close_reason: str = "target_partial"
+    notes: str = ""
+
+
+class PaperTradeCloseRequest(BaseModel):
+    close_price: float
+    closed_at: datetime = Field(default_factory=datetime.utcnow)
+    close_reason: str
+    notes: str = ""
+
+
+class PaperTradeReviewRequest(BaseModel):
+    thesis_respected: bool | None = None
+    invalidation_respected: bool | None = None
+    entered_too_early: bool | None = None
+    entered_too_late: bool | None = None
+    oversized: bool | None = None
+    undersized: bool | None = None
+    realism_warning_ignored: bool | None = None
+    catalyst_mattered: bool | None = None
+    failure_category: str = ""
+    operator_notes: str = ""
+
+
+class PaperTradeAnalyticsBucketView(BaseModel):
+    grouping: str
+    key: str
+    trade_count: int
+    hit_rate: float
+    expectancy_proxy: float
+    target_attainment_rate: float
+    invalidation_rate: float
+    avg_entry_zone_delta_pct: float
+    avg_mfe_pct: float
+    avg_mae_pct: float
+
+
+class PaperTradeAnalyticsView(BaseModel):
+    generated_at: datetime
+    by_signal_family: list[PaperTradeAnalyticsBucketView]
+    by_strategy: list[PaperTradeAnalyticsBucketView]
+    by_score_bucket: list[PaperTradeAnalyticsBucketView]
+    by_realism_bucket: list[PaperTradeAnalyticsBucketView]
+    by_asset: list[PaperTradeAnalyticsBucketView]
+
+
 class WalletBalanceLineView(BaseModel):
     asset: str
     free: float

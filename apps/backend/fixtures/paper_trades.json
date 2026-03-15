@@ -1,0 +1,180 @@
+[
+  {
+    "trade_id": "paper_trade_proposed_btc",
+    "signal_id": "sig_8dca021b9c1256658b09a4fa6e218485",
+    "risk_report_id": "risk_28782b441c135ccf921f5dbc7f3d6d77",
+    "strategy_id": "trend_breakout_v1",
+    "symbol": "BTC",
+    "side": "long",
+    "proposed_entry_zone": {
+      "low": 71320,
+      "high": 72440
+    },
+    "stop": 68450,
+    "targets": {
+      "base": 73120,
+      "stretch": 74840
+    },
+    "size_plan": {
+      "size_band": "medium",
+      "max_portfolio_risk_pct": 0.7
+    },
+    "actual_size": 0,
+    "status": "proposed",
+    "notes": "Candidate breakout entry queued from the ranked BTC signal.",
+    "lifecycle_events": [
+      {
+        "status": "proposed",
+        "note": "Proposed from BTC trend breakout signal.",
+        "timestamp": "2026-03-15T11:26:00"
+      }
+    ],
+    "data_quality": "fixture",
+    "updated_at": "2026-03-15T11:26:00Z"
+  },
+  {
+    "trade_id": "paper_trade_open_eth",
+    "signal_id": "sig_342ef03a8f4a559b9b1773fc5fd9f4ae",
+    "risk_report_id": "risk_3490fc4bf0305fbcbe6c1765fcc4fed8",
+    "strategy_id": "event_continuation_v1",
+    "symbol": "ETH",
+    "side": "long",
+    "proposed_entry_zone": {
+      "low": 3555,
+      "high": 3610
+    },
+    "actual_entry": 3595,
+    "stop": 3440,
+    "targets": {
+      "base": 3745,
+      "stretch": 3810
+    },
+    "size_plan": {
+      "size_band": "small",
+      "max_portfolio_risk_pct": 0.4
+    },
+    "actual_size": 1.2,
+    "status": "opened",
+    "opened_at": "2026-03-12T10:30:00Z",
+    "notes": "Event-sensitive continuation probe remains open into macro follow-through.",
+    "lifecycle_events": [
+      {
+        "status": "proposed",
+        "note": "Proposed from event continuation signal.",
+        "timestamp": "2026-03-12T09:45:00"
+      },
+      {
+        "status": "opened",
+        "note": "Opened with reduced size because event risk remained elevated.",
+        "timestamp": "2026-03-12T10:30:00",
+        "actual_entry": 3595,
+        "actual_size": 1.2
+      }
+    ],
+    "data_quality": "paper",
+    "updated_at": "2026-03-13T11:30:00Z"
+  },
+  {
+    "trade_id": "paper_trade_closed_btc",
+    "signal_id": "sig_8dca021b9c1256658b09a4fa6e218485",
+    "risk_report_id": "risk_28782b441c135ccf921f5dbc7f3d6d77",
+    "strategy_id": "trend_breakout_v1",
+    "symbol": "BTC",
+    "side": "long",
+    "proposed_entry_zone": {
+      "low": 70480,
+      "high": 70980
+    },
+    "actual_entry": 70620,
+    "stop": 68450,
+    "targets": {
+      "base": 73120,
+      "stretch": 74840
+    },
+    "size_plan": {
+      "size_band": "medium",
+      "max_portfolio_risk_pct": 0.7
+    },
+    "actual_size": 0,
+    "status": "closed_win",
+    "opened_at": "2026-03-11T10:30:00Z",
+    "closed_at": "2026-03-12T14:00:00Z",
+    "close_reason": "target_hit",
+    "close_price": 73150,
+    "notes": "Base target filled after orderly follow-through.",
+    "lifecycle_events": [
+      {
+        "status": "proposed",
+        "note": "Proposed from BTC signal.",
+        "timestamp": "2026-03-11T09:55:00"
+      },
+      {
+        "status": "opened",
+        "note": "Opened after intraday reclaim.",
+        "timestamp": "2026-03-11T10:30:00",
+        "actual_entry": 70620,
+        "actual_size": 0.8
+      },
+      {
+        "status": "closed_win",
+        "note": "Closed at base target.",
+        "timestamp": "2026-03-12T14:00:00",
+        "close_price": 73150,
+        "close_reason": "target_hit"
+      }
+    ],
+    "data_quality": "paper",
+    "updated_at": "2026-03-12T14:00:00Z"
+  },
+  {
+    "trade_id": "paper_trade_invalidated_eth",
+    "signal_id": "sig_342ef03a8f4a559b9b1773fc5fd9f4ae",
+    "risk_report_id": "risk_3490fc4bf0305fbcbe6c1765fcc4fed8",
+    "strategy_id": "vol_expansion_v1",
+    "symbol": "ETH",
+    "side": "long",
+    "proposed_entry_zone": {
+      "low": 3560,
+      "high": 3605
+    },
+    "actual_entry": 3582,
+    "stop": 3440,
+    "targets": {
+      "base": 3745,
+      "stretch": 3810
+    },
+    "size_plan": {
+      "size_band": "small",
+      "max_portfolio_risk_pct": 0.4
+    },
+    "actual_size": 0,
+    "status": "invalidated",
+    "opened_at": "2026-03-10T13:00:00Z",
+    "closed_at": "2026-03-10T18:00:00Z",
+    "close_reason": "invalidated",
+    "close_price": 3440,
+    "notes": "Macro release reversed the setup and invalidation was hit.",
+    "lifecycle_events": [
+      {
+        "status": "proposed",
+        "note": "Proposed from ETH event-sensitive setup.",
+        "timestamp": "2026-03-10T12:30:00"
+      },
+      {
+        "status": "opened",
+        "note": "Opened before the release window.",
+        "timestamp": "2026-03-10T13:00:00",
+        "actual_entry": 3582,
+        "actual_size": 1.1
+      },
+      {
+        "status": "invalidated",
+        "note": "Exited at invalidation after macro reversal.",
+        "timestamp": "2026-03-10T18:00:00",
+        "stop_price": 3440
+      }
+    ],
+    "data_quality": "paper",
+    "updated_at": "2026-03-10T18:00:00Z"
+  }
+]

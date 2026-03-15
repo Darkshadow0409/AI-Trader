@@ -59,6 +59,7 @@ python scripts/dev.py
 ## Useful commands
 
 ```bash
+python scripts/verify_fast.py
 python scripts/seed_data.py
 python scripts/backfill.py
 python scripts/local_jobs.py
@@ -81,6 +82,7 @@ The default test mode is fixture-first and local-only:
 Windows PowerShell commands:
 
 ```powershell
+python scripts/verify_fast.py
 python scripts/seed_data.py
 python scripts/backfill.py
 python -m pytest apps/backend/tests
@@ -88,6 +90,26 @@ Set-Location apps/frontend
 npm run test -- --run
 npm run build
 Set-Location ../..
+python scripts/verify.py
+python scripts/build_review_bundle.py
+```
+
+Verification tiers:
+
+1. Fast developer verification
+
+```powershell
+python scripts/verify_fast.py
+```
+
+This runs:
+
+1. `python -m pytest apps/backend/tests -m unit`
+2. `cd apps/frontend && npm run test:fast`
+
+2. Full local verification
+
+```powershell
 python scripts/verify.py
 ```
 
@@ -98,6 +120,14 @@ The full local verification wrapper runs this exact sequence:
 3. `python -m pytest apps/backend/tests`
 4. `cd apps/frontend && npm run test -- --run`
 5. `cd apps/frontend && npm run build`
+
+3. Release-grade review bundle
+
+```powershell
+python scripts/build_review_bundle.py
+```
+
+That reruns the full verification chain in fixture mode and regenerates `review_bundle/` plus `review_bundle.zip`.
 
 ## Alert delivery
 

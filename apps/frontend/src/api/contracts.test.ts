@@ -1,10 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { mockAlerts, mockBacktestDetail, mockNews, mockOpportunities, mockRibbon, mockRisk, mockSignalDetail, mockSignals, mockStrategyDetail } from "./mockData";
+import {
+  mockAlerts,
+  mockBacktestDetail,
+  mockNews,
+  mockOpportunities,
+  mockPaperTradeAnalytics,
+  mockPaperTradeDetail,
+  mockPaperTradeReviews,
+  mockPaperTradesActive,
+  mockRibbon,
+  mockRisk,
+  mockSignalDetail,
+  mockSignals,
+  mockStrategyDetail,
+} from "./mockData";
 import type {
   AlertEnvelope,
   BacktestDetailView,
   NewsView,
   OpportunityHunterView,
+  PaperTradeAnalyticsView,
+  PaperTradeDetailView,
+  PaperTradeReviewView,
+  PaperTradeView,
   RibbonView,
   RiskView,
   SignalDetailView,
@@ -23,6 +41,10 @@ describe("frontend contract alignment", () => {
     const alert: AlertEnvelope = mockAlerts[0];
     const strategyDetail: StrategyDetailView = mockStrategyDetail;
     const backtestDetail: BacktestDetailView = mockBacktestDetail;
+    const paperTrade: PaperTradeView = mockPaperTradesActive[0];
+    const paperTradeDetail: PaperTradeDetailView = mockPaperTradeDetail;
+    const paperTradeReview: PaperTradeReviewView = mockPaperTradeReviews[0];
+    const paperTradeAnalytics: PaperTradeAnalyticsView = mockPaperTradeAnalytics;
 
     expect(signal).toMatchObject({
       signal_id: expect.stringMatching(/^sig_/),
@@ -104,6 +126,32 @@ describe("frontend contract alignment", () => {
       promotion_rationale: expect.any(Object),
       forward_validation_summary: expect.any(Object),
       calibration_summary: expect.any(Array),
+    });
+    expect(paperTrade).toMatchObject({
+      trade_id: expect.stringContaining("paper_trade"),
+      symbol: expect.any(String),
+      status: expect.any(String),
+      proposed_entry_zone: expect.any(Object),
+      size_plan: expect.any(Object),
+      outcome: expect.objectContaining({
+        entry_quality_label: expect.any(String),
+        realized_pnl_pct: expect.any(Number),
+      }),
+    });
+    expect(paperTradeDetail).toMatchObject({
+      linked_signal: expect.any(Object),
+      linked_risk: expect.any(Object),
+    });
+    expect(paperTradeReview).toMatchObject({
+      trade_id: expect.any(String),
+      operator_notes: expect.any(String),
+    });
+    expect(paperTradeAnalytics).toMatchObject({
+      by_signal_family: expect.any(Array),
+      by_strategy: expect.any(Array),
+      by_score_bucket: expect.any(Array),
+      by_realism_bucket: expect.any(Array),
+      by_asset: expect.any(Array),
     });
   });
 });

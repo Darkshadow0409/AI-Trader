@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from time import perf_counter
 from datetime import UTC, datetime
 from math import isnan
 from pathlib import Path
@@ -18,6 +19,7 @@ from app.connectors.fred_client import FredClient
 from app.core.clock import naive_utc_now
 from app.core.database import engine, init_db
 from app.core.settings import get_settings
+from app.core.telemetry import record_pipeline_timings, write_reviewability_snapshot
 from app.models.domain import DataQuality, PipelineSummary
 from app.models.entities import (
     Asset,
@@ -32,6 +34,7 @@ from app.models.entities import (
     WatchlistItem,
 )
 from app.services.operator_console import refresh_alerts, seed_console_records, sync_trade_links
+from app.services.paper_trading import seed_paper_trades
 from app.services.data_reality import PROVENANCE_DEFAULTS, sync_asset_provenance
 from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
@@ -144,6 +147,7 @@ def _seed_static_records(session: Session) -> None:
 
     seed_strategy_lab(session)
     seed_console_records(session)
+    seed_paper_trades(session)
 
 
 def _upsert_macro_and_news(session: Session) -> tuple[list[MacroEvent], list[NewsItem]]:
@@ -276,23 +280,44 @@ def seed_and_refresh() -> PipelineSummary:
 
 
 def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
+    step_timings: dict[str, float] = {}
+
+    def time_step(name: str, started_at: float) -> None:
+        step_timings[name] = round((perf_counter() - started_at) * 1000, 2)
+
     init_db()
     with Session(engine) as session:
+        started = perf_counter()
         _seed_static_records(session)
+        time_step("seed_static_records", started)
+
+        started = perf_counter()
         bars, source_mode = _collect_market_data(force_live=force_live)
         sync_asset_provenance(session, source_mode)
+        time_step("collect_market_data", started)
+
         run = PipelineRun(started_at=naive_utc_now(), source_mode=source_mode, status="running")
         session.add(run)
         session.commit()
         session.refresh(run)
 
+        started = perf_counter()
         events, news = _upsert_macro_and_news(session)
+        time_step("macro_news_upsert", started)
+
+        started = perf_counter()
         _persist_bars(session, bars)
+        time_step("persist_bars", started)
+
+        started = perf_counter()
         _write_parquet(bars)
         _refresh_duckdb()
+        time_step("analytics_storage_refresh", started)
 
         next_event = _next_event(events)
+        started = perf_counter()
         feature_frame, correlations = build_feature_frame(bars, next_event.event_time if next_event else None)
+        time_step("feature_pipeline", started)
         latest_rows = (
             feature_frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
         )
@@ -313,12 +338,20 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
             if next_event
             else None
         )
+        started = perf_counter()
         signals = generate_signals(latest_tradeables, correlations, next_event_payload)
+        time_step("signal_pipeline", started)
+
+        started = perf_counter()
         risk_reports = generate_risk_reports(signals)
+        time_step("risk_pipeline", started)
+
+        started = perf_counter()
         _persist_signals_and_risk(session, run, signals, risk_reports)
         _recompute_calibration_snapshots(session)
         sync_trade_links(session)
         refresh_alerts(session)
+        time_step("persist_and_refresh", started)
 
         run.completed_at = naive_utc_now()
         run.bars_ingested = len(bars)
@@ -333,11 +366,27 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         )
         session.add(run)
         session.commit()
-
-        return PipelineSummary(
+        summary = PipelineSummary(
             source_mode=source_mode,
             bars_ingested=len(bars),
             signals_emitted=len(signals),
             risk_reports_built=len(risk_reports),
             data_quality=DataQuality.FIXTURE if source_mode == "sample" else DataQuality.LIVE,
         )
+        record_pipeline_timings(step_timings, summary.model_dump(mode="json"))
+        write_reviewability_snapshot(
+            "service_boundary_snapshot.json",
+            {
+                "recorded_at": naive_utc_now().isoformat(),
+                "services": {
+                    "pipeline": ["fixture ingestion", "bar persistence", "feature/signal/risk orchestration"],
+                    "data_reality": ["provenance assignment", "freshness policy", "realism penalties"],
+                    "operator_console": ["detail assembly", "alert refresh orchestration", "dashboard views"],
+                    "alerting": ["dedupe/cooldown", "sink fan-out", "delivery persistence"],
+                    "paper_trading": ["paper-trade ledger", "lifecycle transitions", "outcome analytics", "review links"],
+                    "strategy_lab": ["registry", "promotion state", "validation", "calibration"],
+                    "journal": ["free-form notes", "post-trade review write surface"],
+                },
+            },
+        )
+        return summary

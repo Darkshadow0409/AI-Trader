@@ -19,6 +19,12 @@ import {
   mockSignals,
   mockStrategyDetail,
   mockStrategies,
+  mockPaperTradeAnalytics,
+  mockPaperTradeDetail,
+  mockPaperTradeReviews,
+  mockPaperTradesActive,
+  mockPaperTradesClosed,
+  mockPaperTradesProposed,
   mockWalletBalances,
   mockWatchlist,
 } from "./mockData";
@@ -38,6 +44,16 @@ import type {
   JournalReviewView,
   NewsView,
   OpportunityHunterView,
+  PaperTradeAnalyticsView,
+  PaperTradeCloseRequest,
+  PaperTradeDetailView,
+  PaperTradeOpenRequest,
+  PaperTradePartialExitRequest,
+  PaperTradeProposalRequest,
+  PaperTradeReviewRequest,
+  PaperTradeReviewView,
+  PaperTradeScaleRequest,
+  PaperTradeView,
   ResearchView,
   RibbonView,
   RiskDetailView,
@@ -104,6 +120,54 @@ export const apiClient = {
   deleteActiveTrade: (tradeId: string) =>
     requestJson<Record<string, never>>(`/portfolio/active-trades/${tradeId}`, {}, { method: "DELETE" }),
   walletBalance: () => requestJson<WalletBalanceView[]>("/portfolio/wallet-balance", mockWalletBalances),
+  proposedPaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/proposed", mockPaperTradesProposed),
+  activePaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/active", mockPaperTradesActive),
+  closedPaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/closed", mockPaperTradesClosed),
+  paperTradeDetail: (tradeId: string) => requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}`, mockPaperTradeDetail),
+  createProposedPaperTrade: (payload: PaperTradeProposalRequest) =>
+    requestJson<PaperTradeDetailView>("/portfolio/paper-trades/proposed", mockPaperTradeDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  openPaperTrade: (tradeId: string, payload: PaperTradeOpenRequest) =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/open`, mockPaperTradeDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  scalePaperTrade: (tradeId: string, payload: PaperTradeScaleRequest) =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/scale`, mockPaperTradeDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  partialExitPaperTrade: (tradeId: string, payload: PaperTradePartialExitRequest) =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/partial-exit`, mockPaperTradeDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  closePaperTrade: (tradeId: string, payload: PaperTradeCloseRequest) =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/close`, mockPaperTradeDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  invalidatePaperTrade: (tradeId: string, note = "") =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/invalidate?note=${encodeURIComponent(note)}`, mockPaperTradeDetail, {
+      method: "POST",
+    }),
+  timeoutPaperTrade: (tradeId: string, note = "") =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/timeout?note=${encodeURIComponent(note)}`, mockPaperTradeDetail, {
+      method: "POST",
+    }),
+  cancelPaperTrade: (tradeId: string, note = "") =>
+    requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}/cancel?note=${encodeURIComponent(note)}`, mockPaperTradeDetail, {
+      method: "POST",
+    }),
+  paperTradeReviews: () => requestJson<PaperTradeReviewView[]>("/journal/paper-trade-reviews", mockPaperTradeReviews),
+  upsertPaperTradeReview: (tradeId: string, payload: PaperTradeReviewRequest) =>
+    requestJson<PaperTradeReviewView>(`/journal/paper-trades/${tradeId}/review`, mockPaperTradeReviews[0], {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  paperTradeAnalytics: () => requestJson<PaperTradeAnalyticsView>("/portfolio/paper-trades/analytics", mockPaperTradeAnalytics),
   journal: () => requestJson<JournalReviewView[]>("/journal", mockJournal),
   createJournalEntry: (payload: JournalEntryCreateRequest) =>
     requestJson<JournalReviewView>("/journal", mockJournal[0], {

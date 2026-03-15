@@ -48,6 +48,18 @@ def test_eia_client_uses_fixture_news_when_rss_fetch_fails(monkeypatch: pytest.M
     assert rows[0]["source"] == "EIA"
 
 
+def test_eia_client_skips_rss_in_sample_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_fetch(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("rss fetch should not run in sample-only mode")
+
+    monkeypatch.setattr("app.connectors.rss_news_client.RSSNewsClient.fetch", unexpected_fetch)
+
+    rows = EIAClient(FIXTURES_DIR).fetch_news()
+
+    assert rows
+    assert rows[0]["source"] == "EIA"
+
+
 def test_fred_series_tail_skips_network_without_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     def unexpected_http(*args, **kwargs):  # type: ignore[no-untyped-def]
         raise AssertionError("httpx.get should not be called without an API key")

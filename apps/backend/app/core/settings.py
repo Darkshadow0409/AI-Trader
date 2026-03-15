@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     sqlite_path: str = "data/sqlite/ai_trader.db"
     duckdb_path: str = "data/sqlite/ai_trader.duckdb"
     parquet_dir: str = "data/parquet"
+    diagnostics_dir: str = "data/diagnostics"
     default_timeframe: str = "1d"
     api_refresh_seconds: int = 900
     pipeline_refresh_minutes: int = 15
@@ -54,6 +55,10 @@ class Settings(BaseSettings):
     @property
     def parquet_full_path(self) -> Path:
         return self.repo_root / self.parquet_dir
+
+    @property
+    def diagnostics_full_path(self) -> Path:
+        return self.repo_root / self.diagnostics_dir
 
     @property
     def fixtures_path(self) -> Path:

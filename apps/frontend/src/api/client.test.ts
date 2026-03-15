@@ -97,4 +97,19 @@ describe("apiClient", () => {
     });
     expect(payload.trade_id).toBe("trade_test");
   });
+
+  it("loads paper trade detail with the contracted route shape", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ trade_id: "paper_trade_test", lifecycle_events: [], outcome: null }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = await apiClient.paperTradeDetail("paper_trade_test");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/portfolio/paper-trades/paper_trade_test", {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(payload.trade_id).toBe("paper_trade_test");
+  });
 });

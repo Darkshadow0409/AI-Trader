@@ -3,7 +3,7 @@ STRATEGY ?= trend_breakout_v1
 SEARCH_METHOD ?= grid
 MAX_TRIALS ?= 8
 
-.PHONY: dev seed backfill jobs backtest backend-test frontend-test
+.PHONY: dev seed backfill jobs backtest backend-test frontend-test verify-fast verify-full review-bundle
 
 dev:
 	$(PYTHON) scripts/dev.py
@@ -25,3 +25,12 @@ backend-test:
 
 frontend-test:
 	cd apps/frontend && npm test -- --run
+
+verify-fast:
+	$(PYTHON) scripts/verify_fast.py
+
+verify-full:
+	$(PYTHON) scripts/verify.py
+
+review-bundle:
+	$(PYTHON) scripts/build_review_bundle.py

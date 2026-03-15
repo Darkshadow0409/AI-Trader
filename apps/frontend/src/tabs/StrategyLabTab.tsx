@@ -406,12 +406,40 @@ export function StrategyLabTab() {
                     </td>
                   </tr>
                   <tr>
+                    <td>Mapping</td>
+                    <td>
+                      {strategyReality
+                        ? `${strategyReality.provenance.research_symbol} -> ${strategyReality.provenance.tradable_symbol}`
+                        : "n/a"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Venue / instrument</td>
+                    <td>
+                      {strategyReality
+                        ? `${strategyReality.provenance.intended_venue} / ${strategyReality.provenance.intended_instrument}`
+                        : "n/a"}
+                    </td>
+                  </tr>
+                  <tr>
                     <td>Realism</td>
                     <td>{strategyReality ? `${strategyReality.realism_score.toFixed(1)} (${strategyReality.provenance.realism_grade})` : "n/a"}</td>
                   </tr>
                   <tr>
                     <td>Freshness policy</td>
                     <td>{strategyReality?.freshness_state ?? "n/a"}</td>
+                  </tr>
+                  <tr>
+                    <td>Timing semantics</td>
+                    <td>{strategyReality?.provenance.source_timing ?? "n/a"}</td>
+                  </tr>
+                  <tr>
+                    <td>Execution suitability</td>
+                    <td>{strategyReality?.execution_suitability ?? "n/a"}</td>
+                  </tr>
+                  <tr>
+                    <td>News suitability</td>
+                    <td>{strategyReality?.news_suitability ?? "n/a"}</td>
                   </tr>
                   <tr>
                     <td>Alignment</td>
@@ -682,8 +710,24 @@ export function StrategyLabTab() {
                         <td>{backtestReality?.provenance.source_type ?? "n/a"}</td>
                       </tr>
                       <tr>
+                        <td>Timing</td>
+                        <td>{backtestReality?.provenance.source_timing ?? "n/a"}</td>
+                      </tr>
+                      <tr>
+                        <td>Mapping</td>
+                        <td>
+                          {backtestReality
+                            ? `${backtestReality.provenance.research_symbol} -> ${backtestReality.provenance.tradable_symbol}`
+                            : "n/a"}
+                        </td>
+                      </tr>
+                      <tr>
                         <td>Tradable alignment</td>
                         <td>{backtestReality?.tradable_alignment_note ?? "n/a"}</td>
+                      </tr>
+                      <tr>
+                        <td>Execution suitability</td>
+                        <td>{backtestReality?.execution_suitability ?? "n/a"}</td>
                       </tr>
                       <tr>
                         <td>Alert allowed</td>

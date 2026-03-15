@@ -390,7 +390,7 @@ def build_review_readme() -> str:
         """
         # Review Bundle
 
-        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, thin external alert sinks for Telegram and Discord, explicit strategy promotion plus validation tracking, and a first-class data-reality layer for provenance, freshness policy, and realism penalties. It does not perform live order execution.
+        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, a dense terminal-style operator console, thin external alert sinks for Telegram and Discord, explicit strategy promotion plus validation tracking, and a first-class data-reality layer for provenance, freshness policy, realism penalties, instrument mapping, and timing semantics. It does not perform live order execution.
 
         ## Fixture-first mode
 
@@ -398,7 +398,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts. Milestone 5 adds verification tiering, observability, hardening tests, and reviewability docs. Milestone 6A upgrades market-data reality with explicit research-to-tradable mapping, delayed/live timing semantics, stronger oil or metals penalties, and clearer operator-visible trust limits.
 
         ## Intentionally stubbed
 
@@ -731,6 +731,9 @@ def build_paper_trading_review() -> str:
 
 
 def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
+    from app.core.clock import naive_utc_now
+    from app.services.data_reality import build_data_reality, default_provenance
+
     signals = contracts["/api/signals"]
     risks = contracts["/api/risk/latest"]
     news = contracts["/api/news"]
@@ -817,6 +820,23 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
                 "WTI": (wti_asset or {}).get("data_reality"),
             },
         )
+        write_json(
+            bundle_root / "samples/asset_mapping_examples.json",
+            {
+                "BTC": {
+                    "research_symbol": ((btc_asset or {}).get("data_reality") or {}).get("provenance", {}).get("research_symbol"),
+                    "tradable_symbol": ((btc_asset or {}).get("data_reality") or {}).get("provenance", {}).get("tradable_symbol"),
+                    "intended_venue": ((btc_asset or {}).get("data_reality") or {}).get("provenance", {}).get("intended_venue"),
+                    "intended_instrument": ((btc_asset or {}).get("data_reality") or {}).get("provenance", {}).get("intended_instrument"),
+                },
+                "WTI": {
+                    "research_symbol": ((wti_asset or {}).get("data_reality") or {}).get("provenance", {}).get("research_symbol"),
+                    "tradable_symbol": ((wti_asset or {}).get("data_reality") or {}).get("provenance", {}).get("tradable_symbol"),
+                    "intended_venue": ((wti_asset or {}).get("data_reality") or {}).get("provenance", {}).get("intended_venue"),
+                    "intended_instrument": ((wti_asset or {}).get("data_reality") or {}).get("provenance", {}).get("intended_instrument"),
+                },
+            },
+        )
     write_json(
         bundle_root / "samples/freshness_state_examples.json",
         {
@@ -825,6 +845,35 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
             "stale": {"minutes": 700, "sla_minutes": 240},
             "degraded": {"minutes": 1200, "sla_minutes": 240},
             "unusable": {"minutes": 2200, "sla_minutes": 240},
+        },
+    )
+    write_json(
+        bundle_root / "samples/delayed_live_semantics_examples.json",
+        {
+            "live": default_provenance("BTC", source_mode="live").model_dump(mode="json"),
+            "near_live": default_provenance("BTC", source_mode="live").model_copy(update={"source_timing": "near_live"}).model_dump(mode="json"),
+            "delayed": default_provenance("US10Y", source_mode="sample").model_dump(mode="json"),
+            "end_of_day": default_provenance("WTI", source_mode="sample").model_dump(mode="json"),
+            "fixture": default_provenance("BTC", source_mode="sample").model_dump(mode="json"),
+        },
+    )
+    gold_reality = build_data_reality(
+        default_provenance("GOLD", source_mode="sample"),
+        as_of=naive_utc_now(),
+        data_quality="fixture",
+        source_mode="sample",
+        features={"cross_asset_positive": []},
+        tradable_symbol="GLD",
+    )
+    write_json(
+        bundle_root / "samples/oil_realism_example.json",
+        (wti_asset or {}).get("data_reality") if isinstance(wti_asset, dict) else {},
+    )
+    write_json(
+        bundle_root / "samples/crypto_vs_metals_realism.json",
+        {
+            "BTC": (btc_asset or {}).get("data_reality") if isinstance(btc_asset, dict) else {},
+            "GOLD": gold_reality.model_dump(mode="json"),
         },
     )
 

@@ -8,6 +8,38 @@ vi.mock("../components/EquityCurveChart", () => ({
 
 import { StrategyLabTab } from "./StrategyLabTab";
 
+const mockReality = {
+  provenance: {
+    symbol: "BTC",
+    underlying_asset: "BTC",
+    research_symbol: "BTCUSD",
+    tradable_symbol: "BTCUSD",
+    intended_venue: "binance_spot",
+    intended_instrument: "spot_pair",
+    source_name: "fixture_bars",
+    source_type: "fixture",
+    source_timing: "fixture",
+    freshness_sla_minutes: 1440,
+    realism_grade: "B",
+    proxy_mapping_notes: "Direct crypto spot mapping in fixture mode.",
+    asset_class: "crypto",
+  },
+  freshness_minutes: 5,
+  freshness_state: "fresh",
+  event_recency_minutes: null,
+  realism_score: 52,
+  ranking_penalty: 32,
+  promotion_blocked: false,
+  alert_allowed: true,
+  execution_suitability: "research_only",
+  news_suitability: "research_only",
+  ui_warning: "",
+  timing_semantics_note: "Fixture timing semantics support deterministic local testing only.",
+  event_context_note: "",
+  penalties: [],
+  tradable_alignment_note: "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+};
+
 describe("StrategyLabTab", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -34,6 +66,7 @@ describe("StrategyLabTab", () => {
               lifecycle_note: "Forward validation is underway.",
               tags: ["trend"],
               validation: { walk_forward_required: true },
+              data_reality: mockReality,
             },
           ],
         });
@@ -153,6 +186,7 @@ describe("StrategyLabTab", () => {
               },
             ],
             data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            data_reality: mockReality,
             transition_history: [
               {
                 strategy_name: "trend_breakout_v1",
@@ -187,6 +221,7 @@ describe("StrategyLabTab", () => {
             trade_count: 6,
             lifecycle_state: "promoted",
             data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            data_reality: mockReality,
             fees_bps: 8,
             slippage_bps: 5,
             warmup_bars: 55,
@@ -263,6 +298,7 @@ describe("StrategyLabTab", () => {
             trade_count: 7,
             lifecycle_state: "promoted",
             data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            data_reality: mockReality,
             fees_bps: 8,
             slippage_bps: 5,
             warmup_bars: 55,
@@ -319,6 +355,7 @@ describe("StrategyLabTab", () => {
             trade_count: 7,
             lifecycle_state: "promoted",
             data_realism_penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
+            data_reality: mockReality,
             fees_bps: 8,
             slippage_bps: 5,
             warmup_bars: 55,
@@ -366,6 +403,8 @@ describe("StrategyLabTab", () => {
     expect(await screen.findByRole("heading", { name: "Equity Curve" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Search space" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Strategy Promotion / Validation" })).toBeInTheDocument();
+    expect((await screen.findAllByText("BTCUSD -> BTCUSD")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("fixture")).length).toBeGreaterThan(0);
     expect(screen.getByTestId("equity-chart")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Run trend_breakout_v1/i }));

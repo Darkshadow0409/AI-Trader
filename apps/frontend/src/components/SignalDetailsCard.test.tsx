@@ -7,8 +7,10 @@ describe("SignalDetailsCard", () => {
   it("renders the data-reality block for the selected signal", () => {
     render(<SignalDetailsCard context={mockAssetContexts.BTC} detail={mockSignalDetail} />);
 
-    expect(screen.getByText("score 52.0")).toBeInTheDocument();
-    expect(screen.getByText("BTC aligns directly with BTCUSD.")).toBeInTheDocument();
+    expect(screen.getByText("score 48.0")).toBeInTheDocument();
+    expect(screen.getByText("BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.")).toBeInTheDocument();
+    expect(screen.getAllByText("research_only").length).toBeGreaterThan(0);
+    expect(screen.getByText("Fixture timing semantics support deterministic local testing only.")).toBeInTheDocument();
     expect(screen.getByText("fixture_source")).toBeInTheDocument();
   });
 });

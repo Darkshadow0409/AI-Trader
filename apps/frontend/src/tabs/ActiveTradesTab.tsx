@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/client";
 import { StateBlock } from "../components/StateBlock";
 import type {
+  DataRealityView,
   PaperTradeCloseRequest,
   PaperTradeDetailView,
   PaperTradeOpenRequest,
@@ -20,6 +21,7 @@ interface ActiveTradesTabProps {
   selectedSymbol: string;
   selectedSignalId: string | null;
   selectedRiskReportId: string | null;
+  selectedSignalReality: DataRealityView | null;
   onSelectSymbol: (symbol: string) => void;
   onSelectTrade: (tradeId: string | null) => void;
   onChanged: () => Promise<void>;
@@ -93,6 +95,7 @@ export function ActiveTradesTab({
   selectedSymbol,
   selectedSignalId,
   selectedRiskReportId,
+  selectedSignalReality,
   onSelectSymbol,
   onSelectTrade,
   onChanged,
@@ -101,6 +104,7 @@ export function ActiveTradesTab({
 }: ActiveTradesTabProps) {
   const allRows = useMemo(() => [...proposedRows, ...activeRows, ...closedRows], [activeRows, closedRows, proposedRows]);
   const selectedTrade = detail ?? allRows.find((row) => row.trade_id === selectedTradeId) ?? allRows[0] ?? null;
+  const selectedReality = selectedTrade?.data_reality ?? detail?.linked_signal?.data_reality ?? selectedSignalReality;
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -266,6 +270,21 @@ export function ActiveTradesTab({
             <span>Notes</span>
             <textarea value={proposalDraft.notes ?? ""} onChange={(event) => setProposalDraft((current) => ({ ...current, notes: event.target.value }))} />
           </label>
+          {selectedSignalReality ? (
+            <div className="stack">
+              <div className="metric-row compact-row">
+                <span>
+                  {selectedSignalReality.provenance.research_symbol} {"->"} {selectedSignalReality.provenance.tradable_symbol}
+                </span>
+                <span>{selectedSignalReality.provenance.source_timing}</span>
+              </div>
+              <div className="metric-row compact-row">
+                <span>{selectedSignalReality.execution_suitability}</span>
+                <span>{selectedSignalReality.news_suitability}</span>
+              </div>
+              <small>{selectedSignalReality.tradable_alignment_note}</small>
+            </div>
+          ) : null}
           <div className="metric-row">
             <button className="text-button" disabled={busy === "create"} onClick={() => void handleCreateProposal()} type="button">
               {busy === "create" ? "Saving…" : "Create Proposed Trade"}
@@ -331,6 +350,21 @@ export function ActiveTradesTab({
                 </div>
               </div>
               <p className="muted-copy">{selectedTrade.notes || "No operator notes on this trade yet."}</p>
+              {selectedReality ? (
+                <div className="stack">
+                  <div className="metric-row compact-row">
+                    <span>
+                      {selectedReality.provenance.research_symbol} {"->"} {selectedReality.provenance.tradable_symbol}
+                    </span>
+                    <span>{selectedReality.provenance.intended_venue}</span>
+                  </div>
+                  <div className="metric-row compact-row">
+                    <span>{selectedReality.execution_suitability}</span>
+                    <span>{selectedReality.provenance.source_timing}</span>
+                  </div>
+                  {selectedReality.event_context_note ? <small>{selectedReality.event_context_note}</small> : null}
+                </div>
+              ) : null}
 
               {selectedTrade.status === "proposed" ? (
                 <div className="stack">

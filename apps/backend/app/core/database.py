@@ -24,9 +24,13 @@ def _ensure_contract_columns() -> None:
     table_columns = {
         "asset": {
             "underlying_asset": "TEXT DEFAULT ''",
+            "research_symbol": "TEXT DEFAULT ''",
             "tradable_symbol": "TEXT DEFAULT ''",
+            "intended_venue": "TEXT DEFAULT ''",
+            "intended_instrument": "TEXT DEFAULT ''",
             "source_name": "TEXT DEFAULT 'fixture'",
             "source_type": "TEXT DEFAULT 'fixture'",
+            "source_timing": "TEXT DEFAULT 'fixture'",
             "freshness_sla_minutes": "INTEGER DEFAULT 240",
             "realism_grade": "TEXT DEFAULT 'C'",
             "proxy_mapping_notes": "TEXT DEFAULT ''",

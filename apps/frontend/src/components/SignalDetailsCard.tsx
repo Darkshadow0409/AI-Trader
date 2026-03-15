@@ -76,9 +76,22 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
                 <span>score {reality.realism_score.toFixed(1)}</span>
               </div>
               <div className="metric-row compact-row">
-                <span>{reality.tradable_alignment_note}</span>
+                <span>
+                  {reality.provenance.research_symbol} {"->"} {reality.provenance.tradable_symbol}
+                </span>
+                <span>{reality.provenance.intended_venue}</span>
+              </div>
+              <div className="metric-row compact-row">
+                <span>{reality.provenance.source_timing}</span>
+                <span>{reality.execution_suitability}</span>
+              </div>
+              <div className="metric-row compact-row">
+                <span>{reality.news_suitability}</span>
                 <span>SLA {reality.provenance.freshness_sla_minutes}m</span>
               </div>
+              <small>{reality.tradable_alignment_note}</small>
+              <small>{reality.timing_semantics_note}</small>
+              {reality.event_context_note ? <small>{reality.event_context_note}</small> : null}
               {reality.ui_warning ? <small>{reality.ui_warning}</small> : null}
             </div>
           ) : null}

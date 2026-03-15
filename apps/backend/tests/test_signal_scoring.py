@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.engines.signals.signal_ranker import rank_signals
 from app.engines.signals.trend_following import build_trend_breakout_signal
 
@@ -24,9 +26,33 @@ def test_trend_breakout_signal_scores_constructive_setup() -> None:
 def test_signal_ranker_penalizes_uncertainty() -> None:
     ranked = rank_signals(
         [
-            {"score": 70, "uncertainty": 0.4, "data_quality": 0.9},
-            {"score": 66, "uncertainty": 0.1, "data_quality": 0.95},
+            {"symbol": "BTC", "score": 70, "uncertainty": 0.4, "data_quality": "fixture", "timestamp": datetime(2026, 3, 15, 11, 30)},
+            {"symbol": "BTC", "score": 66, "uncertainty": 0.1, "data_quality": "fixture", "timestamp": datetime(2026, 3, 15, 11, 30)},
         ]
     )
     assert ranked[0]["uncertainty"] == 0.1
 
+
+def test_signal_ranker_penalizes_weak_tradable_alignment_and_timing() -> None:
+    ranked = rank_signals(
+        [
+            {
+                "symbol": "WTI",
+                "score": 74,
+                "uncertainty": 0.08,
+                "data_quality": "fixture",
+                "timestamp": datetime(2026, 3, 15, 11, 30),
+                "feature_snapshot": {"cross_asset_positive": []},
+            },
+            {
+                "symbol": "BTC",
+                "score": 72,
+                "uncertainty": 0.12,
+                "data_quality": "fixture",
+                "timestamp": datetime(2026, 3, 15, 11, 30),
+                "feature_snapshot": {"cross_asset_positive": ["ETH"]},
+            },
+        ]
+    )
+
+    assert ranked[0]["symbol"] == "BTC"

@@ -178,6 +178,7 @@ export default function App() {
             proposedRows={resources.proposedPaperTrades.data}
             selectedRiskReportId={selectedRiskReportId}
             selectedSignalId={selectedSignalId}
+            selectedSignalReality={resources.signalDetail.data?.data_reality ?? resources.assetContext.data.latest_signal?.data_reality ?? null}
             selectedSymbol={selectedSymbol}
             selectedTradeId={selectedTradeId}
           />

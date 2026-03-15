@@ -59,6 +59,16 @@ describe("frontend contract alignment", () => {
       data_reality: expect.objectContaining({
         freshness_state: expect.any(String),
         realism_score: expect.any(Number),
+        execution_suitability: expect.any(String),
+        news_suitability: expect.any(String),
+        timing_semantics_note: expect.any(String),
+        provenance: expect.objectContaining({
+          research_symbol: expect.any(String),
+          tradable_symbol: expect.any(String),
+          intended_venue: expect.any(String),
+          intended_instrument: expect.any(String),
+          source_timing: expect.any(String),
+        }),
       }),
     });
     expect(news).toMatchObject({

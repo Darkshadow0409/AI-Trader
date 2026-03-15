@@ -25,9 +25,13 @@ export interface DataRealismPenaltyView {
 export interface AssetProvenanceView {
   symbol: string;
   underlying_asset: string;
+  research_symbol: string;
   tradable_symbol: string;
+  intended_venue: string;
+  intended_instrument: string;
   source_name: string;
   source_type: string;
+  source_timing: string;
   freshness_sla_minutes: number;
   realism_grade: string;
   proxy_mapping_notes: string;
@@ -38,11 +42,16 @@ export interface DataRealityView {
   provenance: AssetProvenanceView;
   freshness_minutes: number;
   freshness_state: string;
+  event_recency_minutes: number | null;
   realism_score: number;
   ranking_penalty: number;
   promotion_blocked: boolean;
   alert_allowed: boolean;
+  execution_suitability: string;
+  news_suitability: string;
   ui_warning: string;
+  timing_semantics_note: string;
+  event_context_note: string;
   penalties: DataRealismPenaltyView[];
   tradable_alignment_note: string;
 }

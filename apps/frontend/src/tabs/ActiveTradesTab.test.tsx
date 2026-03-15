@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../api/client";
-import { mockPaperTradeDetail, mockPaperTradesActive, mockPaperTradesClosed, mockPaperTradesProposed } from "../api/mockData";
+import { mockAssetContexts, mockPaperTradeDetail, mockPaperTradesActive, mockPaperTradesClosed, mockPaperTradesProposed } from "../api/mockData";
 import { ActiveTradesTab } from "./ActiveTradesTab";
 
 describe("ActiveTradesTab", () => {
@@ -28,6 +28,7 @@ describe("ActiveTradesTab", () => {
         onSelectTrade={onSelectTrade}
         proposedRows={mockPaperTradesProposed}
         selectedRiskReportId={mockPaperTradeDetail.risk_report_id}
+        selectedSignalReality={mockAssetContexts.BTC.data_reality}
         selectedSignalId={mockPaperTradeDetail.signal_id}
         selectedSymbol="BTC"
         selectedTradeId={mockPaperTradeDetail.trade_id}
@@ -39,6 +40,8 @@ describe("ActiveTradesTab", () => {
     expect(screen.getByRole("heading", { name: "Closed" })).toBeInTheDocument();
     expect(screen.getByText("opened")).toBeInTheDocument();
     expect(screen.getAllByText("closed_win").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("BTCUSD -> BTCUSD").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("research_only").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Create Proposed Trade" }));
 

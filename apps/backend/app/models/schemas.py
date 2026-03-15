@@ -33,9 +33,13 @@ class DataRealismPenaltyView(BaseModel):
 class AssetProvenanceView(BaseModel):
     symbol: str
     underlying_asset: str
+    research_symbol: str
     tradable_symbol: str
+    intended_venue: str
+    intended_instrument: str
     source_name: str
     source_type: str
+    source_timing: str
     freshness_sla_minutes: int
     realism_grade: str
     proxy_mapping_notes: str
@@ -46,11 +50,16 @@ class DataRealityView(BaseModel):
     provenance: AssetProvenanceView
     freshness_minutes: int
     freshness_state: str
+    event_recency_minutes: int | None = None
     realism_score: float
     ranking_penalty: float
     promotion_blocked: bool
     alert_allowed: bool
+    execution_suitability: str
+    news_suitability: str
     ui_warning: str
+    timing_semantics_note: str
+    event_context_note: str
     penalties: list[DataRealismPenaltyView]
     tradable_alignment_note: str
 

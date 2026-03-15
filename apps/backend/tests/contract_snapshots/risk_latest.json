@@ -34,9 +34,13 @@
       "provenance": {
         "symbol": "ETH",
         "underlying_asset": "ETH",
+        "research_symbol": "ETHUSD",
         "tradable_symbol": "ETHUSD",
+        "intended_venue": "binance_spot",
+        "intended_instrument": "spot_pair",
         "source_name": "fixture_bars",
         "source_type": "fixture",
+        "source_timing": "fixture",
         "freshness_sla_minutes": 1440,
         "realism_grade": "B",
         "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
@@ -44,11 +48,16 @@
       },
       "freshness_minutes": 2130,
       "freshness_state": "aging",
-      "realism_score": 42.0,
-      "ranking_penalty": 42.0,
+      "event_recency_minutes": null,
+      "realism_score": 38.0,
+      "ranking_penalty": 48.0,
       "promotion_blocked": true,
       "alert_allowed": true,
+      "execution_suitability": "research_only",
+      "news_suitability": "research_only",
       "ui_warning": "Current context is running in deterministic fixture-first mode. | Freshness policy is aging at 2130 minutes against an SLA of 1440.",
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "event_context_note": "",
       "penalties": [
         {
           "code": "fixture_only",
@@ -63,6 +72,12 @@
           "score_penalty": 18.0
         },
         {
+          "code": "timing_fixture",
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only.",
+          "score_penalty": 6.0
+        },
+        {
           "code": "freshness_aging",
           "severity": "warning",
           "summary": "Freshness policy is aging at 2130 minutes against an SLA of 1440.",
@@ -75,7 +90,7 @@
           "score_penalty": 6.0
         }
       ],
-      "tradable_alignment_note": "ETH aligns directly with ETHUSD."
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot."
     }
   },
   {
@@ -113,9 +128,13 @@
       "provenance": {
         "symbol": "BTC",
         "underlying_asset": "BTC",
+        "research_symbol": "BTCUSD",
         "tradable_symbol": "BTCUSD",
+        "intended_venue": "binance_spot",
+        "intended_instrument": "spot_pair",
         "source_name": "fixture_bars",
         "source_type": "fixture",
+        "source_timing": "fixture",
         "freshness_sla_minutes": 1440,
         "realism_grade": "B",
         "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
@@ -123,11 +142,16 @@
       },
       "freshness_minutes": 2130,
       "freshness_state": "aging",
-      "realism_score": 42.0,
-      "ranking_penalty": 42.0,
+      "event_recency_minutes": null,
+      "realism_score": 38.0,
+      "ranking_penalty": 48.0,
       "promotion_blocked": true,
       "alert_allowed": true,
+      "execution_suitability": "research_only",
+      "news_suitability": "research_only",
       "ui_warning": "Current context is running in deterministic fixture-first mode. | Freshness policy is aging at 2130 minutes against an SLA of 1440.",
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "event_context_note": "",
       "penalties": [
         {
           "code": "fixture_only",
@@ -142,6 +166,12 @@
           "score_penalty": 18.0
         },
         {
+          "code": "timing_fixture",
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only.",
+          "score_penalty": 6.0
+        },
+        {
           "code": "freshness_aging",
           "severity": "warning",
           "summary": "Freshness policy is aging at 2130 minutes against an SLA of 1440.",
@@ -154,7 +184,7 @@
           "score_penalty": 6.0
         }
       ],
-      "tradable_alignment_note": "BTC aligns directly with BTCUSD."
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot."
     }
   }
 ]

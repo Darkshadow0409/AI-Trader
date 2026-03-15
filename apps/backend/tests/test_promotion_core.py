@@ -88,7 +88,14 @@ def test_demotion_logic_and_realism_penalties_are_explicit(seeded_summary) -> No
         rationale = _promotion_rationale(session, entry, robustness_score=51.6, walk_forward_quality=0.33)
 
     codes = {item.code for item in penalties}
-    assert {"fixture_only", "proxy_grade_mapping", "tradable_mismatch", "weak_oil_realism"}.issubset(codes)
+    assert {
+        "fixture_only",
+        "proxy_grade_mapping",
+        "timing_end_of_day",
+        "tradable_mismatch",
+        "timing_too_weak_for_intraday",
+        "weak_oil_realism",
+    }.issubset(codes)
     assert rationale.recommended_state == "demoted"
     assert rationale.gate_results["forward_results"] is False
     assert rationale.gate_results["data_quality"] is False

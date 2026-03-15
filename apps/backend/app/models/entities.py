@@ -14,9 +14,13 @@ class Asset(SQLModel, table=True):
     asset_class: str
     venue: str
     underlying_asset: str = Field(default="")
+    research_symbol: str = Field(default="")
     tradable_symbol: str = Field(default="")
+    intended_venue: str = Field(default="")
+    intended_instrument: str = Field(default="")
     source_name: str = Field(default="fixture")
     source_type: str = Field(default="fixture")
+    source_timing: str = Field(default="fixture")
     freshness_sla_minutes: int = 240
     realism_grade: str = Field(default="C")
     proxy_mapping_notes: str = ""

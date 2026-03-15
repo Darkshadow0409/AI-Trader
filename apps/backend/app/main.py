@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import backtests, dashboard, health, journal, market, news, portfolio, research, risk, signals, strategies, system, watchlist
+from app.api.routes import alerts, backtests, dashboard, health, journal, market, news, portfolio, research, risk, signals, strategies, system, watchlist
 from app.core.settings import get_settings
 from app.services.pipeline import seed_and_refresh
 from app.websocket.manager import manager
@@ -50,6 +50,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api")
+app.include_router(alerts.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")
 app.include_router(news.router, prefix="/api")

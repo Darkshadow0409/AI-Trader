@@ -31,6 +31,7 @@ from app.models.entities import (
     SignalRecord,
     WatchlistItem,
 )
+from app.services.operator_console import refresh_in_app_alerts, seed_console_records, sync_trade_links
 from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
 from app.services.sample_data import generate_sample_ohlcv, seed_watchlist
@@ -118,22 +119,6 @@ def _seed_static_records(session: Session) -> None:
         session.add_all([WatchlistItem(**item) for item in seed_watchlist()])
         session.commit()
 
-    if session.exec(select(JournalEntry)).first() is None:
-        journal_entries = json.loads((FIXTURES_DIR / "journal_entries.json").read_text(encoding="utf-8"))
-        session.add_all(
-            [
-                JournalEntry(
-                    symbol=item["symbol"],
-                    entered_at=_parse_iso(item["entered_at"]),
-                    note=item["note"],
-                    mood=item["mood"],
-                    tags_json=item["tags"],
-                )
-                for item in journal_entries
-            ]
-        )
-        session.commit()
-
     if session.exec(select(BacktestRun)).first() is None:
         backtests = json.loads((FIXTURES_DIR / "backtests.json").read_text(encoding="utf-8"))
         session.add_all(
@@ -150,6 +135,7 @@ def _seed_static_records(session: Session) -> None:
         session.commit()
 
     seed_strategy_lab(session)
+    seed_console_records(session)
 
 
 def _upsert_macro_and_news(session: Session) -> tuple[list[MacroEvent], list[NewsItem]]:
@@ -321,6 +307,8 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         signals = generate_signals(latest_tradeables, correlations, next_event_payload)
         risk_reports = generate_risk_reports(signals)
         _persist_signals_and_risk(session, run, signals, risk_reports)
+        sync_trade_links(session)
+        refresh_in_app_alerts(session)
 
         run.completed_at = naive_utc_now()
         run.bars_ingested = len(bars)

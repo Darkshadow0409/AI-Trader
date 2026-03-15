@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mockNews, mockRibbon, mockRisk, mockSignals } from "./mockData";
-import type { NewsView, RibbonView, RiskView, SignalView } from "../types/api";
+import { mockAlerts, mockNews, mockOpportunities, mockRibbon, mockRisk, mockSignalDetail, mockSignals } from "./mockData";
+import type { AlertEnvelope, NewsView, OpportunityHunterView, RibbonView, RiskView, SignalDetailView, SignalView } from "../types/api";
 
 describe("frontend contract alignment", () => {
   it("keeps representative mock payloads aligned with backend field names", () => {
@@ -8,6 +8,9 @@ describe("frontend contract alignment", () => {
     const news: NewsView = mockNews[0];
     const risk: RiskView = mockRisk[0];
     const ribbon: RibbonView = mockRibbon;
+    const signalDetail: SignalDetailView = mockSignalDetail;
+    const opportunities: OpportunityHunterView = mockOpportunities;
+    const alert: AlertEnvelope = mockAlerts[0];
 
     expect(signal).toMatchObject({
       signal_id: expect.stringMatching(/^sig_/),
@@ -38,6 +41,23 @@ describe("frontend contract alignment", () => {
       macro_regime: expect.any(String),
       pipeline_status: expect.any(String),
       source_mode: expect.any(String),
+    });
+    expect(signalDetail).toMatchObject({
+      signal_id: expect.stringMatching(/^sig_/),
+      evidence: expect.any(Array),
+      catalyst_news: expect.any(Array),
+      freshness_status: expect.any(String),
+    });
+    expect(opportunities).toMatchObject({
+      generated_at: expect.any(String),
+      focus_queue: expect.any(Array),
+      scout_queue: expect.any(Array),
+    });
+    expect(alert).toMatchObject({
+      alert_id: expect.any(String),
+      category: expect.any(String),
+      severity: expect.any(String),
+      tags: expect.any(Array),
     });
   });
 });

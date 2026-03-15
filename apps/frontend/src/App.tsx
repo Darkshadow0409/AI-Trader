@@ -52,7 +52,10 @@ function activeTabLabel(tab: TabKey): string {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("signals");
   const [selectedSymbol, setSelectedSymbol] = useState("BTC");
-  const resources = useDashboardData(selectedSymbol);
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
+  const [selectedRiskReportId, setSelectedRiskReportId] = useState<string | null>(null);
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
+  const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId);
 
   useEffect(() => {
     const preferredSymbol = resources.watchlist.data[0]?.symbol ?? resources.signals.data[0]?.symbol;
@@ -60,6 +63,34 @@ export default function App() {
       setSelectedSymbol((current) => current || preferredSymbol);
     }
   }, [resources.signals.data, resources.watchlist.data]);
+
+  useEffect(() => {
+    const signalId = resources.assetContext.data.latest_signal?.signal_id ?? resources.signals.data.find((row) => row.symbol === selectedSymbol)?.signal_id ?? null;
+    const riskReportId = resources.assetContext.data.latest_risk?.risk_report_id ?? resources.risk.data.find((row) => row.symbol === selectedSymbol)?.risk_report_id ?? null;
+    setSelectedSignalId((current) => {
+      const isCurrentForSymbol = resources.signals.data.some((row) => row.signal_id === current && row.symbol === selectedSymbol);
+      return isCurrentForSymbol ? current : signalId;
+    });
+    setSelectedRiskReportId((current) => {
+      const isCurrentForSymbol = resources.risk.data.some((row) => row.risk_report_id === current && row.symbol === selectedSymbol);
+      return isCurrentForSymbol ? current : riskReportId;
+    });
+  }, [resources.assetContext.data.latest_risk, resources.assetContext.data.latest_signal, resources.risk.data, resources.signals.data, selectedSymbol]);
+
+  useEffect(() => {
+    const tradeId = resources.activeTrades.data.find((row) => row.symbol === selectedSymbol)?.trade_id ?? null;
+    setSelectedTradeId(tradeId);
+  }, [resources.activeTrades.data, selectedSymbol]);
+
+  function focusSymbol(symbol: string, signalId?: string | null, riskReportId?: string | null) {
+    setSelectedSymbol(symbol);
+    if (signalId !== undefined) {
+      setSelectedSignalId(signalId);
+    }
+    if (riskReportId !== undefined) {
+      setSelectedRiskReportId(riskReportId);
+    }
+  }
 
   const shellError = useMemo(
     () =>
@@ -78,19 +109,53 @@ export default function App() {
   function renderTabContent() {
     switch (activeTab) {
       case "signals":
-        return <SignalTable onSelectSymbol={setSelectedSymbol} rows={resources.signals.data} selectedSymbol={selectedSymbol} />;
+        return (
+          <SignalTable
+            onSelectSignal={setSelectedSignalId}
+            onSelectSymbol={setSelectedSymbol}
+            rows={resources.signals.data}
+            selectedSymbol={selectedSymbol}
+          />
+        );
       case "high_risk":
-        return <SignalTable onSelectSymbol={setSelectedSymbol} rows={resources.highRiskSignals.data} selectedSymbol={selectedSymbol} />;
+        return (
+          <SignalTable
+            onSelectSignal={setSelectedSignalId}
+            onSelectSymbol={setSelectedSymbol}
+            rows={resources.highRiskSignals.data}
+            selectedSymbol={selectedSymbol}
+          />
+        );
       case "research":
         return <ResearchTab onSelectSymbol={setSelectedSymbol} rows={resources.research.data} selectedSymbol={selectedSymbol} />;
       case "news":
         return <NewsTab onSelectSymbol={setSelectedSymbol} rows={resources.news.data} />;
       case "active_trades":
-        return <ActiveTradesTab onSelectSymbol={setSelectedSymbol} rows={resources.activeTrades.data} selectedSymbol={selectedSymbol} />;
+        return (
+          <ActiveTradesTab
+            onChanged={resources.activeTrades.refresh}
+            onOpenRisk={setSelectedRiskReportId}
+            onOpenSignal={setSelectedSignalId}
+            onSelectSymbol={setSelectedSymbol}
+            rows={resources.activeTrades.data}
+            selectedRiskReportId={selectedRiskReportId}
+            selectedSignalId={selectedSignalId}
+            selectedSymbol={selectedSymbol}
+          />
+        );
       case "wallet_balance":
         return <WalletBalanceTab rows={resources.walletBalance.data} />;
       case "watchlist":
-        return <WatchlistTab onSelectSymbol={setSelectedSymbol} rows={resources.watchlist.data} selectedSymbol={selectedSymbol} />;
+        return (
+          <WatchlistTab
+            onOpenRisk={setSelectedRiskReportId}
+            onOpenSignal={setSelectedSignalId}
+            onSelectSymbol={setSelectedSymbol}
+            opportunities={resources.opportunities.data}
+            rows={resources.watchlist.data}
+            selectedSymbol={selectedSymbol}
+          />
+        );
       case "strategy_lab":
         return <StrategyLabTab />;
       case "backtests":
@@ -99,13 +164,23 @@ export default function App() {
         return (
           <RiskExposureTab
             exposures={resources.riskExposure.data}
+            onOpenRisk={setSelectedRiskReportId}
             onSelectSymbol={setSelectedSymbol}
             reports={resources.risk.data}
             selectedSymbol={selectedSymbol}
           />
         );
       case "journal":
-        return <JournalTab rows={resources.journal.data} />;
+        return (
+          <JournalTab
+            onChanged={resources.journal.refresh}
+            rows={resources.journal.data}
+            selectedRiskReportId={selectedRiskReportId}
+            selectedSignalId={selectedSignalId}
+            selectedSymbol={selectedSymbol}
+            selectedTradeId={selectedTradeId}
+          />
+        );
       default:
         return null;
     }
@@ -160,7 +235,12 @@ export default function App() {
             >
               {resources.bars.data.length > 0 ? <PriceChart bars={resources.bars.data} /> : <StateBlock empty />}
             </Panel>
-            <SignalDetailsCard context={resources.assetContext.data} />
+            <SignalDetailsCard
+              context={resources.assetContext.data}
+              detail={resources.signalDetail.data}
+              error={resources.signalDetail.error}
+              loading={resources.signalDetail.loading}
+            />
           </div>
 
           <Panel title={activeTabLabel(activeTab)} eyebrow="Workspace">
@@ -169,7 +249,17 @@ export default function App() {
         </main>
 
         <aside className="right-pane">
-          <ContextSidebar context={resources.assetContext.data} onSelectSymbol={setSelectedSymbol} ribbon={resources.overview.data} />
+          <ContextSidebar
+            alerts={resources.alerts.data}
+            context={resources.assetContext.data}
+            onOpenRisk={setSelectedRiskReportId}
+            onOpenSignal={setSelectedSignalId}
+            onSelectSymbol={(symbol) => focusSymbol(symbol)}
+            ribbon={resources.overview.data}
+            riskDetail={resources.riskDetail.data}
+            riskError={resources.riskDetail.error}
+            riskLoading={resources.riskDetail.loading}
+          />
         </aside>
       </div>
     </div>

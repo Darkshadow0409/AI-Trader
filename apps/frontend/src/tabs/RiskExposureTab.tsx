@@ -5,9 +5,10 @@ interface RiskExposureTabProps {
   reports: RiskView[];
   selectedSymbol: string;
   onSelectSymbol: (symbol: string) => void;
+  onOpenRisk?: (riskReportId: string) => void;
 }
 
-export function RiskExposureTab({ exposures, reports, selectedSymbol, onSelectSymbol }: RiskExposureTabProps) {
+export function RiskExposureTab({ exposures, reports, selectedSymbol, onSelectSymbol, onOpenRisk }: RiskExposureTabProps) {
   return (
     <div className="split-stack">
       <table className="data-table">
@@ -43,7 +44,14 @@ export function RiskExposureTab({ exposures, reports, selectedSymbol, onSelectSy
         </thead>
         <tbody>
           {reports.map((row) => (
-            <tr className={selectedSymbol === row.symbol ? "row-selected" : ""} key={row.symbol} onClick={() => onSelectSymbol(row.symbol)}>
+            <tr
+              className={selectedSymbol === row.symbol ? "row-selected" : ""}
+              key={row.risk_report_id}
+              onClick={() => {
+                onSelectSymbol(row.symbol);
+                onOpenRisk?.(row.risk_report_id);
+              }}
+            >
               <td>{row.symbol}</td>
               <td>{row.stop_price.toFixed(2)}</td>
               <td>{row.size_band}</td>

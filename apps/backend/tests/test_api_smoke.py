@@ -25,10 +25,14 @@ def test_api_starts_and_loads_sample_data() -> None:
     overview = client.get("/api/dashboard/overview")
     research = client.get("/api/research")
     high_risk = client.get("/api/signals/high-risk")
+    signal_detail = client.get(f"/api/signals/{signals.json()[0]['signal_id']}") if signals.json() else None
     asset_context = client.get("/api/dashboard/assets/BTC")
     active_trades = client.get("/api/portfolio/active-trades")
     wallet = client.get("/api/portfolio/wallet-balance")
     journal = client.get("/api/journal")
+    opportunities = client.get("/api/watchlist/opportunity-hunter")
+    alerts = client.get("/api/alerts")
+    risk_detail = client.get(f"/api/risk/{risk.json()[0]['risk_report_id']}") if risk.json() else None
     refresh = client.post("/api/system/refresh")
     assert news.status_code == 200
     assert watchlist.status_code == 200
@@ -40,10 +44,14 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert overview.status_code == 200
     assert research.status_code == 200
     assert high_risk.status_code == 200
+    assert signal_detail is not None and signal_detail.status_code == 200
     assert asset_context.status_code == 200
     assert active_trades.status_code == 200
     assert wallet.status_code == 200
     assert journal.status_code == 200
+    assert opportunities.status_code == 200
+    assert alerts.status_code == 200
+    assert risk_detail is not None and risk_detail.status_code == 200
     assert refresh.status_code == 200
     assert len(bars.json()) > 0
     assert len(strategies.json()) >= 3
@@ -53,7 +61,63 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert isinstance(active_trades.json(), list)
     assert isinstance(wallet.json(), list)
     assert isinstance(journal.json(), list)
+    assert "focus_queue" in opportunities.json()
+    assert isinstance(alerts.json(), list)
+    assert "evidence" in signal_detail.json()
+    assert "stop_logic" in risk_detail.json()
     assert refresh.json()["source_mode"] == "sample"
+
+    created_trade = client.post(
+        "/api/portfolio/active-trades",
+        json={
+            "symbol": "BTC",
+            "strategy_name": "manual_track_v1",
+            "side": "long",
+            "entry_time": "2026-03-15T11:30:00Z",
+            "entry_price": 70000,
+            "current_price": 70500,
+            "stop_price": 69000,
+            "target_price": 73000,
+            "size_band": "small",
+            "status": "open",
+            "thesis": "Manual tracking regression.",
+            "signal_id": signals.json()[0]["signal_id"],
+            "risk_report_id": risk.json()[0]["risk_report_id"],
+            "notes": "created in smoke test",
+        },
+    )
+    assert created_trade.status_code == 201
+    trade_id = created_trade.json()["trade_id"]
+    updated_trade = client.patch(
+        f"/api/portfolio/active-trades/{trade_id}",
+        json={"current_price": 70650, "notes": "updated in smoke test"},
+    )
+    assert updated_trade.status_code == 200
+    assert updated_trade.json()["current_price"] == 70650
+    deleted_trade = client.delete(f"/api/portfolio/active-trades/{trade_id}")
+    assert deleted_trade.status_code == 204
+
+    created_journal = client.post(
+        "/api/journal",
+        json={
+            "symbol": "BTC",
+            "entered_at": "2026-03-15T11:30:00Z",
+            "entry_type": "pre_trade",
+            "note": "Pre-trade regression entry.",
+            "mood": "focused",
+            "tags": ["regression"],
+            "signal_id": signals.json()[0]["signal_id"],
+            "risk_report_id": risk.json()[0]["risk_report_id"],
+        },
+    )
+    assert created_journal.status_code == 201
+    journal_id = created_journal.json()["journal_id"]
+    updated_journal = client.patch(
+        f"/api/journal/{journal_id}",
+        json={"lessons": "Preserved fixture-mode journaling flow.", "review_status": "in_review"},
+    )
+    assert updated_journal.status_code == 200
+    assert updated_journal.json()["review_status"] == "in_review"
 
     strategy_detail = client.get(f"/api/strategies/{strategies.json()[0]['name']}")
     backtest_detail = client.get(f"/api/backtests/{backtests.json()[0]['id']}")

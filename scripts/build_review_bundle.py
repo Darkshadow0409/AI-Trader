@@ -23,7 +23,11 @@ CONTRACT_FILES = [
     ("/api/signals/high-risk", "GET", "contracts/signals_high_risk.json"),
     ("/api/news", "GET", "contracts/news.json"),
     ("/api/watchlist", "GET", "contracts/watchlist.json"),
+    ("/api/watchlist/opportunity-hunter", "GET", "contracts/opportunity_hunter.json"),
     ("/api/risk/latest", "GET", "contracts/risk_latest.json"),
+    ("/api/alerts", "GET", "contracts/alerts.json"),
+    ("/api/portfolio/active-trades", "GET", "contracts/active_trades.json"),
+    ("/api/journal", "GET", "contracts/journal.json"),
     ("/api/market/bars/BTC", "GET", "contracts/market_bars_BTC.json"),
     ("/api/system/refresh", "POST", "contracts/system_refresh.json"),
     ("/api/strategies", "GET", "contracts/strategies.json"),
@@ -44,6 +48,7 @@ TEST_FILES = [
     "apps/frontend/src/api/contracts.test.ts",
     "apps/frontend/src/components/TopRibbon.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
+    "apps/frontend/src/tabs/WatchlistTab.test.tsx",
 ]
 
 SNAPSHOT_FILES = [
@@ -67,8 +72,12 @@ CORE_FILES = [
     "apps/backend/app/api/routes/news.py",
     "apps/backend/app/api/routes/watchlist.py",
     "apps/backend/app/api/routes/risk.py",
+    "apps/backend/app/api/routes/portfolio.py",
+    "apps/backend/app/api/routes/journal.py",
+    "apps/backend/app/api/routes/alerts.py",
     "apps/backend/app/api/routes/market.py",
     "apps/backend/app/api/routes/system.py",
+    "apps/backend/app/services/operator_console.py",
     "apps/backend/app/connectors/eia_client.py",
     "apps/backend/app/connectors/fred_client.py",
     "apps/backend/app/connectors/binance_market_data.py",
@@ -84,11 +93,13 @@ CORE_FILES = [
     "apps/frontend/src/api/client.ts",
     "apps/frontend/src/api/hooks.ts",
     "apps/frontend/src/types/api.ts",
-    "apps/frontend/src/tabs/SignalsTab.tsx",
     "apps/frontend/src/tabs/NewsTab.tsx",
     "apps/frontend/src/tabs/WatchlistTab.tsx",
-    "apps/frontend/src/tabs/RiskTab.tsx",
+    "apps/frontend/src/tabs/ActiveTradesTab.tsx",
+    "apps/frontend/src/tabs/JournalTab.tsx",
+    "apps/frontend/src/tabs/RiskExposureTab.tsx",
     "apps/frontend/src/components/TopRibbon.tsx",
+    "apps/frontend/src/components/ContextSidebar.tsx",
     "apps/frontend/src/components/SignalTable.tsx",
     "apps/frontend/src/components/SignalDetailsCard.tsx",
 ]
@@ -265,6 +276,24 @@ def collect_contracts(bundle_root: Path, runtime_env: dict[str, str]) -> dict[st
             payload = response.json()
             responses[route] = payload
             write_json(bundle_root / relative_output, payload)
+        signals = responses.get("/api/signals")
+        risks = responses.get("/api/risk/latest")
+        if isinstance(signals, list) and signals:
+            signal_id = signals[0].get("signal_id")
+            if signal_id:
+                response = client.get(f"/api/signals/{signal_id}")
+                response.raise_for_status()
+                payload = response.json()
+                responses[f"/api/signals/{signal_id}"] = payload
+                write_json(bundle_root / "contracts/signal_detail.json", payload)
+        if isinstance(risks, list) and risks:
+            risk_report_id = risks[0].get("risk_report_id")
+            if risk_report_id:
+                response = client.get(f"/api/risk/{risk_report_id}")
+                response.raise_for_status()
+                payload = response.json()
+                responses[f"/api/risk/{risk_report_id}"] = payload
+                write_json(bundle_root / "contracts/risk_detail.json", payload)
     return responses
 
 
@@ -273,7 +302,7 @@ def build_review_readme() -> str:
         """
         # Review Bundle
 
-        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, and a dense terminal-style dashboard. It does not perform live order execution.
+        This repository is a local-first trading research platform with a FastAPI backend, SQLite plus DuckDB and Parquet storage, and a React plus Vite frontend. The current implementation supports fixture-first ingestion, feature computation, signal generation, risk reporting, strategy-lab and backtest surfaces, and a dense terminal-style operator console. It does not perform live order execution.
 
         ## Fixture-first mode
 
@@ -281,7 +310,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a minimal but working dashboard. Some milestone-2 style strategy-lab and richer dashboard work is already present and included for sanity review, but it should not be read as a claim of production-grade execution support.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Early Milestone 2A operator-console work is now present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts.
 
         ## Intentionally stubbed
 
@@ -290,6 +319,7 @@ def build_review_readme() -> str:
         - Macro proxies such as WTI, GOLD, DXY, and US10Y are sample-backed context, not production-grade market feeds
         - OpenAI remote adapter and non-local alert sinks remain stubs or interfaces
         - UI updates currently rely on polling, not a fully wired websocket event stream
+        - External alert delivery remains interface-level only; alert rendering is in-app only in the current milestone
 
         ## Exact local run commands
 
@@ -354,6 +384,7 @@ def build_milestone_summary() -> str:
         - Trend-breakout and event-driven signals with uncertainty and data-quality fields
         - Risk reports with stop logic, size bands, scenario shocks, and cluster exposure
         - Seed and backfill scripts, dashboard routes, and a working local dashboard shell
+        - Milestone 1.5 contract hardening for explicit signal and risk identities plus fixture API snapshots
 
         ## Hardened in the testing pass
 
@@ -375,14 +406,14 @@ def build_milestone_summary() -> str:
 
         ## Known technical debt
 
-        - No explicit `signal_id` field in current signal API payloads
+        - Operator-console write paths are local and last-write-wins; they do not have sync or conflict resolution
         - Polling-based frontend updates despite websocket scaffolding existing in the backend
         - Macro context assets are sample-proxy quality rather than exchange-grade feeds
         - Frontend mock data and backend contracts require continued alignment as routes evolve
 
         ## Immediate next recommended milestone
 
-        Focus on production honesty rather than scope expansion: stabilize contract versioning, add write-path coverage only where already implemented, tighten websocket or polling semantics, and improve macro proxy provenance before considering any broader asset or execution work.
+        Focus on operator-console hardening rather than scope expansion: stabilize the new detail and CRUD contracts, add browser-level interaction coverage for trades and journal flows, tighten websocket or polling semantics, and improve macro proxy provenance before considering any broader asset or execution work.
         """
     ).strip() + "\n"
 
@@ -412,7 +443,7 @@ def build_arch_review() -> str:
 
         ## Route surface
 
-        Core milestone-1 review routes are `health`, `signals`, `news`, `watchlist`, `risk`, `market`, and `system refresh`. Additional routes for dashboard context, strategies, backtests, portfolio, and journal are already present.
+        Core milestone-1 review routes are `health`, `signals`, `news`, `watchlist`, `risk`, `market`, and `system refresh`. Additional routes for dashboard context, strategy lab, backtests, portfolio, journal, opportunity hunter, alerts, and signal or risk detail are already present.
 
         ## Where strategy lab fits
 
@@ -420,7 +451,7 @@ def build_arch_review() -> str:
 
         ## What remains local-only
 
-        The entire platform is local-first. There is no broker integration, no autonomous trade execution, and no remote stateful service dependency required for the default workflow.
+        The entire platform is local-first. There is no broker integration, no autonomous trade execution, and no remote stateful service dependency required for the default workflow. Alert delivery is in-app only at this stage.
         """
     ).strip() + "\n"
 
@@ -435,7 +466,7 @@ def build_data_quality_review() -> str:
         - Seeded OHLCV for BTC, ETH, WTI, GOLD, DXY, and US10Y
         - EIA news fixtures
         - FRED macro release fixtures
-        - Sample signals, risk reports, watchlist state, wallet balance, active trades, and journal items
+        - Sample signals, risk reports, watchlist state, opportunity hunter state, wallet balance, active trades, journal items, and in-app alerts
 
         ## Live-capable today
 
@@ -467,13 +498,13 @@ def build_testing_review() -> str:
         ## Covered
 
         - Seed and backfill script determinism
-        - API startup and core route smoke coverage
+        - API startup and core route smoke coverage, including signal or risk detail, opportunities, alerts, and local trade or journal write flows
         - Connector fallback behavior in fixture mode
         - Feature pipeline creation and warm-up sanity
         - Signal and risk route invariants
         - Core risk-engine helpers
         - Strategy-lab baseline parsing, walk-forward, robustness, and API serialization
-        - Frontend app shell, client fallback, contract alignment, ribbon rendering, and placeholder backtest-tab behavior
+        - Frontend app shell, client fallback, contract alignment, ribbon rendering, watchlist opportunity rendering, and placeholder backtest-tab behavior
 
         ## Deterministic counts
 
@@ -505,12 +536,13 @@ def build_known_issues() -> str:
         """
         # Known Issues
 
-        - Signal payloads still lack an explicit `signal_id`; reviewers should treat `symbol + signal_type + timestamp` as the current equivalent identity.
+        - Signal and risk payloads now have explicit IDs, but frontend and backend contracts are still maintained manually rather than generated from a shared schema.
         - Frontend and backend contracts are aligned today, but there is no automated cross-language schema generation, so route drift remains a maintenance risk.
         - The UI is polling-based even though backend websocket scaffolding exists; freshness expectations should be reviewed with that in mind.
         - Live and fixture paths can diverge in shape or market realism because fixtures are deterministic simulations rather than exchange captures.
         - Oil, metals, DXY, and US10Y context are not production-grade market feeds in the current local workflow.
         - `scripts/dev.py` is Windows-safe for npm resolution now, but it still does not manage frontend port overrides or port collisions automatically.
+        - Active trades and journal entries are writable locally, but there is no conflict-resolution layer beyond last write wins.
         """
     ).strip() + "\n"
 
@@ -520,7 +552,7 @@ def build_test_notes() -> str:
         """
         # Test Notes
 
-        - `test_api_smoke.py`: proves the FastAPI app starts, core routes respond, and strategy and backtest routes do not break startup.
+        - `test_api_smoke.py`: proves the FastAPI app starts, core routes respond, and signal or risk detail, opportunities, alerts, trade CRUD, and journal writes do not break startup.
         - `test_pipeline_scripts.py`: locks the seed and backfill scripts to deterministic fixture-mode counts.
         - `test_contract_snapshots.py`: protects the saved fixture-mode API contracts for signals, risk, news, watchlist, and dashboard overview.
         - `test_connector_fallbacks.py`: protects offline local development by proving live connector failures fall back cleanly.
@@ -532,6 +564,7 @@ def build_test_notes() -> str:
         - `contracts.test.ts`: keeps representative frontend payload shapes aligned with backend field names.
         - `TopRibbon.test.tsx`: covers top-ribbon rendering for both normal and stale or missing data states.
         - `BacktestsTab.test.tsx`: proves the backtests tab does not crash when placeholder data is empty.
+        - `WatchlistTab.test.tsx`: checks the opportunity hunter queues render and still support drill-down callbacks.
         """
     ).strip() + "\n"
 
@@ -558,6 +591,10 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     risks = contracts["/api/risk/latest"]
     news = contracts["/api/news"]
     watchlist = contracts["/api/watchlist"]
+    opportunities = contracts["/api/watchlist/opportunity-hunter"]
+    alerts = contracts["/api/alerts"]
+    active_trades = contracts["/api/portfolio/active-trades"]
+    journal = contracts["/api/journal"]
     strategies = contracts["/api/strategies"]
     backtests = contracts["/api/backtests"]
     refresh = contracts["/api/system/refresh"]
@@ -570,6 +607,14 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/seeded_news_item.json", news[0])
     if isinstance(watchlist, list) and watchlist:
         write_json(bundle_root / "samples/seeded_watchlist_item.json", watchlist[0])
+    if isinstance(opportunities, dict):
+        write_json(bundle_root / "samples/opportunity_hunter.json", opportunities)
+    if isinstance(alerts, list) and alerts:
+        write_json(bundle_root / "samples/seeded_alert.json", alerts[0])
+    if isinstance(active_trades, list) and active_trades:
+        write_json(bundle_root / "samples/seeded_active_trade.json", active_trades[0])
+    if isinstance(journal, list) and journal:
+        write_json(bundle_root / "samples/seeded_journal_entry.json", journal[0])
     shutil.copy2(
         ROOT / "apps/backend/fixtures/strategy_specs/trend_breakout_v1.yaml",
         bundle_root / "samples/sample_strategy_spec_trend_breakout_v1.yaml",

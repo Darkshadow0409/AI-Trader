@@ -29,6 +29,20 @@ def _ensure_contract_columns() -> None:
             "risk_report_id": "TEXT",
             "signal_id": "TEXT",
         },
+        "journalentry": {
+            "journal_id": "TEXT",
+            "entry_type": "TEXT",
+            "signal_id": "TEXT",
+            "risk_report_id": "TEXT",
+            "trade_id": "TEXT",
+            "setup_quality": "INTEGER DEFAULT 0",
+            "execution_quality": "INTEGER DEFAULT 0",
+            "follow_through": "TEXT DEFAULT ''",
+            "outcome": "TEXT DEFAULT ''",
+            "lessons": "TEXT DEFAULT ''",
+            "review_status": "TEXT DEFAULT 'logged'",
+            "updated_at": "TIMESTAMP",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -45,10 +59,13 @@ def _ensure_contract_columns() -> None:
         connection.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_riskreport_signal_id ON riskreport (signal_id)"
         )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_journalentry_journal_id_unique ON journalentry (journal_id)"
+        )
 
 
 def init_db() -> None:
-    from app.models.entities import Asset, BacktestResult, BacktestRun, JournalEntry, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, JournalEntry, MacroEvent, MarketBar, NewsItem, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

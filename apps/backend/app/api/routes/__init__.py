@@ -1,6 +1,7 @@
 """API routes package."""
 
 __all__ = [
+    "alerts",
     "backtests",
     "dashboard",
     "health",

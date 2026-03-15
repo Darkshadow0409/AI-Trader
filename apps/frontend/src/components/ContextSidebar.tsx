@@ -1,14 +1,33 @@
-import type { AssetContextView, RibbonView } from "../types/api";
+import type { AlertEnvelope, AssetContextView, RibbonView, RiskDetailView } from "../types/api";
 import { Panel } from "./Panel";
+import { StateBlock } from "./StateBlock";
 
 interface ContextSidebarProps {
   context: AssetContextView;
   ribbon: RibbonView;
   onSelectSymbol: (symbol: string) => void;
+  alerts: AlertEnvelope[];
+  riskDetail: RiskDetailView | null;
+  riskLoading?: boolean;
+  riskError?: string | null;
+  onOpenSignal: (signalId: string) => void;
+  onOpenRisk: (riskReportId: string) => void;
 }
 
-export function ContextSidebar({ context, ribbon, onSelectSymbol }: ContextSidebarProps) {
+export function ContextSidebar({
+  context,
+  ribbon,
+  onSelectSymbol,
+  alerts,
+  riskDetail,
+  riskLoading,
+  riskError,
+  onOpenSignal,
+  onOpenRisk,
+}: ContextSidebarProps) {
   const event = ribbon.next_event as { title?: string; impact?: string; event_time?: string } | null;
+  const risk = riskDetail ?? context.latest_risk;
+  const detailRisk = riskDetail;
 
   return (
     <div className="context-stack">
@@ -30,22 +49,30 @@ export function ContextSidebar({ context, ribbon, onSelectSymbol }: ContextSideb
       </Panel>
 
       <Panel title="Risk Context" eyebrow={context.symbol}>
-        {context.latest_risk ? (
+        <StateBlock loading={riskLoading} error={riskError} />
+        {risk ? (
           <>
             <div className="metric-row">
-              <span>Stop {context.latest_risk.stop_price.toFixed(2)}</span>
-              <span>{context.latest_risk.size_band}</span>
+              <span>Stop {risk.stop_price.toFixed(2)}</span>
+              <span>{risk.size_band}</span>
             </div>
             <div className="metric-row">
-              <span>Cluster {context.latest_risk.exposure_cluster}</span>
-              <span>Budget {context.latest_risk.max_portfolio_risk_pct.toFixed(3)}%</span>
+              <span>Cluster {risk.exposure_cluster}</span>
+              <span>Budget {risk.max_portfolio_risk_pct.toFixed(3)}%</span>
             </div>
-            {Object.entries(context.latest_risk.scenario_shocks).map(([name, value]) => (
+            {Object.entries(risk.scenario_shocks).map(([name, value]) => (
               <div className="metric-row compact-row" key={name}>
                 <span>{name.replace(/_/g, " ")}</span>
                 <span>{value.toFixed(2)}%</span>
               </div>
             ))}
+            {detailRisk ? (
+              <div className="stack">
+                {detailRisk.risk_notes.map((item) => (
+                  <small key={item}>{item}</small>
+                ))}
+              </div>
+            ) : null}
           </>
         ) : (
           <p className="muted-copy">No risk report for the selected asset.</p>
@@ -60,6 +87,38 @@ export function ContextSidebar({ context, ribbon, onSelectSymbol }: ContextSideb
               <small>{item.entity_tags.join(" / ")}</small>
             </button>
           ))}
+        </div>
+      </Panel>
+
+      <Panel title="Alert Center" eyebrow="In-App">
+        <div className="news-stack">
+          {alerts.length > 0 ? (
+            alerts.slice(0, 8).map((item) => (
+              <button
+                className="news-item"
+                key={item.alert_id}
+                onClick={() => {
+                  if (item.signal_id) {
+                    onOpenSignal(item.signal_id);
+                  }
+                  if (item.risk_report_id) {
+                    onOpenRisk(item.risk_report_id);
+                  }
+                  if (item.symbol) {
+                    onSelectSymbol(item.symbol);
+                  }
+                }}
+                type="button"
+              >
+                <strong>
+                  [{item.severity}] {item.title}
+                </strong>
+                <small>{item.tags.join(" / ")}</small>
+              </button>
+            ))
+          ) : (
+            <p className="muted-copy">No active alerts in fixture mode.</p>
+          )}
         </div>
       </Panel>
     </div>

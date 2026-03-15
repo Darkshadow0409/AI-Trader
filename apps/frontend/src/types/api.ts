@@ -34,6 +34,13 @@ export interface SignalView {
   features: Record<string, unknown>;
 }
 
+export interface SignalEvidenceView {
+  label: string;
+  value: string;
+  verdict: string;
+  note: string;
+}
+
 export interface NewsView {
   source: string;
   published_at: string;
@@ -58,6 +65,26 @@ export interface WatchlistView {
   freshness_minutes: number;
 }
 
+export interface OpportunityView {
+  symbol: string;
+  label: string;
+  queue: string;
+  score: number;
+  score_decomposition: Record<string, number>;
+  promotion_reasons: string[];
+  freshness_minutes: number;
+  risk_notes: string[];
+  signal_id: string | null;
+  risk_report_id: string | null;
+  status: string;
+}
+
+export interface OpportunityHunterView {
+  generated_at: string;
+  focus_queue: OpportunityView[];
+  scout_queue: OpportunityView[];
+}
+
 export interface RiskView {
   risk_report_id: string;
   signal_id: string;
@@ -79,6 +106,21 @@ export interface RiskExposureView {
   symbols: string[];
   gross_risk_pct: number;
   worst_scenario_pct: number;
+}
+
+export interface SignalDetailView extends SignalView {
+  evidence: SignalEvidenceView[];
+  catalyst_news: NewsView[];
+  related_risk: RiskView | null;
+  freshness_status: string;
+}
+
+export interface RiskDetailView extends RiskView {
+  linked_signal: SignalView | null;
+  stop_logic: Record<string, unknown>;
+  risk_notes: string[];
+  cluster_exposure: RiskExposureView | null;
+  freshness_status: string;
 }
 
 export interface RibbonView {
@@ -210,6 +252,7 @@ export interface AssetContextView {
 }
 
 export interface ActiveTradeView {
+  trade_id: string;
   symbol: string;
   strategy_name: string;
   side: string;
@@ -223,6 +266,41 @@ export interface ActiveTradeView {
   status: string;
   thesis: string;
   data_quality: string;
+  signal_id: string | null;
+  risk_report_id: string | null;
+  notes: string;
+  updated_at: string;
+  freshness_minutes: number;
+}
+
+export interface ActiveTradeCreateRequest {
+  symbol: string;
+  strategy_name: string;
+  side: string;
+  entry_time: string;
+  entry_price: number;
+  current_price: number;
+  stop_price: number;
+  target_price: number;
+  size_band: string;
+  status: string;
+  thesis: string;
+  signal_id?: string | null;
+  risk_report_id?: string | null;
+  notes?: string;
+  data_quality?: string;
+}
+
+export interface ActiveTradeUpdateRequest {
+  current_price?: number;
+  stop_price?: number;
+  target_price?: number;
+  status?: string;
+  size_band?: string;
+  thesis?: string;
+  notes?: string;
+  signal_id?: string | null;
+  risk_report_id?: string | null;
 }
 
 export interface WalletBalanceLineView {
@@ -243,15 +321,73 @@ export interface WalletBalanceView {
 }
 
 export interface JournalReviewView {
+  journal_id: string;
   symbol: string;
   entered_at: string;
+  entry_type: string;
   note: string;
   mood: string;
   tags: string[];
+  signal_id: string | null;
+  risk_report_id: string | null;
+  trade_id: string | null;
   setup_quality: number;
   execution_quality: number;
   follow_through: string;
   outcome: string;
   lessons: string;
   review_status: string;
+  updated_at: string;
+  freshness_minutes: number;
+}
+
+export interface JournalEntryCreateRequest {
+  symbol: string;
+  entered_at: string;
+  entry_type?: string;
+  note: string;
+  mood: string;
+  tags?: string[];
+  signal_id?: string | null;
+  risk_report_id?: string | null;
+  trade_id?: string | null;
+  setup_quality?: number;
+  execution_quality?: number;
+  follow_through?: string;
+  outcome?: string;
+  lessons?: string;
+  review_status?: string;
+}
+
+export interface JournalEntryUpdateRequest {
+  note?: string;
+  mood?: string;
+  tags?: string[];
+  signal_id?: string | null;
+  risk_report_id?: string | null;
+  trade_id?: string | null;
+  setup_quality?: number;
+  execution_quality?: number;
+  follow_through?: string;
+  outcome?: string;
+  lessons?: string;
+  review_status?: string;
+}
+
+export interface AlertEnvelope {
+  alert_id: string;
+  created_at: string;
+  category: string;
+  severity: string;
+  title: string;
+  message: string;
+  symbol: string | null;
+  signal_id: string | null;
+  risk_report_id: string | null;
+  trade_id: string | null;
+  freshness_minutes: number;
+  data_quality: string;
+  tags: string[];
+  status: string;
+  metadata: Record<string, unknown>;
 }

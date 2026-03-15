@@ -42,6 +42,13 @@ class SignalView(BaseModel):
     features: dict[str, Any]
 
 
+class SignalEvidenceView(BaseModel):
+    label: str
+    value: str
+    verdict: str
+    note: str
+
+
 class NewsView(BaseModel):
     source: str
     published_at: datetime
@@ -64,6 +71,26 @@ class WatchlistView(BaseModel):
     last_signal_score: float
     updated_at: datetime
     freshness_minutes: int
+
+
+class OpportunityView(BaseModel):
+    symbol: str
+    label: str
+    queue: str
+    score: float
+    score_decomposition: dict[str, float]
+    promotion_reasons: list[str]
+    freshness_minutes: int
+    risk_notes: list[str]
+    signal_id: str | None
+    risk_report_id: str | None
+    status: str
+
+
+class OpportunityHunterView(BaseModel):
+    generated_at: datetime
+    focus_queue: list[OpportunityView]
+    scout_queue: list[OpportunityView]
 
 
 class RiskView(BaseModel):
@@ -125,7 +152,23 @@ class AssetContextView(BaseModel):
     latest_backtest: BacktestListView | None
 
 
+class SignalDetailView(SignalView):
+    evidence: list[SignalEvidenceView]
+    catalyst_news: list[NewsView]
+    related_risk: RiskView | None
+    freshness_status: str
+
+
+class RiskDetailView(RiskView):
+    linked_signal: SignalView | None
+    stop_logic: dict[str, Any]
+    risk_notes: list[str]
+    cluster_exposure: RiskExposureView | None
+    freshness_status: str
+
+
 class ActiveTradeView(BaseModel):
+    trade_id: str
     symbol: str
     strategy_name: str
     side: str
@@ -139,6 +182,41 @@ class ActiveTradeView(BaseModel):
     status: str
     thesis: str
     data_quality: str
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    notes: str = ""
+    updated_at: datetime
+    freshness_minutes: int
+
+
+class ActiveTradeCreateRequest(BaseModel):
+    symbol: str
+    strategy_name: str
+    side: str
+    entry_time: datetime
+    entry_price: float
+    current_price: float
+    stop_price: float
+    target_price: float
+    size_band: str
+    status: str
+    thesis: str
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    notes: str = ""
+    data_quality: str = "manual"
+
+
+class ActiveTradeUpdateRequest(BaseModel):
+    current_price: float | None = None
+    stop_price: float | None = None
+    target_price: float | None = None
+    status: str | None = None
+    size_band: str | None = None
+    thesis: str | None = None
+    notes: str | None = None
+    signal_id: str | None = None
+    risk_report_id: str | None = None
 
 
 class WalletBalanceLineView(BaseModel):
@@ -159,17 +237,75 @@ class WalletBalanceView(BaseModel):
 
 
 class JournalReviewView(BaseModel):
+    journal_id: str
     symbol: str
     entered_at: datetime
+    entry_type: str
     note: str
     mood: str
     tags: list[str]
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    trade_id: str | None = None
     setup_quality: int
     execution_quality: int
     follow_through: str
     outcome: str
     lessons: str
     review_status: str
+    updated_at: datetime
+    freshness_minutes: int
+
+
+class JournalEntryCreateRequest(BaseModel):
+    symbol: str
+    entered_at: datetime
+    entry_type: str = "pre_trade"
+    note: str
+    mood: str
+    tags: list[str] = Field(default_factory=list)
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    trade_id: str | None = None
+    setup_quality: int = 0
+    execution_quality: int = 0
+    follow_through: str = ""
+    outcome: str = ""
+    lessons: str = ""
+    review_status: str = "logged"
+
+
+class JournalEntryUpdateRequest(BaseModel):
+    note: str | None = None
+    mood: str | None = None
+    tags: list[str] | None = None
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    trade_id: str | None = None
+    setup_quality: int | None = None
+    execution_quality: int | None = None
+    follow_through: str | None = None
+    outcome: str | None = None
+    lessons: str | None = None
+    review_status: str | None = None
+
+
+class AlertEnvelope(BaseModel):
+    alert_id: str
+    created_at: datetime
+    category: str
+    severity: str
+    title: str
+    message: str
+    symbol: str | None = None
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    trade_id: str | None = None
+    freshness_minutes: int
+    data_quality: str
+    tags: list[str]
+    status: str
+    metadata: dict[str, Any]
 
 
 class StrategyListView(BaseModel):

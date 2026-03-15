@@ -4,9 +4,10 @@ interface SignalTableProps {
   rows: SignalView[];
   selectedSymbol: string;
   onSelectSymbol: (symbol: string) => void;
+  onSelectSignal?: (signalId: string) => void;
 }
 
-export function SignalTable({ rows, selectedSymbol, onSelectSymbol }: SignalTableProps) {
+export function SignalTable({ rows, selectedSymbol, onSelectSymbol, onSelectSignal }: SignalTableProps) {
   return (
     <table className="data-table signal-table">
       <thead>
@@ -26,7 +27,10 @@ export function SignalTable({ rows, selectedSymbol, onSelectSymbol }: SignalTabl
           <tr
             className={row.symbol === selectedSymbol ? "row-selected" : ""}
             key={`${row.symbol}-${row.signal_type}-${row.timestamp}`}
-            onClick={() => onSelectSymbol(row.symbol)}
+            onClick={() => {
+              onSelectSymbol(row.symbol);
+              onSelectSignal?.(row.signal_id);
+            }}
           >
             <td>{row.symbol}</td>
             <td>{row.signal_type.replace(/_/g, " ")}</td>

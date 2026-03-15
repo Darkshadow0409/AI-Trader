@@ -2,16 +2,20 @@ import { useEffect, useState } from "react";
 import { apiClient } from "./client";
 import type {
   ActiveTradeView,
+  AlertEnvelope,
   AssetContextView,
   BacktestListView,
   BarView,
   HealthView,
   JournalReviewView,
   NewsView,
+  OpportunityHunterView,
   ResearchView,
   RibbonView,
+  RiskDetailView,
   RiskExposureView,
   RiskView,
+  SignalDetailView,
   SignalView,
   WalletBalanceView,
   WatchlistView,
@@ -73,7 +77,55 @@ function usePollingResource<T>(loader: () => Promise<T>, initialData: T, deps: u
   };
 }
 
-export function useDashboardData(selectedSymbol: string) {
+function emptySignalDetail(signalId: string): SignalDetailView {
+  return {
+    signal_id: signalId,
+    symbol: "",
+    signal_type: "",
+    timestamp: "",
+    freshness_minutes: 0,
+    direction: "",
+    score: 0,
+    confidence: 0,
+    noise_probability: 0,
+    thesis: "",
+    invalidation: 0,
+    targets: {},
+    uncertainty: 0,
+    data_quality: "loading",
+    affected_assets: [],
+    features: {},
+    evidence: [],
+    catalyst_news: [],
+    related_risk: null,
+    freshness_status: "loading",
+  };
+}
+
+function emptyRiskDetail(riskReportId: string): RiskDetailView {
+  return {
+    risk_report_id: riskReportId,
+    signal_id: "",
+    symbol: "",
+    as_of: "",
+    freshness_minutes: 0,
+    stop_price: 0,
+    size_band: "",
+    max_portfolio_risk_pct: 0,
+    exposure_cluster: "",
+    uncertainty: 0,
+    data_quality: "loading",
+    scenario_shocks: {},
+    report: {},
+    linked_signal: null,
+    stop_logic: {},
+    risk_notes: [],
+    cluster_exposure: null,
+    freshness_status: "loading",
+  };
+}
+
+export function useDashboardData(selectedSymbol: string, selectedSignalId: string | null, selectedRiskReportId: string | null) {
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
     status: "loading",
     sqlite_path: "",
@@ -95,12 +147,17 @@ export function useDashboardData(selectedSymbol: string) {
   const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), []);
   const news = usePollingResource<NewsView[]>(() => apiClient.news(), []);
   const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), []);
+  const opportunities = usePollingResource<OpportunityHunterView>(
+    () => apiClient.opportunities(),
+    { generated_at: "", focus_queue: [], scout_queue: [] },
+  );
   const research = usePollingResource<ResearchView[]>(() => apiClient.research(), []);
   const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), []);
   const riskExposure = usePollingResource<RiskExposureView[]>(() => apiClient.riskExposure(), []);
   const activeTrades = usePollingResource<ActiveTradeView[]>(() => apiClient.activeTrades(), []);
   const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), []);
   const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), []);
+  const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), []);
   const backtests = usePollingResource<BacktestListView[]>(() => apiClient.backtests(), []);
   const bars = usePollingResource<BarView[]>(() => apiClient.bars(selectedSymbol), [], [selectedSymbol]);
   const assetContext = usePollingResource<AssetContextView>(
@@ -115,20 +172,34 @@ export function useDashboardData(selectedSymbol: string) {
     },
     [selectedSymbol],
   );
+  const signalDetail = usePollingResource<SignalDetailView | null>(
+    () => (selectedSignalId ? apiClient.signalDetail(selectedSignalId) : Promise.resolve(null)),
+    selectedSignalId ? emptySignalDetail(selectedSignalId) : null,
+    [selectedSignalId],
+  );
+  const riskDetail = usePollingResource<RiskDetailView | null>(
+    () => (selectedRiskReportId ? apiClient.riskDetail(selectedRiskReportId) : Promise.resolve(null)),
+    selectedRiskReportId ? emptyRiskDetail(selectedRiskReportId) : null,
+    [selectedRiskReportId],
+  );
 
   return {
     health,
     overview,
     signals,
+    signalDetail,
     highRiskSignals,
     news,
     watchlist,
+    opportunities,
     research,
     risk,
+    riskDetail,
     riskExposure,
     activeTrades,
     walletBalance,
     journal,
+    alerts,
     backtests,
     bars,
     assetContext,

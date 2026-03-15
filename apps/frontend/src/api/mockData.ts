@@ -1,5 +1,6 @@
 import type {
   ActiveTradeView,
+  AlertEnvelope,
   AssetContextView,
   BacktestDetailView,
   BacktestListView,
@@ -7,10 +8,13 @@ import type {
   HealthView,
   JournalReviewView,
   NewsView,
+  OpportunityHunterView,
   ResearchView,
   RibbonView,
+  RiskDetailView,
   RiskExposureView,
   RiskView,
+  SignalDetailView,
   SignalView,
   StrategyDetailView,
   StrategyListView,
@@ -58,7 +62,7 @@ export const mockSignals: SignalView[] = [
     uncertainty: 0.21,
     data_quality: "fixture",
     affected_assets: ["BTC", "ETH"],
-    features: { close: 71880, atr_14: 1720, trend_state: "uptrend", relative_volume: 1.22 },
+    features: { close: 71880, atr_14: 1720, trend_state: "uptrend", relative_volume: 1.22, breakout_distance: 0.018 },
   },
   {
     signal_id: "sig_342ef03a8f4a559b9b1773fc5fd9f4ae",
@@ -76,7 +80,7 @@ export const mockSignals: SignalView[] = [
     uncertainty: 0.42,
     data_quality: "fixture",
     affected_assets: ["ETH", "BTC"],
-    features: { close: 3588, atr_14: 104, trend_state: "uptrend", relative_volume: 0.96 },
+    features: { close: 3588, atr_14: 104, trend_state: "uptrend", relative_volume: 0.96, breakout_distance: 0.007 },
   },
 ];
 
@@ -229,6 +233,88 @@ export const mockRiskExposure: RiskExposureView[] = [
   },
 ];
 
+export const mockSignalDetail: SignalDetailView = {
+  ...mockSignals[0],
+  evidence: [
+    {
+      label: "Breakout distance",
+      value: "1.8%",
+      verdict: "supportive",
+      note: "Distance above the recent breakout level.",
+    },
+    {
+      label: "Relative volume",
+      value: "1.22x",
+      verdict: "supportive",
+      note: "Current volume is above the 20-bar baseline.",
+    },
+  ],
+  catalyst_news: mockNews,
+  related_risk: mockRisk[0],
+  freshness_status: "fresh",
+};
+
+export const mockRiskDetail: RiskDetailView = {
+  ...mockRisk[0],
+  linked_signal: mockSignals[0],
+  stop_logic: {
+    method: "atr_multiple",
+    entry_reference: 71880,
+    atr_14: 1720,
+    stop_price: 68450,
+    distance: 3430,
+  },
+  risk_notes: ["No live execution enabled."],
+  cluster_exposure: mockRiskExposure[0],
+  freshness_status: "fresh",
+};
+
+export const mockOpportunities: OpportunityHunterView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  focus_queue: [
+    {
+      symbol: "BTC",
+      label: "Bitcoin",
+      queue: "focus",
+      score: 90.45,
+      score_decomposition: {
+        signal_score: 74.6,
+        confidence_bonus: 11.85,
+        trend_bonus: 6,
+        noise_penalty: 3.96,
+        freshness_penalty: 0.08,
+      },
+      promotion_reasons: ["signal_score_above_focus_threshold", "trend_state_uptrend", "risk_budget_acceptable"],
+      freshness_minutes: 5,
+      risk_notes: ["No live execution enabled."],
+      signal_id: mockSignals[0].signal_id,
+      risk_report_id: mockRisk[0].risk_report_id,
+      status: "active",
+    },
+  ],
+  scout_queue: [
+    {
+      symbol: "ETH",
+      label: "Ethereum",
+      queue: "scout",
+      score: 39.4,
+      score_decomposition: {
+        signal_score: 31.4,
+        confidence_bonus: 8.7,
+        trend_bonus: 6,
+        noise_penalty: 7.38,
+        freshness_penalty: 0.08,
+      },
+      promotion_reasons: ["trend_state_uptrend", "awaiting_confirmation"],
+      freshness_minutes: 5,
+      risk_notes: ["Reduce conviction near CPI."],
+      signal_id: mockSignals[1].signal_id,
+      risk_report_id: mockRisk[1].risk_report_id,
+      status: "active",
+    },
+  ],
+};
+
 export const mockBars: Record<string, BarView[]> = {
   BTC: [
     { symbol: "BTC", timestamp: "2026-03-11T00:00:00Z", open: 69210, high: 69920, low: 68880, close: 69740, volume: 22800 },
@@ -295,6 +381,7 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
 
 export const mockActiveTrades: ActiveTradeView[] = [
   {
+    trade_id: "trade_c5093f1b8d175f7e9ac0e6a5fd6151f8",
     symbol: "BTC",
     strategy_name: "trend_breakout_v1",
     side: "long",
@@ -308,6 +395,11 @@ export const mockActiveTrades: ActiveTradeView[] = [
     status: "open",
     thesis: "Breakout structure remains valid above invalidation.",
     data_quality: "fixture",
+    signal_id: mockSignals[0].signal_id,
+    risk_report_id: mockRisk[0].risk_report_id,
+    notes: "Trim size if CPI lands hotter than expected.",
+    updated_at: "2026-03-15T11:25:00Z",
+    freshness_minutes: 5,
   },
 ];
 
@@ -329,17 +421,61 @@ export const mockWalletBalances: WalletBalanceView[] = [
 
 export const mockJournal: JournalReviewView[] = [
   {
+    journal_id: "journal_932840b8f8e95d8fa3c71ecf12ef7382",
     symbol: "BTC",
     entered_at: "2026-03-11T15:00:00Z",
+    entry_type: "review",
     note: "Trend quality improved after reclaiming the 20-day breakout level, but CPI kept conviction moderate.",
     mood: "disciplined",
     tags: ["trend", "macro", "btc"],
+    signal_id: mockSignals[0].signal_id,
+    risk_report_id: mockRisk[0].risk_report_id,
+    trade_id: mockActiveTrades[0].trade_id,
     setup_quality: 4,
     execution_quality: 4,
     follow_through: "held core and respected event-risk trim plan",
     outcome: "open",
     lessons: "Cap size to medium when a high-impact macro release is inside 24h.",
     review_status: "in_review",
+    updated_at: "2026-03-15T11:20:00Z",
+    freshness_minutes: 10,
+  },
+];
+
+export const mockAlerts: AlertEnvelope[] = [
+  {
+    alert_id: "alert_1",
+    created_at: "2026-03-15T11:25:00Z",
+    category: "signal_created",
+    severity: "info",
+    title: "BTC signal created",
+    message: "Breakout above the 20-day range remains intact with aligned structure and supportive volume.",
+    symbol: "BTC",
+    signal_id: mockSignals[0].signal_id,
+    risk_report_id: mockRisk[0].risk_report_id,
+    trade_id: null,
+    freshness_minutes: 5,
+    data_quality: "fixture",
+    tags: ["trend_breakout", "long", "BTC"],
+    status: "open",
+    metadata: { score: 74.6, confidence: 0.79 },
+  },
+  {
+    alert_id: "alert_2",
+    created_at: "2026-03-15T11:25:00Z",
+    category: "high_risk_signal",
+    severity: "warning",
+    title: "ETH marked high risk",
+    message: "Noise 41% with uncertainty 0.42.",
+    symbol: "ETH",
+    signal_id: mockSignals[1].signal_id,
+    risk_report_id: mockRisk[1].risk_report_id,
+    trade_id: null,
+    freshness_minutes: 5,
+    data_quality: "fixture",
+    tags: ["high-risk", "event_driven", "ETH"],
+    status: "open",
+    metadata: { noise_probability: 0.41 },
   },
 ];
 

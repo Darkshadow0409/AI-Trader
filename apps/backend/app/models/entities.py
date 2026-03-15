@@ -100,11 +100,64 @@ class WatchlistItem(SQLModel, table=True):
 
 class JournalEntry(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    journal_id: str = Field(index=True, unique=True)
     symbol: str = Field(index=True)
     entered_at: datetime = Field(index=True)
     note: str
     mood: str
     tags_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    entry_type: str = "review"
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    trade_id: str | None = Field(default=None, index=True)
+    setup_quality: int = 0
+    execution_quality: int = 0
+    follow_through: str = ""
+    outcome: str = ""
+    lessons: str = ""
+    review_status: str = "logged"
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class ActiveTradeRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    trade_id: str = Field(index=True, unique=True)
+    symbol: str = Field(index=True)
+    strategy_name: str
+    side: str
+    entry_time: datetime = Field(index=True)
+    entry_price: float
+    current_price: float
+    stop_price: float
+    target_price: float
+    pnl_pct: float
+    size_band: str
+    status: str = Field(index=True)
+    thesis: str
+    data_quality: str
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    notes: str = ""
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class AlertRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    alert_id: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    category: str = Field(index=True)
+    severity: str = Field(index=True)
+    title: str
+    message: str
+    symbol: str | None = Field(default=None, index=True)
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    trade_id: str | None = Field(default=None, index=True)
+    freshness_minutes: int = 0
+    data_quality: str = "fixture"
+    tags_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    status: str = Field(default="open", index=True)
+    metadata_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class BacktestRun(SQLModel, table=True):

@@ -19,6 +19,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Signals" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "High-Risk Signals" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Risk / Exposure" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Session \/ Review Queue/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "BTC Chart" })).toBeInTheDocument();
     expect(screen.getByTestId("price-chart")).toBeInTheDocument();
     expect((await screen.findAllByText("event-risk")).length).toBeGreaterThan(0);

@@ -79,6 +79,28 @@ def _ensure_contract_columns() -> None:
             "exited_per_plan": "BOOLEAN",
             "failure_categories_json": "TEXT DEFAULT '[]'",
         },
+        "reviewtaskrecord": {
+            "task_id": "TEXT",
+            "task_type": "TEXT DEFAULT ''",
+            "title": "TEXT DEFAULT ''",
+            "summary": "TEXT DEFAULT ''",
+            "state": "TEXT DEFAULT 'open'",
+            "priority": "TEXT DEFAULT 'medium'",
+            "session_state": "TEXT DEFAULT 'live_session'",
+            "linked_entity_type": "TEXT DEFAULT ''",
+            "linked_entity_id": "TEXT DEFAULT ''",
+            "linked_symbol": "TEXT DEFAULT ''",
+            "signal_id": "TEXT",
+            "risk_report_id": "TEXT",
+            "trade_id": "TEXT",
+            "strategy_name": "TEXT",
+            "due_at": "TIMESTAMP",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP",
+            "completed_at": "TIMESTAMP",
+            "notes": "TEXT DEFAULT ''",
+            "metadata_json": "TEXT DEFAULT '{}'",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -113,10 +135,19 @@ def _ensure_contract_columns() -> None:
         connection.exec_driver_sql(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_papertradereviewrecord_trade_id_unique ON papertradereviewrecord (trade_id)"
         )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_reviewtaskrecord_task_id_unique ON reviewtaskrecord (task_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_reviewtaskrecord_state ON reviewtaskrecord (state)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_reviewtaskrecord_due_at ON reviewtaskrecord (due_at)"
+        )
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

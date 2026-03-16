@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   mockAlerts,
   mockBacktestDetail,
+  mockDailyBriefing,
   mockNews,
+  mockOperationalBacklog,
   mockOpportunities,
   mockPaperTradeAnalytics,
   mockPaperTradeDetail,
   mockPaperTradeReviews,
   mockPaperTradesActive,
+  mockReviewTasks,
   mockRibbon,
   mockRisk,
+  mockSessionOverview,
   mockSignalDetail,
   mockSignals,
   mockStrategyDetail,
@@ -17,14 +21,18 @@ import {
 import type {
   AlertEnvelope,
   BacktestDetailView,
+  DailyBriefingView,
   NewsView,
+  OperationalBacklogView,
   OpportunityHunterView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
   PaperTradeReviewView,
   PaperTradeView,
+  ReviewTaskView,
   RibbonView,
   RiskView,
+  SessionOverviewView,
   SignalDetailView,
   SignalView,
   StrategyDetailView,
@@ -39,6 +47,10 @@ describe("frontend contract alignment", () => {
     const signalDetail: SignalDetailView = mockSignalDetail;
     const opportunities: OpportunityHunterView = mockOpportunities;
     const alert: AlertEnvelope = mockAlerts[0];
+    const reviewTask: ReviewTaskView = mockReviewTasks[0];
+    const dailyBriefing: DailyBriefingView = mockDailyBriefing;
+    const sessionOverview: SessionOverviewView = mockSessionOverview;
+    const operationalBacklog: OperationalBacklogView = mockOperationalBacklog;
     const strategyDetail: StrategyDetailView = mockStrategyDetail;
     const backtestDetail: BacktestDetailView = mockBacktestDetail;
     const paperTrade: PaperTradeView = mockPaperTradesActive[0];
@@ -118,6 +130,32 @@ describe("frontend contract alignment", () => {
       dedupe_key: expect.any(String),
       tags: expect.any(Array),
       status: expect.any(String),
+    });
+    expect(reviewTask).toMatchObject({
+      task_id: expect.any(String),
+      task_type: expect.any(String),
+      session_state: expect.any(String),
+      priority: expect.any(String),
+      due_at: expect.any(String),
+      metadata: expect.any(Object),
+    });
+    expect(dailyBriefing).toMatchObject({
+      top_ranked_signals: expect.any(Array),
+      high_risk_setups: expect.any(Array),
+      open_trades_needing_attention: expect.any(Array),
+      degraded_data_sources: expect.any(Array),
+    });
+    expect(sessionOverview).toMatchObject({
+      states: expect.any(Array),
+      review_tasks: expect.any(Array),
+      daily_briefing: expect.any(Object),
+      weekly_review: expect.any(Object),
+      operational_backlog: expect.any(Object),
+    });
+    expect(operationalBacklog).toMatchObject({
+      overdue_count: expect.any(Number),
+      high_priority_count: expect.any(Number),
+      items: expect.any(Array),
     });
     expect(strategyDetail).toMatchObject({
       lifecycle_state: expect.any(String),

@@ -14,6 +14,7 @@ import { JournalTab } from "./tabs/JournalTab";
 import { NewsTab } from "./tabs/NewsTab";
 import { ResearchTab } from "./tabs/ResearchTab";
 import { RiskExposureTab } from "./tabs/RiskExposureTab";
+import { SessionDashboardTab } from "./tabs/SessionDashboardTab";
 import { StrategyLabTab } from "./tabs/StrategyLabTab";
 import { WalletBalanceTab } from "./tabs/WalletBalanceTab";
 import { WatchlistTab } from "./tabs/WatchlistTab";
@@ -29,7 +30,8 @@ type TabKey =
   | "strategy_lab"
   | "backtests"
   | "risk"
-  | "journal";
+  | "journal"
+  | "session";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "signals", label: "Signals" },
@@ -43,6 +45,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "backtests", label: "Backtests" },
   { key: "risk", label: "Risk / Exposure" },
   { key: "journal", label: "Journal / Trade Review" },
+  { key: "session", label: "Session / Review Queue" },
 ];
 
 function activeTabLabel(tab: TabKey): string {
@@ -236,6 +239,26 @@ export default function App() {
             trades={paperTradeRows}
           />
         );
+      case "session":
+        return (
+          <SessionDashboardTab
+            backlog={resources.operationalBacklog.data}
+            dailyBriefing={resources.dailyBriefing.data}
+            onChanged={async () => {
+              await Promise.all([
+                resources.sessionOverview.refresh(),
+                resources.reviewTasks.refresh(),
+                resources.dailyBriefing.refresh(),
+                resources.weeklyReview.refresh(),
+                resources.operationalBacklog.refresh(),
+                resources.alerts.refresh(),
+              ]);
+            }}
+            overview={resources.sessionOverview.data}
+            reviewTasks={resources.reviewTasks.data}
+            weeklyReview={resources.weeklyReview.data}
+          />
+        );
       default:
         return null;
     }
@@ -243,7 +266,11 @@ export default function App() {
 
   return (
     <div className="terminal-shell">
-      <TopRibbon health={resources.health.data} ribbon={resources.overview.data} />
+      <TopRibbon
+        backlog={resources.operationalBacklog.data}
+        health={resources.health.data}
+        ribbon={resources.overview.data}
+      />
 
       <div className="workspace">
         <LeftRail
@@ -262,7 +289,9 @@ export default function App() {
                 onClick={() => setActiveTab(tab.key)}
                 type="button"
               >
-                {tab.label}
+                {tab.key === "session"
+                  ? `${tab.label} (${resources.operationalBacklog.data.overdue_count}/${resources.operationalBacklog.data.high_priority_count})`
+                  : tab.label}
               </button>
             ))}
           </div>

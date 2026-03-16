@@ -33,6 +33,11 @@ CONTRACT_FILES = [
     ("/api/portfolio/paper-trades/analytics", "GET", "contracts/paper_trade_analytics.json"),
     ("/api/journal", "GET", "contracts/journal.json"),
     ("/api/journal/paper-trade-reviews", "GET", "contracts/paper_trade_reviews.json"),
+    ("/api/session/overview", "GET", "contracts/session_overview.json"),
+    ("/api/session/review-tasks", "GET", "contracts/review_tasks.json"),
+    ("/api/session/daily-briefing", "GET", "contracts/daily_briefing.json"),
+    ("/api/session/weekly-review", "GET", "contracts/weekly_review.json"),
+    ("/api/session/operational-backlog", "GET", "contracts/operational_backlog.json"),
     ("/api/market/bars/BTC", "GET", "contracts/market_bars_BTC.json"),
     ("/api/system/refresh", "POST", "contracts/system_refresh.json"),
     ("/api/strategies", "GET", "contracts/strategies.json"),
@@ -51,6 +56,7 @@ TEST_FILES = [
     "apps/backend/tests/test_feature_pipeline.py",
     "apps/backend/tests/test_paper_trading.py",
     "apps/backend/tests/test_promotion_core.py",
+    "apps/backend/tests/test_session_workflow.py",
     "apps/backend/tests/test_signal_and_risk_invariants.py",
     "apps/backend/tests/test_risk_engine.py",
     "apps/frontend/src/App.test.tsx",
@@ -61,6 +67,7 @@ TEST_FILES = [
     "apps/frontend/src/tabs/ActiveTradesTab.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
     "apps/frontend/src/tabs/JournalTab.test.tsx",
+    "apps/frontend/src/tabs/SessionDashboardTab.test.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.test.tsx",
     "apps/frontend/src/tabs/WatchlistTab.test.tsx",
 ]
@@ -90,6 +97,7 @@ CORE_FILES = [
     "apps/backend/app/api/routes/portfolio.py",
     "apps/backend/app/api/routes/journal.py",
     "apps/backend/app/api/routes/alerts.py",
+    "apps/backend/app/api/routes/session.py",
     "apps/backend/app/api/routes/strategies.py",
     "apps/backend/app/api/routes/backtests.py",
     "apps/backend/app/api/routes/market.py",
@@ -98,6 +106,7 @@ CORE_FILES = [
     "apps/backend/app/alerting/service.py",
     "apps/backend/app/services/operator_console.py",
     "apps/backend/app/services/paper_trading.py",
+    "apps/backend/app/services/session_workflow.py",
     "apps/backend/app/strategy_lab/registry.py",
     "apps/backend/app/strategy_lab/service.py",
     "apps/backend/app/connectors/eia_client.py",
@@ -123,6 +132,7 @@ CORE_FILES = [
     "apps/frontend/src/tabs/ActiveTradesTab.tsx",
     "apps/frontend/src/tabs/JournalTab.tsx",
     "apps/frontend/src/tabs/RiskExposureTab.tsx",
+    "apps/frontend/src/tabs/SessionDashboardTab.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.tsx",
     "apps/frontend/src/components/TopRibbon.tsx",
     "apps/frontend/src/components/ContextSidebar.tsx",
@@ -399,7 +409,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts. Milestone 5 adds verification tiering, observability, hardening tests, and reviewability docs. Milestone 6A upgrades market-data reality with explicit research-to-tradable mapping, delayed/live timing semantics, stronger oil or metals penalties, and clearer operator-visible trust limits. Milestone 6B adds operator adherence analytics, structured failure attribution, decision-hygiene summaries, and strategy feedback that separates operator error from signal quality.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts. Milestone 5 adds verification tiering, observability, hardening tests, and reviewability docs. Milestone 6A upgrades market-data reality with explicit research-to-tradable mapping, delayed/live timing semantics, stronger oil or metals penalties, and clearer operator-visible trust limits. Milestone 6B adds operator adherence analytics, structured failure attribution, decision-hygiene summaries, and strategy feedback that separates operator error from signal quality. Milestone 7 adds session workflow, persistent review cadence tasks, daily briefing and weekly review aggregation, and an operator backlog that makes daily and weekly operating work explicit in the web console.
 
         ## Intentionally stubbed
 
@@ -747,6 +757,11 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     closed_paper_trades = contracts["/api/portfolio/paper-trades/closed"]
     paper_trade_analytics = contracts["/api/portfolio/paper-trades/analytics"]
     paper_trade_reviews = contracts["/api/journal/paper-trade-reviews"]
+    session_overview = contracts["/api/session/overview"]
+    review_tasks = contracts["/api/session/review-tasks"]
+    daily_briefing = contracts["/api/session/daily-briefing"]
+    weekly_review = contracts["/api/session/weekly-review"]
+    operational_backlog = contracts["/api/session/operational-backlog"]
     journal = contracts["/api/journal"]
     strategies = contracts["/api/strategies"]
     backtests = contracts["/api/backtests"]
@@ -778,6 +793,16 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/paper_trade_closed.json", closed_paper_trades[0])
     if isinstance(paper_trade_reviews, list) and paper_trade_reviews:
         write_json(bundle_root / "samples/paper_trade_review.json", paper_trade_reviews[0])
+    if isinstance(review_tasks, list) and review_tasks:
+        write_json(bundle_root / "samples/review_task_sample.json", review_tasks[0])
+    if isinstance(daily_briefing, dict):
+        write_json(bundle_root / "samples/daily_briefing_example.json", daily_briefing)
+    if isinstance(weekly_review, dict):
+        write_json(bundle_root / "samples/weekly_review_example.json", weekly_review)
+    if isinstance(operational_backlog, dict):
+        write_json(bundle_root / "samples/operational_backlog_sample.json", operational_backlog)
+    if isinstance(session_overview, dict):
+        write_json(bundle_root / "samples/session_dashboard_sample.json", session_overview)
     if isinstance(paper_trade_analytics, dict):
         write_json(bundle_root / "samples/paper_trade_analytics_summary.json", paper_trade_analytics)
         write_json(bundle_root / "samples/adherence_summary_example.json", paper_trade_analytics.get("hygiene_summary", {}))
@@ -799,6 +824,13 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         if realism_violation:
             write_json(bundle_root / "samples/realism_warning_violation_example.json", realism_violation)
             write_json(bundle_root / "samples/failure_attribution_example.json", realism_violation)
+    if isinstance(weekly_review, dict):
+        write_json(
+            bundle_root / "samples/family_outcome_diagnostic_summary.json",
+            weekly_review.get("signal_family_outcomes", []),
+        )
+    if isinstance(paper_trade_analytics, dict):
+        write_json(bundle_root / "samples/adherence_summary_example.json", paper_trade_analytics.get("hygiene_summary", {}))
     if isinstance(journal, list) and journal:
         write_json(bundle_root / "samples/seeded_journal_entry.json", journal[0])
     shutil.copy2(

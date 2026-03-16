@@ -714,3 +714,121 @@ export interface AlertEnvelope {
   data_quality: string;
   suppressed_reason: string | null;
 }
+
+export interface ReviewTaskView {
+  task_id: string;
+  task_type: string;
+  title: string;
+  summary: string;
+  state: string;
+  priority: string;
+  session_state: string;
+  linked_entity_type: string;
+  linked_entity_id: string;
+  linked_symbol: string;
+  signal_id: string | null;
+  risk_report_id: string | null;
+  trade_id: string | null;
+  strategy_name: string | null;
+  due_at: string;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  freshness_minutes: number;
+  overdue: boolean;
+  notes: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ReviewTaskUpdateRequest {
+  state: string;
+  notes?: string;
+}
+
+export interface BriefingTradeAttentionView {
+  trade_id: string;
+  symbol: string;
+  status: string;
+  attention_reason: string;
+  freshness_minutes: number;
+  signal_id: string | null;
+  risk_report_id: string | null;
+}
+
+export interface DegradedSourceView {
+  symbol: string;
+  source_type: string;
+  source_timing: string;
+  freshness_state: string;
+  realism_grade: string;
+  warning: string;
+}
+
+export interface StrategyDriftWarningView {
+  strategy_name: string;
+  lifecycle_state: string;
+  drift_indicator: string;
+  note: string;
+}
+
+export interface DailyBriefingView {
+  generated_at: string;
+  top_ranked_signals: SignalView[];
+  high_risk_setups: SignalView[];
+  open_trades_needing_attention: BriefingTradeAttentionView[];
+  exposure_summary: RiskExposureView[];
+  degraded_data_sources: DegradedSourceView[];
+  scout_to_focus_promotions: OpportunityView[];
+  promoted_strategy_drift_warnings: StrategyDriftWarningView[];
+}
+
+export interface WeeklyReviewView {
+  generated_at: string;
+  signal_family_outcomes: PaperTradeAnalyticsBucketView[];
+  adherence_trend: PaperTradeHygieneSummaryView;
+  failure_attribution_trend: PaperTradeFailureCategoryView[];
+  realism_warning_violations: PaperTradeReviewView[];
+  strategy_promotion_health: StrategyDriftWarningView[];
+  paper_trade_outcome_distribution: Record<string, number>;
+}
+
+export interface OperationalBacklogItemView {
+  item_id: string;
+  category: string;
+  title: string;
+  priority: string;
+  status: string;
+  linked_symbol: string;
+  linked_entity_type: string;
+  linked_entity_id: string;
+  due_at: string | null;
+  freshness_minutes: number;
+  note: string;
+}
+
+export interface OperationalBacklogView {
+  generated_at: string;
+  overdue_count: number;
+  high_priority_count: number;
+  items: OperationalBacklogItemView[];
+}
+
+export interface SessionStateView {
+  state: string;
+  title: string;
+  headline: string;
+  summary: string;
+  item_count: number;
+  overdue_count: number;
+  high_priority_count: number;
+  freshness_status: string;
+}
+
+export interface SessionOverviewView {
+  generated_at: string;
+  states: SessionStateView[];
+  review_tasks: ReviewTaskView[];
+  daily_briefing: DailyBriefingView;
+  weekly_review: WeeklyReviewView;
+  operational_backlog: OperationalBacklogView;
+}

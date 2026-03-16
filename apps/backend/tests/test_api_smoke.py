@@ -38,6 +38,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     closed_paper = client.get("/api/portfolio/paper-trades/closed")
     paper_analytics = client.get("/api/portfolio/paper-trades/analytics")
     paper_reviews = client.get("/api/journal/paper-trade-reviews")
+    session_overview = client.get("/api/session/overview")
+    review_tasks = client.get("/api/session/review-tasks")
+    daily_briefing = client.get("/api/session/daily-briefing")
+    weekly_review = client.get("/api/session/weekly-review")
+    operational_backlog = client.get("/api/session/operational-backlog")
     refresh = client.post("/api/system/refresh")
     assert news.status_code == 200
     assert watchlist.status_code == 200
@@ -62,6 +67,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert closed_paper.status_code == 200
     assert paper_analytics.status_code == 200
     assert paper_reviews.status_code == 200
+    assert session_overview.status_code == 200
+    assert review_tasks.status_code == 200
+    assert daily_briefing.status_code == 200
+    assert weekly_review.status_code == 200
+    assert operational_backlog.status_code == 200
     assert refresh.status_code == 200
     assert len(bars.json()) > 0
     assert len(strategies.json()) >= 3
@@ -78,6 +88,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert isinstance(closed_paper.json(), list)
     assert "by_asset" in paper_analytics.json()
     assert isinstance(paper_reviews.json(), list)
+    assert "states" in session_overview.json()
+    assert isinstance(review_tasks.json(), list)
+    assert "top_ranked_signals" in daily_briefing.json()
+    assert "signal_family_outcomes" in weekly_review.json()
+    assert "items" in operational_backlog.json()
     assert "channel_targets" in alerts.json()[0]
     assert "status" in alerts.json()[0]
     assert "evidence" in signal_detail.json()
@@ -91,6 +106,12 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert active_paper_detail is not None and active_paper_detail.status_code == 200
     assert "outcome" in active_paper_detail.json()
     assert "lifecycle_events" in active_paper_detail.json()
+
+    if review_tasks.json():
+        task_id = review_tasks.json()[0]["task_id"]
+        updated_task = client.patch(f"/api/session/review-tasks/{task_id}", json={"state": "done", "notes": "smoke"})
+        assert updated_task.status_code == 200
+        assert updated_task.json()["state"] == "done"
 
     created_trade = client.post(
         "/api/portfolio/active-trades",

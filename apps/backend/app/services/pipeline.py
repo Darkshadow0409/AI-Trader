@@ -36,6 +36,7 @@ from app.models.entities import (
 from app.services.operator_console import refresh_alerts, seed_console_records, sync_trade_links
 from app.services.paper_trading import seed_paper_trades
 from app.services.data_reality import PROVENANCE_DEFAULTS, sync_asset_provenance
+from app.services.session_workflow import refresh_session_alerts
 from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
 from app.services.sample_data import generate_sample_ohlcv, seed_watchlist
@@ -355,6 +356,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         _recompute_calibration_snapshots(session)
         sync_trade_links(session)
         refresh_alerts(session)
+        refresh_session_alerts(session)
         time_step("persist_and_refresh", started)
 
         run.completed_at = naive_utc_now()
@@ -390,6 +392,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
                     "paper_trading": ["paper-trade ledger", "lifecycle transitions", "outcome analytics", "review links"],
                     "strategy_lab": ["registry", "promotion state", "validation", "calibration"],
                     "journal": ["free-form notes", "post-trade review write surface"],
+                    "session_workflow": ["review tasks", "daily briefing", "weekly review", "operational backlog"],
                 },
             },
         )

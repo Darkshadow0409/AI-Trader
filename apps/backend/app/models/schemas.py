@@ -548,6 +548,124 @@ class AlertEnvelope(BaseModel):
     suppressed_reason: str | None = None
 
 
+class ReviewTaskView(BaseModel):
+    task_id: str
+    task_type: str
+    title: str
+    summary: str
+    state: str
+    priority: str
+    session_state: str
+    linked_entity_type: str
+    linked_entity_id: str
+    linked_symbol: str
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    trade_id: str | None = None
+    strategy_name: str | None = None
+    due_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None = None
+    freshness_minutes: int
+    overdue: bool
+    notes: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ReviewTaskUpdateRequest(BaseModel):
+    state: str
+    notes: str = ""
+
+
+class BriefingTradeAttentionView(BaseModel):
+    trade_id: str
+    symbol: str
+    status: str
+    attention_reason: str
+    freshness_minutes: int
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+
+
+class DegradedSourceView(BaseModel):
+    symbol: str
+    source_type: str
+    source_timing: str
+    freshness_state: str
+    realism_grade: str
+    warning: str
+
+
+class StrategyDriftWarningView(BaseModel):
+    strategy_name: str
+    lifecycle_state: str
+    drift_indicator: str
+    note: str
+
+
+class DailyBriefingView(BaseModel):
+    generated_at: datetime
+    top_ranked_signals: list[SignalView]
+    high_risk_setups: list[SignalView]
+    open_trades_needing_attention: list[BriefingTradeAttentionView]
+    exposure_summary: list[RiskExposureView]
+    degraded_data_sources: list[DegradedSourceView]
+    scout_to_focus_promotions: list[OpportunityView]
+    promoted_strategy_drift_warnings: list[StrategyDriftWarningView]
+
+
+class WeeklyReviewView(BaseModel):
+    generated_at: datetime
+    signal_family_outcomes: list[PaperTradeAnalyticsBucketView]
+    adherence_trend: PaperTradeHygieneSummaryView
+    failure_attribution_trend: list[PaperTradeFailureCategoryView]
+    realism_warning_violations: list[PaperTradeReviewView]
+    strategy_promotion_health: list[StrategyDriftWarningView]
+    paper_trade_outcome_distribution: dict[str, int]
+
+
+class OperationalBacklogItemView(BaseModel):
+    item_id: str
+    category: str
+    title: str
+    priority: str
+    status: str
+    linked_symbol: str = ""
+    linked_entity_type: str = ""
+    linked_entity_id: str = ""
+    due_at: datetime | None = None
+    freshness_minutes: int = 0
+    note: str = ""
+
+
+class OperationalBacklogView(BaseModel):
+    generated_at: datetime
+    overdue_count: int
+    high_priority_count: int
+    items: list[OperationalBacklogItemView]
+
+
+class SessionStateView(BaseModel):
+    state: str
+    title: str
+    headline: str
+    summary: str
+    item_count: int
+    overdue_count: int
+    high_priority_count: int
+    freshness_status: str
+
+
+class SessionOverviewView(BaseModel):
+    generated_at: datetime
+    states: list[SessionStateView]
+    review_tasks: list[ReviewTaskView]
+    daily_briefing: DailyBriefingView
+    weekly_review: WeeklyReviewView
+    operational_backlog: OperationalBacklogView
+
+
 class StrategyListView(BaseModel):
     name: str
     version: str

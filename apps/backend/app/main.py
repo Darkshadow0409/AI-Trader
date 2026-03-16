@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import alerts, backtests, dashboard, health, journal, market, news, portfolio, research, risk, signals, strategies, system, watchlist
+from app.api.routes import alerts, backtests, dashboard, health, journal, market, news, portfolio, research, risk, session, signals, strategies, system, watchlist
 from app.core.settings import get_settings
 from app.core.telemetry import record_route_timing
 from app.services.pipeline import seed_and_refresh
@@ -75,6 +75,7 @@ app.include_router(market.router, prefix="/api")
 app.include_router(system.router, prefix="/api")
 app.include_router(strategies.router, prefix="/api")
 app.include_router(backtests.router, prefix="/api")
+app.include_router(session.router, prefix="/api")
 
 
 @app.websocket("/ws/updates")

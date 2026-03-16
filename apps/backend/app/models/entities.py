@@ -226,6 +226,30 @@ class AlertRecord(SQLModel, table=True):
     last_attempted_at: datetime | None = Field(default=None, index=True)
 
 
+class ReviewTaskRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    task_id: str = Field(index=True, unique=True)
+    task_type: str = Field(index=True)
+    title: str
+    summary: str
+    state: str = Field(default="open", index=True)
+    priority: str = Field(default="medium", index=True)
+    session_state: str = Field(default="live_session", index=True)
+    linked_entity_type: str = ""
+    linked_entity_id: str = Field(default="", index=True)
+    linked_symbol: str = Field(default="", index=True)
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    trade_id: str | None = Field(default=None, index=True)
+    strategy_name: str | None = Field(default=None, index=True)
+    due_at: datetime = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    completed_at: datetime | None = Field(default=None, index=True)
+    notes: str = ""
+    metadata_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
 class BacktestRun(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str

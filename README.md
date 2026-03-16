@@ -63,6 +63,7 @@ python scripts/verify_fast.py
 python scripts/seed_data.py
 python scripts/backfill.py
 python scripts/local_jobs.py
+python scripts/pilot_export.py
 python scripts/run_backtest.py --strategy trend_breakout_v1 --search-method grid --max-trials 8
 python -m pytest apps/backend/tests
 cd apps/frontend && npm run test -- --run
@@ -128,6 +129,30 @@ python scripts/build_review_bundle.py
 ```
 
 That reruns the full verification chain in fixture mode and regenerates `review_bundle/` plus `review_bundle.zip`.
+
+## Pilot Run Mode
+
+Operator docs:
+
+- `PILOT_RUNBOOK.md`
+- `PILOT_CHECKLIST.md`
+
+Lightweight pilot export:
+
+```powershell
+python scripts/pilot_export.py
+```
+
+This writes a timestamped folder under `data/exports/` with the current:
+
+- pilot metrics
+- ticket funnel
+- divergence summaries
+- adherence summaries
+- realism-warning violations
+- strategy degradation summaries
+- execution gate snapshot
+- pilot dashboard snapshot
 
 ## Alert delivery
 

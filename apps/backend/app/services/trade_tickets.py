@@ -491,6 +491,8 @@ def create_trade_ticket(session: Session, payload: TradeTicketCreateRequest) -> 
     session.commit()
     session.refresh(row)
     append_event("trade_ticket_created", {"ticket_id": row.ticket_id, "signal_id": row.signal_id, "status": row.status})
+    from app.services.pilot_ops import record_audit_log
+    record_audit_log(session, "ticket_created", "trade_ticket", row.ticket_id, {"signal_id": row.signal_id, "symbol": row.symbol, "status": row.status})
     return _ticket_detail(session, row)
 
 
@@ -507,6 +509,7 @@ def update_trade_ticket(session: Session, ticket_id: str, payload: TradeTicketUp
     if payload.planned_size is not None:
         row.planned_size_json = payload.planned_size
     if payload.checklist_status is not None:
+        prior = TradeTicketChecklistView(**row.checklist_status_json)
         merged = dict(row.checklist_status_json)
         merged.update(payload.checklist_status)
         checklist = TradeTicketChecklistView(**{**TradeTicketChecklistView().model_dump(), **merged})
@@ -526,6 +529,14 @@ def update_trade_ticket(session: Session, ticket_id: str, payload: TradeTicketUp
         row.checklist_status_json = checklist.model_dump(mode="json")
         if checklist.completed and row.status == "draft":
             row.status = "ready_for_review"
+        overrides = [
+            key
+            for key, value in payload.checklist_status.items()
+            if value is True and getattr(prior, key, False) is False
+        ]
+        if overrides:
+            from app.services.pilot_ops import record_audit_log
+            record_audit_log(session, "checklist_override", "trade_ticket", row.ticket_id, {"overrides": overrides, "status": row.status})
     if payload.expires_at is not None:
         row.expires_at = payload.expires_at
     if payload.notes is not None:
@@ -555,6 +566,8 @@ def approve_trade_ticket(session: Session, ticket_id: str, payload: TradeTicketA
     session.add(row)
     session.commit()
     session.refresh(row)
+    from app.services.pilot_ops import record_audit_log
+    record_audit_log(session, "ticket_approval", "trade_ticket", row.ticket_id, {"approval_status": row.approval_status, "status": row.status, "notes": payload.approval_notes})
     return _ticket_detail(session, row)
 
 
@@ -571,6 +584,8 @@ def _set_ticket_status(session: Session, ticket_id: str, status: str, note: str 
     session.commit()
     session.refresh(row)
     append_event("trade_ticket_transition", {"ticket_id": ticket_id, "status": status, "note": note})
+    from app.services.pilot_ops import record_audit_log
+    record_audit_log(session, "ticket_status_change", "trade_ticket", ticket_id, {"status": status, "note": note})
     return _ticket_detail(session, row)
 
 
@@ -597,6 +612,8 @@ def mark_trade_ticket_manually_executed(session: Session, ticket_id: str, note: 
     session.add(row)
     session.commit()
     session.refresh(row)
+    from app.services.pilot_ops import record_audit_log
+    record_audit_log(session, "manual_execution_recorded", "trade_ticket", ticket_id, {"trade_id": row.trade_id, "note": note})
     return _ticket_detail(session, row)
 
 
@@ -642,6 +659,8 @@ def record_manual_fill(
     session.add(fill)
     session.commit()
     session.refresh(fill)
+    from app.services.pilot_ops import record_audit_log
+    record_audit_log(session, "manual_fill_entry", "manual_fill", fill.fill_id, {"ticket_id": ticket_id, "source": source, "slippage_bps": fill.slippage_bps})
     return _fill_view(session, row, fill)
 
 

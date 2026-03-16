@@ -252,6 +252,33 @@ class ManualFillRecord(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class PilotMetricSnapshotRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    snapshot_id: str = Field(index=True, unique=True)
+    generated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    summary_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class AdapterHealthRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    health_id: str = Field(index=True, unique=True)
+    adapter_name: str = Field(index=True)
+    status: str = Field(index=True)
+    checked_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    details_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class AuditLogRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    audit_id: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    event_type: str = Field(index=True)
+    entity_type: str = Field(index=True)
+    entity_id: str = Field(index=True)
+    actor: str = Field(default="local_operator", index=True)
+    details_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
 class AlertRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     alert_id: str = Field(index=True, unique=True)

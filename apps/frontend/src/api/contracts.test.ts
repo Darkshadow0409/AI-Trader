@@ -5,6 +5,8 @@ import {
   mockDailyBriefing,
   mockNews,
   mockOperationalBacklog,
+  mockPilotDashboard,
+  mockPilotMetrics,
   mockOpportunities,
   mockPaperTradeAnalytics,
   mockPaperTradeDetail,
@@ -16,6 +18,9 @@ import {
   mockRisk,
   mockScenarioStressSummary,
   mockSessionOverview,
+  mockExecutionGate,
+  mockAdapterHealth,
+  mockAuditLogs,
   mockSignalDetail,
   mockSignals,
   mockShadowTickets,
@@ -31,6 +36,8 @@ import type {
   ManualFillView,
   NewsView,
   OperationalBacklogView,
+  PilotDashboardView,
+  PilotMetricSummaryView,
   OpportunityHunterView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
@@ -42,6 +49,9 @@ import type {
   RiskView,
   ScenarioStressSummaryView,
   SessionOverviewView,
+  ExecutionGateView,
+  AdapterHealthView,
+  AuditLogView,
   SignalDetailView,
   SignalView,
   StrategyDetailView,
@@ -62,6 +72,11 @@ describe("frontend contract alignment", () => {
     const dailyBriefing: DailyBriefingView = mockDailyBriefing;
     const sessionOverview: SessionOverviewView = mockSessionOverview;
     const operationalBacklog: OperationalBacklogView = mockOperationalBacklog;
+    const pilotMetrics: PilotMetricSummaryView = mockPilotMetrics;
+    const executionGate: ExecutionGateView = mockExecutionGate;
+    const pilotDashboard: PilotDashboardView = mockPilotDashboard;
+    const adapterHealth: AdapterHealthView = mockAdapterHealth[0];
+    const auditLog: AuditLogView = mockAuditLogs[0];
     const strategyDetail: StrategyDetailView = mockStrategyDetail;
     const backtestDetail: BacktestDetailView = mockBacktestDetail;
     const ticket: TradeTicketView = mockTicketList[0];
@@ -174,6 +189,44 @@ describe("frontend contract alignment", () => {
       overdue_count: expect.any(Number),
       high_priority_count: expect.any(Number),
       items: expect.any(Array),
+    });
+    expect(pilotMetrics).toMatchObject({
+      ticket_conversion: expect.any(Object),
+      shadow_metrics: expect.any(Object),
+      slippage_metrics: expect.any(Object),
+      alert_metrics: expect.any(Object),
+      adherence_metrics: expect.any(Object),
+      review_backlog_metrics: expect.any(Object),
+      promoted_strategy_metrics: expect.any(Object),
+      mismatch_causes: expect.any(Array),
+    });
+    expect(executionGate).toMatchObject({
+      status: expect.any(String),
+      blockers: expect.any(Array),
+      thresholds: expect.any(Object),
+      metrics: expect.any(Object),
+      rationale: expect.any(Array),
+    });
+    expect(pilotDashboard).toMatchObject({
+      pilot_metrics: expect.any(Object),
+      execution_gate: expect.any(Object),
+      adapter_health: expect.any(Array),
+      recent_audit_logs: expect.any(Array),
+      trust_by_asset_class: expect.any(Array),
+      divergence_hotspots: expect.any(Array),
+      operator_discipline: expect.any(Object),
+      review_backlog: expect.any(Object),
+    });
+    expect(adapterHealth).toMatchObject({
+      adapter_name: expect.any(String),
+      status: expect.any(String),
+      details: expect.any(Object),
+    });
+    expect(auditLog).toMatchObject({
+      event_type: expect.any(String),
+      entity_type: expect.any(String),
+      entity_id: expect.any(String),
+      details: expect.any(Object),
     });
     expect(strategyDetail).toMatchObject({
       lifecycle_state: expect.any(String),

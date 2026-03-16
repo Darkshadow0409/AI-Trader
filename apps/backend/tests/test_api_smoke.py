@@ -43,6 +43,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     daily_briefing = client.get("/api/session/daily-briefing")
     weekly_review = client.get("/api/session/weekly-review")
     operational_backlog = client.get("/api/session/operational-backlog")
+    pilot_metrics = client.get("/api/session/pilot-metrics")
+    execution_gate = client.get("/api/session/execution-gate")
+    pilot_dashboard = client.get("/api/session/pilot-dashboard")
+    adapter_health = client.get("/api/session/adapter-health")
+    audit_logs = client.get("/api/session/audit-logs")
     replay = client.get("/api/replay?symbol=BTC")
     scenario_stress = client.get("/api/replay/scenario-stress?symbol=BTC")
     tickets = client.get("/api/tickets")
@@ -77,6 +82,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert daily_briefing.status_code == 200
     assert weekly_review.status_code == 200
     assert operational_backlog.status_code == 200
+    assert pilot_metrics.status_code == 200
+    assert execution_gate.status_code == 200
+    assert pilot_dashboard.status_code == 200
+    assert adapter_health.status_code == 200
+    assert audit_logs.status_code == 200
     assert replay.status_code == 200
     assert scenario_stress.status_code == 200
     assert tickets.status_code == 200
@@ -103,6 +113,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "top_ranked_signals" in daily_briefing.json()
     assert "signal_family_outcomes" in weekly_review.json()
     assert "items" in operational_backlog.json()
+    assert "ticket_conversion" in pilot_metrics.json()
+    assert "status" in execution_gate.json()
+    assert "execution_gate" in pilot_dashboard.json()
+    assert isinstance(adapter_health.json(), list)
+    assert isinstance(audit_logs.json(), list)
     assert "channel_targets" in alerts.json()[0]
     assert "status" in alerts.json()[0]
     assert "evidence" in signal_detail.json()

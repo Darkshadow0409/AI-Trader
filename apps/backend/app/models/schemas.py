@@ -918,6 +918,56 @@ class SessionOverviewView(BaseModel):
     operational_backlog: OperationalBacklogView
 
 
+class PilotMetricSummaryView(BaseModel):
+    generated_at: datetime
+    ticket_conversion: dict[str, float]
+    shadow_metrics: dict[str, float]
+    slippage_metrics: dict[str, float]
+    alert_metrics: dict[str, float]
+    adherence_metrics: dict[str, float]
+    review_backlog_metrics: dict[str, float]
+    promoted_strategy_metrics: dict[str, float]
+    mismatch_causes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ExecutionGateView(BaseModel):
+    status: str
+    blockers: list[str] = Field(default_factory=list)
+    thresholds: dict[str, float | int]
+    metrics: dict[str, float]
+    rationale: list[str] = Field(default_factory=list)
+
+
+class AdapterHealthView(BaseModel):
+    health_id: str
+    adapter_name: str
+    status: str
+    checked_at: datetime
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class AuditLogView(BaseModel):
+    audit_id: str
+    created_at: datetime
+    event_type: str
+    entity_type: str
+    entity_id: str
+    actor: str
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class PilotDashboardView(BaseModel):
+    generated_at: datetime
+    pilot_metrics: PilotMetricSummaryView
+    trust_by_asset_class: list[dict[str, Any]] = Field(default_factory=list)
+    divergence_hotspots: list[dict[str, Any]] = Field(default_factory=list)
+    operator_discipline: dict[str, float]
+    review_backlog: OperationalBacklogView
+    execution_gate: ExecutionGateView
+    adapter_health: list[AdapterHealthView] = Field(default_factory=list)
+    recent_audit_logs: list[AuditLogView] = Field(default_factory=list)
+
+
 class StrategyListView(BaseModel):
     name: str
     version: str

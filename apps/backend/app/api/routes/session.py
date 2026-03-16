@@ -5,8 +5,13 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.models.schemas import (
+    AdapterHealthView,
     DailyBriefingView,
+    AuditLogView,
+    ExecutionGateView,
     OperationalBacklogView,
+    PilotDashboardView,
+    PilotMetricSummaryView,
     ReviewTaskUpdateRequest,
     ReviewTaskView,
     SessionOverviewView,
@@ -20,6 +25,7 @@ from app.services.session_workflow import (
     update_review_task,
     weekly_review,
 )
+from app.services.pilot_ops import adapter_health_summary, execution_gate_status, pilot_dashboard, pilot_metric_summary, recent_audit_logs
 
 
 router = APIRouter(prefix="/session", tags=["session"])
@@ -60,3 +66,28 @@ def get_weekly_review(session: Session = Depends(get_session)) -> WeeklyReviewVi
 @router.get("/operational-backlog", response_model=OperationalBacklogView)
 def get_operational_backlog(session: Session = Depends(get_session)) -> OperationalBacklogView:
     return operational_backlog(session)
+
+
+@router.get("/pilot-metrics", response_model=PilotMetricSummaryView)
+def get_pilot_metrics(session: Session = Depends(get_session)) -> PilotMetricSummaryView:
+    return pilot_metric_summary(session)
+
+
+@router.get("/execution-gate", response_model=ExecutionGateView)
+def get_execution_gate(session: Session = Depends(get_session)) -> ExecutionGateView:
+    return execution_gate_status(session)
+
+
+@router.get("/pilot-dashboard", response_model=PilotDashboardView)
+def get_pilot_dashboard(session: Session = Depends(get_session)) -> PilotDashboardView:
+    return pilot_dashboard(session)
+
+
+@router.get("/adapter-health", response_model=list[AdapterHealthView])
+def get_adapter_health(session: Session = Depends(get_session)) -> list[AdapterHealthView]:
+    return adapter_health_summary(session)
+
+
+@router.get("/audit-logs", response_model=list[AuditLogView])
+def get_audit_logs(session: Session = Depends(get_session)) -> list[AuditLogView]:
+    return recent_audit_logs(session)

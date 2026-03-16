@@ -1084,3 +1084,53 @@ export interface SessionOverviewView {
   weekly_review: WeeklyReviewView;
   operational_backlog: OperationalBacklogView;
 }
+
+export interface PilotMetricSummaryView {
+  generated_at: string;
+  ticket_conversion: Record<string, number>;
+  shadow_metrics: Record<string, number>;
+  slippage_metrics: Record<string, number>;
+  alert_metrics: Record<string, number>;
+  adherence_metrics: Record<string, number>;
+  review_backlog_metrics: Record<string, number>;
+  promoted_strategy_metrics: Record<string, number>;
+  mismatch_causes: Array<Record<string, unknown>>;
+}
+
+export interface ExecutionGateView {
+  status: string;
+  blockers: string[];
+  thresholds: Record<string, number>;
+  metrics: Record<string, number>;
+  rationale: string[];
+}
+
+export interface AdapterHealthView {
+  health_id: string;
+  adapter_name: string;
+  status: string;
+  checked_at: string;
+  details: Record<string, unknown>;
+}
+
+export interface AuditLogView {
+  audit_id: string;
+  created_at: string;
+  event_type: string;
+  entity_type: string;
+  entity_id: string;
+  actor: string;
+  details: Record<string, unknown>;
+}
+
+export interface PilotDashboardView {
+  generated_at: string;
+  pilot_metrics: PilotMetricSummaryView;
+  trust_by_asset_class: Array<Record<string, unknown>>;
+  divergence_hotspots: Array<Record<string, unknown>>;
+  operator_discipline: Record<string, number>;
+  review_backlog: OperationalBacklogView;
+  execution_gate: ExecutionGateView;
+  adapter_health: AdapterHealthView[];
+  recent_audit_logs: AuditLogView[];
+}

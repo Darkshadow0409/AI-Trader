@@ -151,6 +151,27 @@ def _ensure_contract_columns() -> None:
             "reconciliation_json": "TEXT DEFAULT '{}'",
             "updated_at": "TIMESTAMP",
         },
+        "pilotmetricsnapshotrecord": {
+            "snapshot_id": "TEXT",
+            "generated_at": "TIMESTAMP",
+            "summary_json": "TEXT DEFAULT '{}'",
+        },
+        "adapterhealthrecord": {
+            "health_id": "TEXT",
+            "adapter_name": "TEXT DEFAULT ''",
+            "status": "TEXT DEFAULT 'unknown'",
+            "checked_at": "TIMESTAMP",
+            "details_json": "TEXT DEFAULT '{}'",
+        },
+        "auditlogrecord": {
+            "audit_id": "TEXT",
+            "created_at": "TIMESTAMP",
+            "event_type": "TEXT DEFAULT ''",
+            "entity_type": "TEXT DEFAULT ''",
+            "entity_id": "TEXT DEFAULT ''",
+            "actor": "TEXT DEFAULT 'local_operator'",
+            "details_json": "TEXT DEFAULT '{}'",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -201,6 +222,21 @@ def _ensure_contract_columns() -> None:
             "CREATE INDEX IF NOT EXISTS ix_manualfillrecord_ticket_id ON manualfillrecord (ticket_id)"
         )
         connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_pilotmetricsnapshotrecord_snapshot_id_unique ON pilotmetricsnapshotrecord (snapshot_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_adapterhealthrecord_health_id_unique ON adapterhealthrecord (health_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_adapterhealthrecord_adapter_name ON adapterhealthrecord (adapter_name)"
+        )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_auditlogrecord_audit_id_unique ON auditlogrecord (audit_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_auditlogrecord_entity_id ON auditlogrecord (entity_id)"
+        )
+        connection.exec_driver_sql(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_reviewtaskrecord_task_id_unique ON reviewtaskrecord (task_id)"
         )
         connection.exec_driver_sql(
@@ -212,7 +248,7 @@ def _ensure_contract_columns() -> None:
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

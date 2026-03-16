@@ -38,6 +38,11 @@ CONTRACT_FILES = [
     ("/api/session/daily-briefing", "GET", "contracts/daily_briefing.json"),
     ("/api/session/weekly-review", "GET", "contracts/weekly_review.json"),
     ("/api/session/operational-backlog", "GET", "contracts/operational_backlog.json"),
+    ("/api/session/pilot-metrics", "GET", "contracts/pilot_metrics.json"),
+    ("/api/session/execution-gate", "GET", "contracts/execution_gate.json"),
+    ("/api/session/pilot-dashboard", "GET", "contracts/pilot_dashboard.json"),
+    ("/api/session/adapter-health", "GET", "contracts/adapter_health.json"),
+    ("/api/session/audit-logs", "GET", "contracts/audit_logs.json"),
     ("/api/replay?symbol=BTC", "GET", "contracts/replay.json"),
     ("/api/replay/scenario-stress?symbol=BTC", "GET", "contracts/scenario_stress.json"),
     ("/api/tickets", "GET", "contracts/tickets.json"),
@@ -60,6 +65,7 @@ TEST_FILES = [
     "apps/backend/tests/test_decision_quality.py",
     "apps/backend/tests/test_feature_pipeline.py",
     "apps/backend/tests/test_paper_trading.py",
+    "apps/backend/tests/test_pilot_ops.py",
     "apps/backend/tests/test_promotion_core.py",
     "apps/backend/tests/test_replay_and_stress.py",
     "apps/backend/tests/test_session_workflow.py",
@@ -74,6 +80,7 @@ TEST_FILES = [
     "apps/frontend/src/tabs/ActiveTradesTab.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
     "apps/frontend/src/tabs/JournalTab.test.tsx",
+    "apps/frontend/src/tabs/PilotDashboardTab.test.tsx",
     "apps/frontend/src/tabs/ReplayTab.test.tsx",
     "apps/frontend/src/tabs/SessionDashboardTab.test.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.test.tsx",
@@ -117,6 +124,7 @@ CORE_FILES = [
     "apps/backend/app/alerting/service.py",
     "apps/backend/app/services/operator_console.py",
     "apps/backend/app/services/paper_trading.py",
+    "apps/backend/app/services/pilot_ops.py",
     "apps/backend/app/services/replay_engine.py",
     "apps/backend/app/services/session_workflow.py",
     "apps/backend/app/services/trade_tickets.py",
@@ -145,6 +153,7 @@ CORE_FILES = [
     "apps/frontend/src/tabs/WatchlistTab.tsx",
     "apps/frontend/src/tabs/ActiveTradesTab.tsx",
     "apps/frontend/src/tabs/JournalTab.tsx",
+    "apps/frontend/src/tabs/PilotDashboardTab.tsx",
     "apps/frontend/src/tabs/ReplayTab.tsx",
     "apps/frontend/src/tabs/RiskExposureTab.tsx",
     "apps/frontend/src/tabs/SessionDashboardTab.tsx",
@@ -712,6 +721,7 @@ def build_test_notes() -> str:
         - `test_feature_pipeline.py`: checks feature columns, seeded-asset coverage, and warm-up NaN containment.
         - `test_data_reality.py`: locks provenance assignment, freshness policy transitions, realism scoring, and stronger proxy or oil penalties.
         - `test_paper_trading.py`: covers paper-trade lifecycle transitions, structured review persistence, analytics summaries, and lifecycle-alert generation.
+        - `test_pilot_ops.py`: covers pilot metric aggregation, execution-gate state calculation, adapter health diagnostics, and audit-log persistence.
         - `test_promotion_core.py`: covers lifecycle transitions, demotion logic, forward-validation aggregation, calibration bucket summaries, and realism penalties.
         - `test_signal_and_risk_invariants.py`: asserts real API payloads expose the required fields and sane numeric ranges.
         - `test_risk_engine.py`: guards stop logic, size-band mapping, and risk report construction.
@@ -722,6 +732,7 @@ def build_test_notes() -> str:
         - `ActiveTradesTab.test.tsx`: protects the paper-trade operator surface and create-proposal flow.
         - `BacktestsTab.test.tsx`: proves the backtests tab does not crash when placeholder data is empty.
         - `JournalTab.test.tsx`: protects structured paper-trade review saves and analytics rendering.
+        - `PilotDashboardTab.test.tsx`: keeps the pilot-ops view rendering gate blockers, adapter health, and audit activity from the contracted payloads.
         - `StrategyLabTab.test.tsx`: protects the promotion or validation console rendering and run action wiring against contract drift.
         - `SignalDetailsCard.test.tsx`: keeps the signal-detail data-reality block visible with provenance and penalty tags.
         - `WatchlistTab.test.tsx`: checks the opportunity hunter queues render and still support drill-down callbacks.
@@ -797,6 +808,11 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     daily_briefing = contracts["/api/session/daily-briefing"]
     weekly_review = contracts["/api/session/weekly-review"]
     operational_backlog = contracts["/api/session/operational-backlog"]
+    pilot_metrics = contracts["/api/session/pilot-metrics"]
+    execution_gate = contracts["/api/session/execution-gate"]
+    pilot_dashboard = contracts["/api/session/pilot-dashboard"]
+    adapter_health = contracts["/api/session/adapter-health"]
+    audit_logs = contracts["/api/session/audit-logs"]
     replay = contracts["/api/replay?symbol=BTC"]
     scenario_stress = contracts["/api/replay/scenario-stress?symbol=BTC"]
     tickets = contracts["/api/tickets"]
@@ -854,6 +870,17 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/operational_backlog_sample.json", operational_backlog)
     if isinstance(session_overview, dict):
         write_json(bundle_root / "samples/session_dashboard_sample.json", session_overview)
+    if isinstance(pilot_metrics, dict):
+        write_json(bundle_root / "samples/pilot_metrics_summary.json", pilot_metrics)
+        write_json(bundle_root / "samples/divergence_summary_sample.json", pilot_metrics.get("shadow_metrics", {}))
+    if isinstance(execution_gate, dict):
+        write_json(bundle_root / "samples/execution_gate_sample.json", execution_gate)
+    if isinstance(pilot_dashboard, dict):
+        write_json(bundle_root / "samples/pilot_dashboard_sample.json", pilot_dashboard)
+    if isinstance(adapter_health, list) and adapter_health:
+        write_json(bundle_root / "samples/adapter_health_sample.json", adapter_health[0])
+    if isinstance(audit_logs, list) and audit_logs:
+        write_json(bundle_root / "samples/audit_log_sample.json", audit_logs[0])
     if isinstance(paper_trade_analytics, dict):
         write_json(bundle_root / "samples/paper_trade_analytics_summary.json", paper_trade_analytics)
         write_json(bundle_root / "samples/adherence_summary_example.json", paper_trade_analytics.get("hygiene_summary", {}))

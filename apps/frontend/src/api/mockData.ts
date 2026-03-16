@@ -14,6 +14,8 @@ import type {
   ManualFillView,
   NewsView,
   OperationalBacklogView,
+  PilotDashboardView,
+  PilotMetricSummaryView,
   OpportunityHunterView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
@@ -26,6 +28,9 @@ import type {
   RiskExposureView,
   RiskView,
   SessionOverviewView,
+  ExecutionGateView,
+  AdapterHealthView,
+  AuditLogView,
   SignalDetailView,
   SignalView,
   StrategyDriftWarningView,
@@ -1930,6 +1935,90 @@ export const mockSessionOverview: SessionOverviewView = {
   daily_briefing: mockDailyBriefing,
   weekly_review: mockWeeklyReview,
   operational_backlog: mockOperationalBacklog,
+};
+
+export const mockPilotMetrics: PilotMetricSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  ticket_conversion: { created: 3, approved_rate: 0.67, shadow_rate: 0.33, manual_execution_rate: 0.33 },
+  shadow_metrics: { divergence_rate: 0.0, divergence_count: 0, shadow_active_count: 1 },
+  slippage_metrics: { avg_manual_slippage_variance_bps: 3.33, reconciliation_drift_count: 0, manual_fill_count: 1 },
+  alert_metrics: { actionable_alert_count: 12, ignored_alert_rate: 0.08, delivery_issue_rate: 0.17 },
+  adherence_metrics: { adherence_rate: 0.63, invalidation_discipline_rate: 0.5, realism_warning_violation_rate: 0.5 },
+  review_backlog_metrics: { review_backlog: 0, overdue_backlog: 1, high_priority_backlog: 1 },
+  promoted_strategy_metrics: { promoted_count: 1, degradation_rate: 0 },
+  mismatch_causes: [{ cause: "no_material_mismatch", count: 1 }],
+};
+
+export const mockExecutionGate: ExecutionGateView = {
+  status: "pilot_running",
+  blockers: ["approved ticket conversion is below pilot threshold"],
+  thresholds: {
+    approved_rate_min: 0.3,
+    shadow_divergence_rate_max: 0.4,
+    avg_manual_slippage_variance_bps_max: 12,
+    review_backlog_max: 2,
+    promoted_degradation_rate_max: 0.4,
+  },
+  metrics: {
+    approved_rate: 0.67,
+    shadow_divergence_rate: 0,
+    avg_manual_slippage_variance_bps: 3.33,
+    review_backlog: 0,
+    promoted_degradation_rate: 0,
+  },
+  rationale: [
+    "Approved rate 0.67 against minimum 0.30.",
+    "Shadow divergence 0.00 against max 0.40.",
+  ],
+};
+
+export const mockAdapterHealth: AdapterHealthView[] = [
+  {
+    health_id: "adapter_health_mock_broker",
+    adapter_name: "mock_broker",
+    status: "healthy",
+    checked_at: "2026-03-15T11:30:00Z",
+    details: { balances: 2, positions: 1, fill_imports: 1, credentials_present: { telegram: false, discord: false }, read_only: true },
+  },
+];
+
+export const mockAuditLogs: AuditLogView[] = [
+  {
+    audit_id: "audit_ticket_approval_001",
+    created_at: "2026-03-15T11:30:00Z",
+    event_type: "ticket_approval",
+    entity_type: "trade_ticket",
+    entity_id: "ticket_btc_manual",
+    actor: "local_operator",
+    details: { approval_status: "approved", status: "approved", notes: "Checklist completed." },
+  },
+  {
+    audit_id: "audit_manual_fill_001",
+    created_at: "2026-03-15T11:30:00Z",
+    event_type: "manual_fill_entry",
+    entity_type: "manual_fill",
+    entity_id: "fill_btc_manual_001",
+    actor: "local_operator",
+    details: { ticket_id: "ticket_btc_manual", source: "manual_import", slippage_bps: 4.17 },
+  },
+];
+
+export const mockPilotDashboard: PilotDashboardView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  pilot_metrics: mockPilotMetrics,
+  trust_by_asset_class: [
+    { asset_class: "crypto", avg_realism_score: 45, count: 3 },
+  ],
+  divergence_hotspots: [],
+  operator_discipline: {
+    adherence_rate: 0.63,
+    ignored_alert_rate: 0.08,
+    review_completion_pressure: 0,
+  },
+  review_backlog: mockOperationalBacklog,
+  execution_gate: mockExecutionGate,
+  adapter_health: mockAdapterHealth,
+  recent_audit_logs: mockAuditLogs,
 };
 
 export const mockStrategies: StrategyListView[] = [

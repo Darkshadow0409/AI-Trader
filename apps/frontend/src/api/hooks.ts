@@ -12,6 +12,8 @@ import type {
   JournalReviewView,
   NewsView,
   OperationalBacklogView,
+  PilotDashboardView,
+  PilotMetricSummaryView,
   OpportunityHunterView,
   ReplayView,
   PaperTradeAnalyticsView,
@@ -27,6 +29,9 @@ import type {
   ScenarioStressItemView,
   ScenarioStressSummaryView,
   SessionOverviewView,
+  ExecutionGateView,
+  AdapterHealthView,
+  AuditLogView,
   SignalDetailView,
   SignalView,
   TradeTimelineView,
@@ -297,6 +302,50 @@ export function useDashboardData(
       items: [],
     },
   );
+  const pilotMetrics = usePollingResource<PilotMetricSummaryView>(
+    () => apiClient.pilotMetrics(),
+    {
+      generated_at: "",
+      ticket_conversion: {},
+      shadow_metrics: {},
+      slippage_metrics: {},
+      alert_metrics: {},
+      adherence_metrics: {},
+      review_backlog_metrics: {},
+      promoted_strategy_metrics: {},
+      mismatch_causes: [],
+    },
+  );
+  const executionGate = usePollingResource<ExecutionGateView>(
+    () => apiClient.executionGate(),
+    { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
+  );
+  const pilotDashboard = usePollingResource<PilotDashboardView>(
+    () => apiClient.pilotDashboard(),
+    {
+      generated_at: "",
+      pilot_metrics: {
+        generated_at: "",
+        ticket_conversion: {},
+        shadow_metrics: {},
+        slippage_metrics: {},
+        alert_metrics: {},
+        adherence_metrics: {},
+        review_backlog_metrics: {},
+        promoted_strategy_metrics: {},
+        mismatch_causes: [],
+      },
+      trust_by_asset_class: [],
+      divergence_hotspots: [],
+      operator_discipline: {},
+      review_backlog: { generated_at: "", overdue_count: 0, high_priority_count: 0, items: [] },
+      execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
+      adapter_health: [],
+      recent_audit_logs: [],
+    },
+  );
+  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), []);
+  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), []);
   const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), []);
   const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), []);
   const news = usePollingResource<NewsView[]>(() => apiClient.news(), []);
@@ -431,6 +480,11 @@ export function useDashboardData(
     dailyBriefing,
     weeklyReview,
     operationalBacklog,
+    pilotMetrics,
+    executionGate,
+    pilotDashboard,
+    adapterHealth,
+    auditLogs,
     signals,
     signalDetail,
     highRiskSignals,

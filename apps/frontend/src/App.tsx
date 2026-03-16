@@ -12,6 +12,7 @@ import { ActiveTradesTab } from "./tabs/ActiveTradesTab";
 import { BacktestsTab } from "./tabs/BacktestsTab";
 import { JournalTab } from "./tabs/JournalTab";
 import { NewsTab } from "./tabs/NewsTab";
+import { PilotDashboardTab } from "./tabs/PilotDashboardTab";
 import { ResearchTab } from "./tabs/ResearchTab";
 import { ReplayTab } from "./tabs/ReplayTab";
 import { RiskExposureTab } from "./tabs/RiskExposureTab";
@@ -35,7 +36,8 @@ type TabKey =
   | "journal"
   | "session"
   | "replay"
-  | "trade_tickets";
+  | "trade_tickets"
+  | "pilot_ops";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "signals", label: "Signals" },
@@ -52,6 +54,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "session", label: "Session / Review Queue" },
   { key: "replay", label: "Replay / Stress" },
   { key: "trade_tickets", label: "Trade Tickets / Shadow" },
+  { key: "pilot_ops", label: "Pilot Ops / Gate" },
 ];
 
 function activeTabLabel(tab: TabKey): string {
@@ -328,6 +331,15 @@ export default function App() {
             selectedTicketId={selectedTicketId}
             shadowRows={resources.shadowModeTickets.data}
             tickets={resources.tradeTickets.data}
+          />
+        );
+      case "pilot_ops":
+        return (
+          <PilotDashboardTab
+            adapterHealth={resources.adapterHealth.data}
+            auditLogs={resources.auditLogs.data}
+            dashboard={resources.pilotDashboard.data}
+            executionGate={resources.executionGate.data}
           />
         );
       default:

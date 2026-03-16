@@ -166,6 +166,12 @@ class PaperTradeRecord(SQLModel, table=True):
     targets_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     size_plan_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     actual_size: float = 0.0
+    entry_slippage_bps: float = 0.0
+    stop_slippage_bps: float = 0.0
+    target_fill_mode: str = "touch"
+    gap_through_stop_flag: bool = False
+    event_latency_penalty: float = 0.0
+    delayed_source_penalty: float = 0.0
     status: str = Field(default="proposed", index=True)
     opened_at: datetime | None = Field(default=None, index=True)
     closed_at: datetime | None = Field(default=None, index=True)
@@ -197,6 +203,52 @@ class PaperTradeReviewRecord(SQLModel, table=True):
     failure_category: str = ""
     failure_categories_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     operator_notes: str = ""
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class TradeTicketRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    ticket_id: str = Field(index=True, unique=True)
+    signal_id: str | None = Field(default=None, index=True)
+    risk_report_id: str | None = Field(default=None, index=True)
+    trade_id: str | None = Field(default=None, index=True)
+    strategy_id: str | None = Field(default=None, index=True)
+    symbol: str = Field(index=True)
+    side: str
+    proposed_entry_zone_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    planned_stop: float = 0.0
+    planned_targets_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    planned_size_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    realism_summary_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    freshness_summary_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    checklist_status_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    approval_status: str = Field(default="draft", index=True)
+    status: str = Field(default="draft", index=True)
+    shadow_status: str = Field(default="pending", index=True)
+    shadow_summary_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    approval_notes: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    expires_at: datetime | None = Field(default=None, index=True)
+    notes: str = ""
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class ManualFillRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    fill_id: str = Field(index=True, unique=True)
+    ticket_id: str = Field(index=True)
+    trade_id: str | None = Field(default=None, index=True)
+    source: str = Field(default="manual", index=True)
+    symbol: str = Field(index=True)
+    side: str
+    filled_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    fill_price: float
+    fill_size: float
+    fees: float = 0.0
+    slippage_bps: float = 0.0
+    notes: str = ""
+    import_batch_id: str | None = Field(default=None, index=True)
+    reconciliation_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 

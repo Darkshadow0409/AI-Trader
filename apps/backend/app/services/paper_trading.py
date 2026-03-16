@@ -11,9 +11,11 @@ from sqlmodel import Session, desc, select
 from app.alerting import choose_channel_targets, dispatch_alert, stable_alert_id
 from app.core.clock import naive_utc_now
 from app.core.telemetry import record_paper_trade_event
-from app.models.entities import MarketBar, PaperTradeRecord, PaperTradeReviewRecord, StrategyRegistryEntry
+from app.models.entities import AlertRecord, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, StrategyRegistryEntry
 from app.models.schemas import (
     AlertEnvelope,
+    ExecutionQualityView,
+    ExecutionRealismView,
     PaperTradeAdherenceView,
     PaperTradeAnalyticsBucketView,
     PaperTradeFailureCategoryView,
@@ -28,9 +30,12 @@ from app.models.schemas import (
     PaperTradeReviewRequest,
     PaperTradeReviewView,
     PaperTradeScaleRequest,
+    ScenarioStressItemView,
     PaperTradeView,
     RiskView,
     SignalView,
+    TradeTimelineEventView,
+    TradeTimelineView,
 )
 from app.services.dashboard_data import list_risk_views, list_signal_views
 from app.services.data_reality import asset_reality, freshness_minutes
@@ -42,6 +47,16 @@ ACTIVE_PAPER_STATUSES = {"opened", "scaled_in", "partially_exited"}
 CLOSED_PAPER_STATUSES = {"closed_win", "closed_loss", "invalidated", "timed_out", "cancelled"}
 PAPER_STATUSES = {"proposed", *ACTIVE_PAPER_STATUSES, *CLOSED_PAPER_STATUSES}
 OPERATOR_FAILURE_CATEGORIES = {"operator_timing", "operator_sizing", "realism_ignored", "execution_plan_violation"}
+SCENARIO_SHOCKS = {
+    "btc_down": {"BTC": -8.0, "ETH": -10.5, "WTI": -2.0, "GOLD": 1.2, "SILVER": 0.8},
+    "btc_up": {"BTC": 7.0, "ETH": 8.6, "WTI": 0.7, "GOLD": -0.4, "SILVER": 0.3},
+    "oil_spike": {"WTI": 8.5, "BTC": -1.2, "ETH": -1.4, "GOLD": 1.1, "SILVER": 0.9},
+    "oil_drop": {"WTI": -7.5, "BTC": 0.6, "ETH": 0.4, "GOLD": -0.5, "SILVER": -0.3},
+    "dxy_up": {"BTC": -4.5, "ETH": -5.1, "WTI": -1.8, "GOLD": -2.2, "SILVER": -2.5},
+    "dxy_down": {"BTC": 3.8, "ETH": 4.2, "WTI": 1.1, "GOLD": 1.7, "SILVER": 2.0},
+    "yield_shock": {"BTC": -3.9, "ETH": -4.3, "WTI": -1.0, "GOLD": -2.8, "SILVER": -2.2},
+    "vol_spike": {"BTC": -6.2, "ETH": -7.0, "WTI": -3.1, "GOLD": 0.7, "SILVER": -1.4},
+}
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -50,7 +65,10 @@ def _stable_id(prefix: str, *parts: object) -> str:
 
 
 def _parse_iso(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC).replace(tzinfo=None)
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed
+    return parsed.astimezone(UTC).replace(tzinfo=None)
 
 
 def _round_dict(values: dict[str, Any]) -> dict[str, float]:
@@ -198,6 +216,162 @@ def _stop_adherence(trade: PaperTradeRecord, close_price: float | None) -> bool:
     return True
 
 
+def _base_slippage_bps(symbol: str, data_quality: str, source_timing: str, asset_class: str) -> tuple[float, float]:
+    entry_bps = 6.0
+    stop_bps = 10.0
+    if asset_class in {"commodity", "macro"}:
+        entry_bps += 8.0
+        stop_bps += 12.0
+    if symbol in {"WTI", "GOLD", "SILVER"}:
+        entry_bps += 6.0
+        stop_bps += 8.0
+    if source_timing in {"delayed", "end_of_day", "fixture"}:
+        entry_bps += 4.0
+        stop_bps += 6.0
+    if data_quality == "paper":
+        stop_bps += 2.0
+    return round(entry_bps, 2), round(stop_bps, 2)
+
+
+def _target_fill_mode(source_timing: str, execution_suitability: str) -> str:
+    if execution_suitability in {"context_only", "research_only"}:
+        return "close_confirmation"
+    if source_timing in {"delayed", "end_of_day", "fixture"}:
+        return "conservative_touch"
+    return "touch"
+
+
+def _gap_through_stop_flag(trade: PaperTradeRecord, bars: list[MarketBar]) -> bool:
+    if trade.actual_entry is None or not bars:
+        return False
+    if trade.side == "short":
+        return any(bar.high >= trade.stop_price * 1.002 for bar in bars)
+    return any(bar.low <= trade.stop_price * 0.998 for bar in bars)
+
+
+def _execution_realism(
+    trade: PaperTradeRecord,
+    reality: Any | None,
+    signal: SignalView | None,
+    bars: list[MarketBar],
+) -> ExecutionRealismView:
+    provenance = reality.provenance if reality is not None else None
+    asset_class = provenance.asset_class if provenance is not None else "unknown"
+    source_timing = provenance.source_timing if provenance is not None else "fixture"
+    entry_bps, stop_bps = _base_slippage_bps(trade.symbol, trade.data_quality, source_timing, asset_class)
+    event_latency_penalty = 0.0
+    if signal is not None and signal.signal_type == "event_driven":
+        event_latency_penalty += 8.0
+    if reality is not None and reality.event_recency_minutes is not None and reality.event_recency_minutes <= 180:
+        event_latency_penalty += 6.0
+    delayed_penalty = 0.0
+    if source_timing == "near_live":
+        delayed_penalty = 1.5
+    elif source_timing == "delayed":
+        delayed_penalty = 4.0
+    elif source_timing in {"end_of_day", "fixture"}:
+        delayed_penalty = 6.0
+    target_fill_mode = _target_fill_mode(source_timing, reality.execution_suitability if reality is not None else "research_only")
+    effective_entry = None
+    if trade.actual_entry is not None:
+        direction = 1 if trade.side != "short" else -1
+        effective_entry = round(trade.actual_entry * (1 + direction * ((entry_bps + event_latency_penalty + delayed_penalty) / 10000)), 4)
+    direction = 1 if trade.side != "short" else -1
+    effective_stop = round(trade.stop_price * (1 - direction * (stop_bps / 10000)), 4)
+    fill_note = "Execution realism is deterministic and local-only; it is not a real fill record."
+    if reality is not None and reality.execution_suitability in {"context_only", "research_only"}:
+        fill_note = f"{fill_note} Current data reality is {reality.execution_suitability}."
+    return ExecutionRealismView(
+        entry_slippage_bps=entry_bps,
+        stop_slippage_bps=stop_bps,
+        target_fill_mode=target_fill_mode,
+        gap_through_stop_flag=_gap_through_stop_flag(trade, bars),
+        event_latency_penalty=round(event_latency_penalty, 2),
+        delayed_source_penalty=round(delayed_penalty, 2),
+        effective_entry=effective_entry,
+        effective_stop=effective_stop,
+        fill_note=fill_note,
+    )
+
+
+def _execution_quality(
+    trade: PaperTradeRecord,
+    signal: SignalView | None,
+    reality: Any | None,
+    outcome: PaperTradeOutcomeView | None,
+    realism: ExecutionRealismView,
+) -> ExecutionQualityView:
+    signal_quality = "strong"
+    if signal is not None and (signal.score < 40 or signal.noise_probability >= 0.35):
+        signal_quality = "fragile"
+    elif signal is not None and signal.score < 60:
+        signal_quality = "mixed"
+    plan_quality = "disciplined"
+    if reality is not None and reality.execution_suitability in {"context_only", "research_only"}:
+        plan_quality = "context_limited"
+    elif outcome is not None and outcome.entry_quality_label == "worse_than_zone":
+        plan_quality = "stretched"
+    execution_quality = "clean"
+    if realism.gap_through_stop_flag:
+        execution_quality = "gap_risk"
+    elif (realism.entry_slippage_bps + realism.stop_slippage_bps + realism.event_latency_penalty + realism.delayed_source_penalty) >= 28:
+        execution_quality = "penalized"
+    notes: list[str] = []
+    if signal is not None:
+        notes.append(f"Signal bucket uses score {signal.score:.1f} and noise {signal.noise_probability:.2f}.")
+    if reality is not None:
+        notes.append(reality.tradable_alignment_note)
+    if outcome is not None and outcome.entry_quality_label != "inside_zone":
+        notes.append(f"Entry quality was {outcome.entry_quality_label}.")
+    return ExecutionQualityView(
+        signal_quality=signal_quality,
+        plan_quality=plan_quality,
+        execution_quality=execution_quality,
+        slippage_penalty_bps=round(realism.entry_slippage_bps + realism.stop_slippage_bps, 2),
+        latency_penalty=realism.event_latency_penalty,
+        delayed_penalty=realism.delayed_source_penalty,
+        notes=notes,
+    )
+
+
+def _scenario_shock(symbol: str, scenario: str) -> float:
+    normalized = symbol.upper()
+    return round(SCENARIO_SHOCKS.get(scenario, {}).get(normalized, SCENARIO_SHOCKS.get(scenario, {}).get("BTC", 0.0)), 2)
+
+
+def _trade_scenario_stress(
+    trade: PaperTradeRecord,
+    signal: SignalView | None,
+    reality: Any | None,
+) -> list[ScenarioStressItemView]:
+    score = signal.score if signal is not None else 50.0
+    confidence = signal.confidence if signal is not None else 0.5
+    items: list[ScenarioStressItemView] = []
+    for scenario in ("btc_down", "btc_up", "oil_spike", "oil_drop", "dxy_up", "dxy_down", "yield_shock", "vol_spike"):
+        shock_pct = _scenario_shock(trade.symbol, scenario)
+        severity = "info"
+        if abs(shock_pct) >= 6:
+            severity = "warning"
+        if abs(shock_pct) >= 8:
+            severity = "critical"
+        confidence_impact = round((abs(shock_pct) / 20) + ((reality.ranking_penalty / 100) if reality is not None else 0.0), 2)
+        pnl_impact = round(shock_pct * (1 if trade.side != "short" else -1), 2)
+        items.append(
+            ScenarioStressItemView(
+                scenario=scenario,
+                entity_type="paper_trade",
+                entity_id=trade.trade_id,
+                symbol=trade.symbol,
+                severity=severity,
+                shock_pct=shock_pct,
+                pnl_impact_pct=pnl_impact,
+                confidence_impact=round(min(1.0, confidence_impact + max(0.0, (60 - score) / 100)), 2),
+                rationale=f"{trade.symbol} stress uses deterministic {scenario} shock with base confidence {confidence:.2f}.",
+            )
+        )
+    return items
+
+
 def _plan_flags(trade: PaperTradeRecord, entry_label: str, target_attainment: str) -> dict[str, bool]:
     return {
         "entry_in_zone": entry_label == "inside_zone",
@@ -295,6 +469,151 @@ def _adherence_view(trade: PaperTradeRecord, outcome: PaperTradeOutcomeView | No
     )
 
 
+def _timeline_event(
+    timestamp: datetime,
+    phase: str,
+    event_type: str,
+    title: str,
+    note: str,
+    *,
+    price: float | None = None,
+    related_alert_ids: list[str] | None = None,
+) -> TradeTimelineEventView:
+    return TradeTimelineEventView(
+        timestamp=timestamp,
+        phase=phase,
+        event_type=event_type,
+        title=title,
+        note=note,
+        price=price,
+        related_alert_ids=related_alert_ids or [],
+    )
+
+
+def build_trade_timeline(
+    session: Session,
+    trade: PaperTradeRecord,
+    signal: SignalView | None,
+    risk: RiskView | None,
+) -> TradeTimelineView:
+    news_rows = session.exec(select(NewsItem).order_by(desc(NewsItem.published_at))).all()
+    alerts = session.exec(select(AlertRecord).where(AlertRecord.trade_id == trade.trade_id).order_by(AlertRecord.created_at.asc())).all()
+    alert_ids = [row.alert_id for row in alerts]
+    pre_event: list[TradeTimelineEventView] = []
+    event_trigger: list[TradeTimelineEventView] = []
+    post_event: list[TradeTimelineEventView] = []
+    trade_actions: list[TradeTimelineEventView] = []
+    progression: list[TradeTimelineEventView] = []
+
+    if signal is not None:
+        pre_event.append(
+            _timeline_event(
+                signal.timestamp,
+                "pre_event",
+                "signal",
+                f"{signal.symbol} {signal.signal_type}",
+                signal.thesis,
+                price=float(signal.features.get("close") or 0.0) or None,
+            )
+        )
+    if risk is not None:
+        pre_event.append(
+            _timeline_event(
+                risk.as_of,
+                "pre_event",
+                "risk",
+                f"{risk.symbol} risk report",
+                f"Size band {risk.size_band}, stop {risk.stop_price:.2f}.",
+                price=risk.stop_price,
+            )
+        )
+    for row in news_rows:
+        if trade.symbol not in row.title and trade.symbol not in row.summary and trade.symbol not in row.tags_json:
+            continue
+        event_time = row.published_at
+        if trade.opened_at is not None and abs((event_time - trade.opened_at).total_seconds()) <= 6 * 3600:
+            event_trigger.append(
+                _timeline_event(
+                    event_time,
+                    "event_trigger",
+                    "news",
+                    row.title,
+                    row.summary,
+                )
+            )
+    for event in trade.lifecycle_events_json:
+        timestamp = _parse_iso(str(event.get("timestamp")))
+        price = event.get("actual_entry") or event.get("close_price") or event.get("stop_price")
+        trade_actions.append(
+            _timeline_event(
+                timestamp,
+                "trade_action",
+                str(event.get("status", "trade_action")),
+                f"{trade.symbol} {event.get('status', 'action')}",
+                str(event.get("note", "")),
+                price=float(price) if price is not None else None,
+                related_alert_ids=alert_ids,
+            )
+        )
+    if trade.opened_at is not None:
+        bars = _market_window(session, trade.symbol, trade.opened_at, trade.closed_at)
+        if bars:
+            first_bar = bars[0]
+            last_bar = bars[-1]
+            progression.append(
+                _timeline_event(
+                    first_bar.timestamp,
+                    "progression",
+                    "pre_event_state",
+                    "Initial post-entry state",
+                    f"Opened near {trade.actual_entry or first_bar.close:.2f}.",
+                    price=trade.actual_entry or first_bar.close,
+                )
+            )
+            progression.append(
+                _timeline_event(
+                    last_bar.timestamp,
+                    "progression",
+                    "post_event_state",
+                    "Latest tracked state",
+                    f"Last tracked close {last_bar.close:.2f}.",
+                    price=last_bar.close,
+                )
+            )
+            if trade.targets_json.get("base"):
+                progression.append(
+                    _timeline_event(
+                        last_bar.timestamp,
+                        "progression",
+                        "target_progress",
+                        "Target progression",
+                        f"Base target {float(trade.targets_json.get('base')):.2f}, stretch {float(trade.targets_json.get('stretch') or 0.0):.2f}.",
+                        price=float(trade.targets_json.get("base")),
+                    )
+                )
+    for alert in alerts:
+        post_event.append(
+            _timeline_event(
+                alert.created_at,
+                "post_event",
+                "alert",
+                alert.title,
+                alert.body,
+                related_alert_ids=[alert.alert_id],
+            )
+        )
+    return TradeTimelineView(
+        trade_id=trade.trade_id,
+        symbol=trade.symbol,
+        generated_at=naive_utc_now(),
+        pre_event=sorted(pre_event, key=lambda item: item.timestamp),
+        event_trigger=sorted(event_trigger, key=lambda item: item.timestamp),
+        post_event=sorted(post_event, key=lambda item: item.timestamp),
+        trade_actions=sorted(trade_actions, key=lambda item: item.timestamp),
+        progression=sorted(progression, key=lambda item: item.timestamp),
+    )
+
+
 def _trade_view(
     session: Session,
     row: PaperTradeRecord,
@@ -313,7 +632,16 @@ def _trade_view(
         data_quality=row.data_quality,
         features=linked_signal.features if linked_signal else None,
     )
+    bars = _market_window(session, row.symbol, row.opened_at, row.closed_at)
+    execution_realism = _execution_realism(row, reality, linked_signal, bars)
+    execution_quality = _execution_quality(row, linked_signal, reality, outcome, execution_realism)
     row.outcome_json = outcome.model_dump(mode="json")
+    row.entry_slippage_bps = execution_realism.entry_slippage_bps
+    row.stop_slippage_bps = execution_realism.stop_slippage_bps
+    row.target_fill_mode = execution_realism.target_fill_mode
+    row.gap_through_stop_flag = execution_realism.gap_through_stop_flag
+    row.event_latency_penalty = execution_realism.event_latency_penalty
+    row.delayed_source_penalty = execution_realism.delayed_source_penalty
     session.add(row)
     session.commit()
     return PaperTradeView(
@@ -339,6 +667,8 @@ def _trade_view(
         data_quality=row.data_quality,
         lifecycle_events=row.lifecycle_events_json,
         outcome=outcome,
+        execution_realism=execution_realism,
+        execution_quality=execution_quality,
         adherence=adherence,
         review_due=row.status in CLOSED_PAPER_STATUSES and review is None,
         data_reality=reality,
@@ -353,11 +683,15 @@ def _detail_view(
     reviews: dict[str, PaperTradeReviewRecord],
 ) -> PaperTradeDetailView:
     base = _trade_view(session, row, signals, risks, reviews)
+    linked_signal = signals.get(row.signal_id or "")
+    linked_risk = risks.get(row.risk_report_id or "")
     return PaperTradeDetailView(
         **base.model_dump(),
-        linked_signal=signals.get(row.signal_id or ""),
-        linked_risk=risks.get(row.risk_report_id or ""),
+        linked_signal=linked_signal,
+        linked_risk=linked_risk,
         review=_review_view(reviews.get(row.trade_id)),
+        timeline=build_trade_timeline(session, row, linked_signal, linked_risk),
+        scenario_stress=_trade_scenario_stress(row, linked_signal, base.data_reality),
     )
 
 
@@ -380,6 +714,12 @@ def _seed_trade(session: Session, payload: dict[str, Any]) -> None:
             targets_json=payload.get("targets", {}),
             size_plan_json=payload.get("size_plan", {}),
             actual_size=float(payload.get("actual_size", 0.0)),
+            entry_slippage_bps=float(payload.get("entry_slippage_bps", 0.0)),
+            stop_slippage_bps=float(payload.get("stop_slippage_bps", 0.0)),
+            target_fill_mode=str(payload.get("target_fill_mode", "touch")),
+            gap_through_stop_flag=bool(payload.get("gap_through_stop_flag", False)),
+            event_latency_penalty=float(payload.get("event_latency_penalty", 0.0)),
+            delayed_source_penalty=float(payload.get("delayed_source_penalty", 0.0)),
             status=str(payload["status"]),
             opened_at=_parse_iso(payload["opened_at"]) if payload.get("opened_at") else None,
             closed_at=_parse_iso(payload["closed_at"]) if payload.get("closed_at") else None,
@@ -451,6 +791,16 @@ def get_paper_trade_detail(session: Session, trade_id: str) -> PaperTradeDetailV
     return _detail_view(session, row, signals, risks, reviews)
 
 
+def get_paper_trade_timeline(session: Session, trade_id: str) -> TradeTimelineView | None:
+    detail = get_paper_trade_detail(session, trade_id)
+    return detail.timeline if detail is not None else None
+
+
+def get_paper_trade_scenario_stress(session: Session, trade_id: str) -> list[ScenarioStressItemView] | None:
+    detail = get_paper_trade_detail(session, trade_id)
+    return detail.scenario_stress if detail is not None else None
+
+
 def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalRequest) -> PaperTradeView:
     signals, risks = _signal_maps(session)
     signal = signals.get(payload.signal_id)
@@ -485,6 +835,15 @@ def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalReq
             "max_portfolio_risk_pct": risk.max_portfolio_risk_pct if risk else 0.5,
         },
         actual_size=0.0,
+        entry_slippage_bps=0.0,
+        stop_slippage_bps=0.0,
+        target_fill_mode=_target_fill_mode(
+            signal.data_reality.provenance.source_timing if signal.data_reality else "fixture",
+            signal.data_reality.execution_suitability if signal.data_reality else "research_only",
+        ),
+        gap_through_stop_flag=False,
+        event_latency_penalty=0.0,
+        delayed_source_penalty=0.0,
         status="proposed",
         notes=(payload.notes or signal.thesis) + stale_warning,
         lifecycle_events_json=[
@@ -776,6 +1135,9 @@ def paper_trade_analytics(session: Session) -> PaperTradeAnalyticsView:
         by_realism_grade=group_rows("realism_grade", lambda trade: trade.data_reality.provenance.realism_grade if trade.data_reality else "unknown"),
         by_freshness_state=group_rows("freshness_state", lambda trade: trade.data_reality.freshness_state if trade.data_reality else "unknown"),
         by_asset=group_rows("asset", lambda trade: trade.symbol),
+        by_signal_quality=group_rows("signal_quality", lambda trade: trade.execution_quality.signal_quality if trade.execution_quality else "unknown"),
+        by_plan_quality=group_rows("plan_quality", lambda trade: trade.execution_quality.plan_quality if trade.execution_quality else "unknown"),
+        by_execution_quality=group_rows("execution_quality", lambda trade: trade.execution_quality.execution_quality if trade.execution_quality else "unknown"),
         hygiene_summary=hygiene_summary,
         failure_categories=_failure_categories(reviews),
     )

@@ -37,6 +37,7 @@ from app.services.operator_console import refresh_alerts, seed_console_records, 
 from app.services.paper_trading import seed_paper_trades
 from app.services.data_reality import PROVENANCE_DEFAULTS, sync_asset_provenance
 from app.services.session_workflow import refresh_session_alerts
+from app.services.trade_tickets import refresh_ticket_alerts, seed_trade_tickets
 from app.services.feature_pipeline import build_feature_frame
 from app.services.risk_pipeline import generate_risk_reports
 from app.services.sample_data import generate_sample_ohlcv, seed_watchlist
@@ -153,6 +154,7 @@ def _seed_static_records(session: Session) -> None:
     seed_strategy_lab(session)
     seed_console_records(session)
     seed_paper_trades(session)
+    seed_trade_tickets(session)
 
 
 def _upsert_macro_and_news(session: Session) -> tuple[list[MacroEvent], list[NewsItem]]:
@@ -356,6 +358,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
         _recompute_calibration_snapshots(session)
         sync_trade_links(session)
         refresh_alerts(session)
+        refresh_ticket_alerts(session)
         refresh_session_alerts(session)
         time_step("persist_and_refresh", started)
 
@@ -390,6 +393,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
                     "operator_console": ["detail assembly", "alert refresh orchestration", "dashboard views"],
                     "alerting": ["dedupe/cooldown", "sink fan-out", "delivery persistence"],
                     "paper_trading": ["paper-trade ledger", "lifecycle transitions", "outcome analytics", "review links"],
+                    "trade_tickets": ["ticket checklist", "shadow monitoring", "manual fill reconciliation", "broker-ready read-only adapters"],
                     "strategy_lab": ["registry", "promotion state", "validation", "calibration"],
                     "journal": ["free-form notes", "post-trade review write surface"],
                     "session_workflow": ["review tasks", "daily briefing", "weekly review", "operational backlog"],

@@ -365,6 +365,56 @@ export function ActiveTradesTab({
                   {selectedReality.event_context_note ? <small>{selectedReality.event_context_note}</small> : null}
                 </div>
               ) : null}
+              {selectedTrade.execution_realism ? (
+                <article className="panel compact-panel">
+                  <h4>Execution Realism</h4>
+                  <div className="metric-grid">
+                    <div>
+                      <span className="metric-label">Entry Slip</span>
+                      <strong>{compactNumber(selectedTrade.execution_realism.entry_slippage_bps)} bps</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Stop Slip</span>
+                      <strong>{compactNumber(selectedTrade.execution_realism.stop_slippage_bps)} bps</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Fill Mode</span>
+                      <strong>{selectedTrade.execution_realism.target_fill_mode}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Gap Risk</span>
+                      <strong>{selectedTrade.execution_realism.gap_through_stop_flag ? "flagged" : "clear"}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Latency</span>
+                      <strong>{compactNumber(selectedTrade.execution_realism.event_latency_penalty)} bps</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Delayed Source</span>
+                      <strong>{compactNumber(selectedTrade.execution_realism.delayed_source_penalty)} bps</strong>
+                    </div>
+                  </div>
+                  <small>{selectedTrade.execution_realism.fill_note}</small>
+                </article>
+              ) : null}
+              {selectedTrade.execution_quality ? (
+                <article className="panel compact-panel">
+                  <h4>Execution Diagnostics</h4>
+                  <div className="metric-row compact-row">
+                    <span>signal: {selectedTrade.execution_quality.signal_quality}</span>
+                    <span>plan: {selectedTrade.execution_quality.plan_quality}</span>
+                    <span>execution: {selectedTrade.execution_quality.execution_quality}</span>
+                  </div>
+                  <div className="metric-row compact-row">
+                    <span>slippage {compactNumber(selectedTrade.execution_quality.slippage_penalty_bps)} bps</span>
+                    <span>latency {compactNumber(selectedTrade.execution_quality.latency_penalty)} bps</span>
+                    <span>delay {compactNumber(selectedTrade.execution_quality.delayed_penalty)} bps</span>
+                  </div>
+                  {selectedTrade.execution_quality.notes.map((note) => (
+                    <small key={note}>{note}</small>
+                  ))}
+                </article>
+              ) : null}
 
               {selectedTrade.status === "proposed" ? (
                 <div className="stack">
@@ -540,6 +590,51 @@ export function ActiveTradesTab({
                   </div>
                 ) : (
                   <p className="muted-copy">No attribution yet.</p>
+                )}
+              </article>
+              <article className="panel compact-panel">
+                <h4>Trade Timeline</h4>
+                {detail?.timeline ? (
+                  <div className="stack">
+                    {[...detail.timeline.pre_event, ...detail.timeline.event_trigger, ...detail.timeline.trade_actions, ...detail.timeline.progression, ...detail.timeline.post_event]
+                      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime())
+                      .map((event) => (
+                        <div className="metric-row compact-row" key={`${event.phase}-${event.event_type}-${event.timestamp}`}>
+                          <span>{event.phase}</span>
+                          <span>{event.title}</span>
+                          <span>{event.price !== null ? compactNumber(event.price) : "n/a"}</span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="muted-copy">Timeline will populate once the trade detail is loaded.</p>
+                )}
+              </article>
+              <article className="panel compact-panel">
+                <h4>Scenario Stress</h4>
+                {detail?.scenario_stress?.length ? (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Scenario</th>
+                        <th>Shock</th>
+                        <th>PnL</th>
+                        <th>Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.scenario_stress.map((item) => (
+                        <tr key={`${item.entity_id}-${item.scenario}`}>
+                          <td>{item.scenario}</td>
+                          <td>{compactNumber(item.shock_pct)}%</td>
+                          <td>{compactNumber(item.pnl_impact_pct)}%</td>
+                          <td>{compactNumber(item.confidence_impact)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="muted-copy">No scenario stress summary yet.</p>
                 )}
               </article>
             </>

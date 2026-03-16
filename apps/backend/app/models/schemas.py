@@ -277,6 +277,86 @@ class PaperTradeOutcomeView(BaseModel):
     realized_pnl_pct: float
 
 
+class ExecutionRealismView(BaseModel):
+    entry_slippage_bps: float
+    stop_slippage_bps: float
+    target_fill_mode: str
+    gap_through_stop_flag: bool
+    event_latency_penalty: float
+    delayed_source_penalty: float
+    effective_entry: float | None = None
+    effective_stop: float | None = None
+    fill_note: str = ""
+
+
+class ExecutionQualityView(BaseModel):
+    signal_quality: str
+    plan_quality: str
+    execution_quality: str
+    slippage_penalty_bps: float
+    latency_penalty: float
+    delayed_penalty: float
+    notes: list[str] = Field(default_factory=list)
+
+
+class ScenarioStressItemView(BaseModel):
+    scenario: str
+    entity_type: str
+    entity_id: str
+    symbol: str
+    severity: str
+    shock_pct: float
+    pnl_impact_pct: float
+    confidence_impact: float
+    rationale: str
+
+
+class ScenarioStressSummaryView(BaseModel):
+    generated_at: datetime
+    signal_impacts: list[ScenarioStressItemView]
+    active_trade_impacts: list[ScenarioStressItemView]
+    promoted_strategy_impacts: list[ScenarioStressItemView]
+
+
+class TradeTimelineEventView(BaseModel):
+    timestamp: datetime
+    phase: str
+    event_type: str
+    title: str
+    note: str
+    price: float | None = None
+    related_alert_ids: list[str] = Field(default_factory=list)
+
+
+class TradeTimelineView(BaseModel):
+    trade_id: str
+    symbol: str
+    generated_at: datetime
+    pre_event: list[TradeTimelineEventView]
+    event_trigger: list[TradeTimelineEventView]
+    post_event: list[TradeTimelineEventView]
+    trade_actions: list[TradeTimelineEventView]
+    progression: list[TradeTimelineEventView]
+
+
+class ReplayFrameView(BaseModel):
+    cursor: datetime
+    bars: list[BarView]
+    signals: list[SignalView]
+    risks: list[RiskView]
+    alerts: list[AlertEnvelope]
+    paper_trades: list["PaperTradeView"]
+
+
+class ReplayView(BaseModel):
+    generated_at: datetime
+    symbol: str
+    signal_id: str | None = None
+    trade_id: str | None = None
+    event_window_minutes: int
+    frames: list[ReplayFrameView]
+
+
 class PaperTradeAdherenceView(BaseModel):
     entered_inside_suggested_zone: bool | None = None
     invalidation_respected: bool | None = None
@@ -332,6 +412,8 @@ class PaperTradeView(BaseModel):
     data_quality: str
     lifecycle_events: list[dict[str, Any]] = Field(default_factory=list)
     outcome: PaperTradeOutcomeView | None = None
+    execution_realism: ExecutionRealismView | None = None
+    execution_quality: ExecutionQualityView | None = None
     adherence: PaperTradeAdherenceView | None = None
     review_due: bool = False
     data_reality: DataRealityView | None = None
@@ -341,6 +423,173 @@ class PaperTradeDetailView(PaperTradeView):
     linked_signal: SignalView | None = None
     linked_risk: RiskView | None = None
     review: PaperTradeReviewView | None = None
+    timeline: TradeTimelineView | None = None
+    scenario_stress: list[ScenarioStressItemView] = Field(default_factory=list)
+
+
+class TradeTicketChecklistView(BaseModel):
+    freshness_acceptable: bool = False
+    realism_acceptable: bool = False
+    risk_budget_available: bool = False
+    cluster_exposure_acceptable: bool = False
+    review_complete: bool = False
+    operator_acknowledged: bool = False
+    completed: bool = False
+    blocked_reasons: list[str] = Field(default_factory=list)
+
+
+class ShadowObservationView(BaseModel):
+    observed_at: datetime
+    observed_price: float
+    planned_reference_price: float
+    observed_vs_plan_pct: float
+    ticket_valid: bool
+    divergence_flag: bool
+    divergence_reason: str = ""
+    market_path_note: str = ""
+    freshness_state: str = "fresh"
+
+
+class ManualFillReconciliationView(BaseModel):
+    planned_entry_reference: float
+    actual_fill_price: float
+    actual_slippage_bps: float
+    modeled_slippage_bps: float
+    slippage_variance_bps: float
+    entered_inside_zone: bool
+    requires_review: bool
+    summary: str
+
+
+class ManualFillView(BaseModel):
+    fill_id: str
+    ticket_id: str
+    trade_id: str | None = None
+    source: str
+    symbol: str
+    side: str
+    filled_at: datetime
+    fill_price: float
+    fill_size: float
+    fees: float
+    slippage_bps: float
+    notes: str = ""
+    import_batch_id: str | None = None
+    reconciliation: ManualFillReconciliationView
+
+
+class BrokerBalanceView(BaseModel):
+    venue: str
+    account_label: str
+    asset: str
+    free: float
+    locked: float
+    usd_value: float
+    source_type: str
+
+
+class BrokerPositionView(BaseModel):
+    venue: str
+    symbol: str
+    side: str
+    size: float
+    entry_price: float
+    mark_price: float
+    unrealized_pnl_pct: float
+    source_type: str
+
+
+class BrokerFillImportView(BaseModel):
+    venue: str
+    import_batch_id: str
+    fill_count: int
+    latest_fill_at: datetime | None = None
+    notes: str = ""
+    source_type: str
+
+
+class BrokerAdapterSnapshotView(BaseModel):
+    generated_at: datetime
+    balances: list[BrokerBalanceView]
+    positions: list[BrokerPositionView]
+    fill_imports: list[BrokerFillImportView]
+
+
+class TradeTicketView(BaseModel):
+    ticket_id: str
+    signal_id: str | None = None
+    risk_report_id: str | None = None
+    trade_id: str | None = None
+    strategy_id: str | None = None
+    symbol: str
+    side: str
+    proposed_entry_zone: dict[str, float]
+    planned_stop: float
+    planned_targets: dict[str, float]
+    planned_size: dict[str, Any]
+    realism_summary: dict[str, Any]
+    freshness_summary: dict[str, Any]
+    checklist_status: TradeTicketChecklistView
+    approval_status: str
+    status: str
+    shadow_status: str
+    created_at: datetime
+    expires_at: datetime | None = None
+    notes: str = ""
+    freshness_minutes: int
+    linked_signal_family: str = ""
+    data_reality: DataRealityView | None = None
+
+
+class TradeTicketDetailView(TradeTicketView):
+    linked_signal: SignalDetailView | None = None
+    linked_risk: RiskDetailView | None = None
+    linked_trade: PaperTradeDetailView | None = None
+    shadow_summary: ShadowObservationView | None = None
+    manual_fills: list[ManualFillView] = Field(default_factory=list)
+    broker_snapshot: BrokerAdapterSnapshotView | None = None
+
+
+class TradeTicketCreateRequest(BaseModel):
+    signal_id: str
+    risk_report_id: str | None = None
+    trade_id: str | None = None
+    strategy_id: str | None = None
+    symbol: str | None = None
+    side: str | None = None
+    expires_at: datetime | None = None
+    notes: str = ""
+
+
+class TradeTicketUpdateRequest(BaseModel):
+    proposed_entry_zone: dict[str, float] | None = None
+    planned_stop: float | None = None
+    planned_targets: dict[str, float] | None = None
+    planned_size: dict[str, Any] | None = None
+    checklist_status: dict[str, bool] | None = None
+    expires_at: datetime | None = None
+    notes: str | None = None
+    status: str | None = None
+
+
+class TradeTicketApprovalRequest(BaseModel):
+    approval_status: str
+    approval_notes: str = ""
+
+
+class ManualFillCreateRequest(BaseModel):
+    fill_price: float
+    fill_size: float
+    filled_at: datetime = Field(default_factory=datetime.utcnow)
+    fees: float = 0.0
+    notes: str = ""
+    trade_id: str | None = None
+
+
+class ManualFillImportRequest(BaseModel):
+    fills: list[ManualFillCreateRequest]
+    import_batch_id: str | None = None
+    notes: str = ""
 
 
 class PaperTradeProposalRequest(BaseModel):
@@ -443,6 +692,9 @@ class PaperTradeAnalyticsView(BaseModel):
     by_realism_grade: list[PaperTradeAnalyticsBucketView]
     by_freshness_state: list[PaperTradeAnalyticsBucketView]
     by_asset: list[PaperTradeAnalyticsBucketView]
+    by_signal_quality: list[PaperTradeAnalyticsBucketView]
+    by_plan_quality: list[PaperTradeAnalyticsBucketView]
+    by_execution_quality: list[PaperTradeAnalyticsBucketView]
     hygiene_summary: PaperTradeHygieneSummaryView
     failure_categories: list[PaperTradeFailureCategoryView]
 
@@ -815,3 +1067,7 @@ class BacktestDetailView(BacktestListView):
     promotion_rationale: PromotionRationaleView | None = None
     forward_validation_summary: ForwardValidationSummaryView | None = None
     calibration_summary: list[CalibrationSnapshotView] = Field(default_factory=list)
+
+
+ReplayFrameView.model_rebuild()
+ReplayView.model_rebuild()

@@ -455,6 +455,86 @@ export interface PaperTradeOutcomeView {
   realized_pnl_pct: number;
 }
 
+export interface ExecutionRealismView {
+  entry_slippage_bps: number;
+  stop_slippage_bps: number;
+  target_fill_mode: string;
+  gap_through_stop_flag: boolean;
+  event_latency_penalty: number;
+  delayed_source_penalty: number;
+  effective_entry: number | null;
+  effective_stop: number | null;
+  fill_note: string;
+}
+
+export interface ExecutionQualityView {
+  signal_quality: string;
+  plan_quality: string;
+  execution_quality: string;
+  slippage_penalty_bps: number;
+  latency_penalty: number;
+  delayed_penalty: number;
+  notes: string[];
+}
+
+export interface ScenarioStressItemView {
+  scenario: string;
+  entity_type: string;
+  entity_id: string;
+  symbol: string;
+  severity: string;
+  shock_pct: number;
+  pnl_impact_pct: number;
+  confidence_impact: number;
+  rationale: string;
+}
+
+export interface ScenarioStressSummaryView {
+  generated_at: string;
+  signal_impacts: ScenarioStressItemView[];
+  active_trade_impacts: ScenarioStressItemView[];
+  promoted_strategy_impacts: ScenarioStressItemView[];
+}
+
+export interface TradeTimelineEventView {
+  timestamp: string;
+  phase: string;
+  event_type: string;
+  title: string;
+  note: string;
+  price: number | null;
+  related_alert_ids: string[];
+}
+
+export interface TradeTimelineView {
+  trade_id: string;
+  symbol: string;
+  generated_at: string;
+  pre_event: TradeTimelineEventView[];
+  event_trigger: TradeTimelineEventView[];
+  post_event: TradeTimelineEventView[];
+  trade_actions: TradeTimelineEventView[];
+  progression: TradeTimelineEventView[];
+}
+
+export interface ReplayFrameView {
+  cursor: string;
+  bars: BarView[];
+  signals: SignalView[];
+  risks: RiskView[];
+  alerts: AlertEnvelope[];
+  paper_trades: PaperTradeView[];
+}
+
+export interface ReplayView {
+  generated_at: string;
+  symbol: string;
+  signal_id: string | null;
+  trade_id: string | null;
+  event_window_minutes: number;
+  frames: ReplayFrameView[];
+}
+
 export interface PaperTradeAdherenceView {
   entered_inside_suggested_zone: boolean | null;
   invalidation_respected: boolean | null;
@@ -510,6 +590,8 @@ export interface PaperTradeView {
   data_quality: string;
   lifecycle_events: Array<Record<string, unknown>>;
   outcome: PaperTradeOutcomeView | null;
+  execution_realism: ExecutionRealismView | null;
+  execution_quality: ExecutionQualityView | null;
   adherence: PaperTradeAdherenceView | null;
   review_due: boolean;
   data_reality: DataRealityView | null;
@@ -519,6 +601,173 @@ export interface PaperTradeDetailView extends PaperTradeView {
   linked_signal: SignalView | null;
   linked_risk: RiskView | null;
   review: PaperTradeReviewView | null;
+  timeline: TradeTimelineView | null;
+  scenario_stress: ScenarioStressItemView[];
+}
+
+export interface TradeTicketChecklistView {
+  freshness_acceptable: boolean;
+  realism_acceptable: boolean;
+  risk_budget_available: boolean;
+  cluster_exposure_acceptable: boolean;
+  review_complete: boolean;
+  operator_acknowledged: boolean;
+  completed: boolean;
+  blocked_reasons: string[];
+}
+
+export interface ShadowObservationView {
+  observed_at: string;
+  observed_price: number;
+  planned_reference_price: number;
+  observed_vs_plan_pct: number;
+  ticket_valid: boolean;
+  divergence_flag: boolean;
+  divergence_reason: string;
+  market_path_note: string;
+  freshness_state: string;
+}
+
+export interface ManualFillReconciliationView {
+  planned_entry_reference: number;
+  actual_fill_price: number;
+  actual_slippage_bps: number;
+  modeled_slippage_bps: number;
+  slippage_variance_bps: number;
+  entered_inside_zone: boolean;
+  requires_review: boolean;
+  summary: string;
+}
+
+export interface ManualFillView {
+  fill_id: string;
+  ticket_id: string;
+  trade_id: string | null;
+  source: string;
+  symbol: string;
+  side: string;
+  filled_at: string;
+  fill_price: number;
+  fill_size: number;
+  fees: number;
+  slippage_bps: number;
+  notes: string;
+  import_batch_id: string | null;
+  reconciliation: ManualFillReconciliationView;
+}
+
+export interface BrokerBalanceView {
+  venue: string;
+  account_label: string;
+  asset: string;
+  free: number;
+  locked: number;
+  usd_value: number;
+  source_type: string;
+}
+
+export interface BrokerPositionView {
+  venue: string;
+  symbol: string;
+  side: string;
+  size: number;
+  entry_price: number;
+  mark_price: number;
+  unrealized_pnl_pct: number;
+  source_type: string;
+}
+
+export interface BrokerFillImportView {
+  venue: string;
+  import_batch_id: string;
+  fill_count: number;
+  latest_fill_at: string | null;
+  notes: string;
+  source_type: string;
+}
+
+export interface BrokerAdapterSnapshotView {
+  generated_at: string;
+  balances: BrokerBalanceView[];
+  positions: BrokerPositionView[];
+  fill_imports: BrokerFillImportView[];
+}
+
+export interface TradeTicketView {
+  ticket_id: string;
+  signal_id: string | null;
+  risk_report_id: string | null;
+  trade_id: string | null;
+  strategy_id: string | null;
+  symbol: string;
+  side: string;
+  proposed_entry_zone: Record<string, number>;
+  planned_stop: number;
+  planned_targets: Record<string, number>;
+  planned_size: Record<string, unknown>;
+  realism_summary: Record<string, unknown>;
+  freshness_summary: Record<string, unknown>;
+  checklist_status: TradeTicketChecklistView;
+  approval_status: string;
+  status: string;
+  shadow_status: string;
+  created_at: string;
+  expires_at: string | null;
+  notes: string;
+  freshness_minutes: number;
+  linked_signal_family: string;
+  data_reality: DataRealityView | null;
+}
+
+export interface TradeTicketDetailView extends TradeTicketView {
+  linked_signal: SignalDetailView | null;
+  linked_risk: RiskDetailView | null;
+  linked_trade: PaperTradeDetailView | null;
+  shadow_summary: ShadowObservationView | null;
+  manual_fills: ManualFillView[];
+  broker_snapshot: BrokerAdapterSnapshotView | null;
+}
+
+export interface TradeTicketCreateRequest {
+  signal_id: string;
+  risk_report_id?: string | null;
+  trade_id?: string | null;
+  strategy_id?: string | null;
+  symbol?: string | null;
+  side?: string | null;
+  expires_at?: string | null;
+  notes?: string;
+}
+
+export interface TradeTicketUpdateRequest {
+  proposed_entry_zone?: Record<string, number>;
+  planned_stop?: number;
+  planned_targets?: Record<string, number>;
+  planned_size?: Record<string, unknown>;
+  checklist_status?: Record<string, boolean>;
+  expires_at?: string | null;
+  notes?: string;
+  status?: string;
+}
+
+export interface TradeTicketApprovalRequest {
+  approval_status: string;
+  approval_notes?: string;
+}
+
+export interface ManualFillCreateRequest {
+  fill_price: number;
+  fill_size: number;
+  filled_at?: string;
+  fees?: number;
+  notes?: string;
+  trade_id?: string | null;
+}
+
+export interface ManualFillImportRequest {
+  fills: ManualFillCreateRequest[];
+  import_batch_id?: string | null;
+  notes?: string;
 }
 
 export interface PaperTradeProposalRequest {
@@ -621,6 +870,9 @@ export interface PaperTradeAnalyticsView {
   by_realism_grade: PaperTradeAnalyticsBucketView[];
   by_freshness_state: PaperTradeAnalyticsBucketView[];
   by_asset: PaperTradeAnalyticsBucketView[];
+  by_signal_quality: PaperTradeAnalyticsBucketView[];
+  by_plan_quality: PaperTradeAnalyticsBucketView[];
+  by_execution_quality: PaperTradeAnalyticsBucketView[];
   hygiene_summary: PaperTradeHygieneSummaryView;
   failure_categories: PaperTradeFailureCategoryView[];
 }

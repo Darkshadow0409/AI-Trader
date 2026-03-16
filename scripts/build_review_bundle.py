@@ -38,6 +38,11 @@ CONTRACT_FILES = [
     ("/api/session/daily-briefing", "GET", "contracts/daily_briefing.json"),
     ("/api/session/weekly-review", "GET", "contracts/weekly_review.json"),
     ("/api/session/operational-backlog", "GET", "contracts/operational_backlog.json"),
+    ("/api/replay?symbol=BTC", "GET", "contracts/replay.json"),
+    ("/api/replay/scenario-stress?symbol=BTC", "GET", "contracts/scenario_stress.json"),
+    ("/api/tickets", "GET", "contracts/tickets.json"),
+    ("/api/tickets/shadow-mode", "GET", "contracts/tickets_shadow_mode.json"),
+    ("/api/tickets/broker-snapshot", "GET", "contracts/tickets_broker_snapshot.json"),
     ("/api/market/bars/BTC", "GET", "contracts/market_bars_BTC.json"),
     ("/api/system/refresh", "POST", "contracts/system_refresh.json"),
     ("/api/strategies", "GET", "contracts/strategies.json"),
@@ -56,8 +61,10 @@ TEST_FILES = [
     "apps/backend/tests/test_feature_pipeline.py",
     "apps/backend/tests/test_paper_trading.py",
     "apps/backend/tests/test_promotion_core.py",
+    "apps/backend/tests/test_replay_and_stress.py",
     "apps/backend/tests/test_session_workflow.py",
     "apps/backend/tests/test_signal_and_risk_invariants.py",
+    "apps/backend/tests/test_trade_tickets.py",
     "apps/backend/tests/test_risk_engine.py",
     "apps/frontend/src/App.test.tsx",
     "apps/frontend/src/api/client.test.ts",
@@ -67,8 +74,10 @@ TEST_FILES = [
     "apps/frontend/src/tabs/ActiveTradesTab.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
     "apps/frontend/src/tabs/JournalTab.test.tsx",
+    "apps/frontend/src/tabs/ReplayTab.test.tsx",
     "apps/frontend/src/tabs/SessionDashboardTab.test.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.test.tsx",
+    "apps/frontend/src/tabs/TradeTicketsTab.test.tsx",
     "apps/frontend/src/tabs/WatchlistTab.test.tsx",
 ]
 
@@ -97,16 +106,21 @@ CORE_FILES = [
     "apps/backend/app/api/routes/portfolio.py",
     "apps/backend/app/api/routes/journal.py",
     "apps/backend/app/api/routes/alerts.py",
+    "apps/backend/app/api/routes/tickets.py",
     "apps/backend/app/api/routes/session.py",
     "apps/backend/app/api/routes/strategies.py",
     "apps/backend/app/api/routes/backtests.py",
     "apps/backend/app/api/routes/market.py",
+    "apps/backend/app/api/routes/replay.py",
     "apps/backend/app/api/routes/system.py",
     "apps/backend/app/alerting/sinks.py",
     "apps/backend/app/alerting/service.py",
     "apps/backend/app/services/operator_console.py",
     "apps/backend/app/services/paper_trading.py",
+    "apps/backend/app/services/replay_engine.py",
     "apps/backend/app/services/session_workflow.py",
+    "apps/backend/app/services/trade_tickets.py",
+    "apps/backend/app/services/broker_adapters.py",
     "apps/backend/app/strategy_lab/registry.py",
     "apps/backend/app/strategy_lab/service.py",
     "apps/backend/app/connectors/eia_client.py",
@@ -131,9 +145,11 @@ CORE_FILES = [
     "apps/frontend/src/tabs/WatchlistTab.tsx",
     "apps/frontend/src/tabs/ActiveTradesTab.tsx",
     "apps/frontend/src/tabs/JournalTab.tsx",
+    "apps/frontend/src/tabs/ReplayTab.tsx",
     "apps/frontend/src/tabs/RiskExposureTab.tsx",
     "apps/frontend/src/tabs/SessionDashboardTab.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.tsx",
+    "apps/frontend/src/tabs/TradeTicketsTab.tsx",
     "apps/frontend/src/components/TopRibbon.tsx",
     "apps/frontend/src/components/ContextSidebar.tsx",
     "apps/frontend/src/components/SignalTable.tsx",
@@ -393,6 +409,25 @@ def collect_contracts(bundle_root: Path, runtime_env: dict[str, str]) -> dict[st
                     payload = response.json()
                     responses[f"/api/portfolio/paper-trades/{trade_id}"] = payload
                     write_json(bundle_root / output_name, payload)
+                    timeline_response = client.get(f"/api/portfolio/paper-trades/{trade_id}/timeline")
+                    timeline_response.raise_for_status()
+                    timeline_payload = timeline_response.json()
+                    responses[f"/api/portfolio/paper-trades/{trade_id}/timeline"] = timeline_payload
+                    write_json(bundle_root / f"contracts/paper_trade_timeline_{trade_id}.json", timeline_payload)
+                    stress_response = client.get(f"/api/portfolio/paper-trades/{trade_id}/scenario-stress")
+                    stress_response.raise_for_status()
+                    stress_payload = stress_response.json()
+                    responses[f"/api/portfolio/paper-trades/{trade_id}/scenario-stress"] = stress_payload
+                    write_json(bundle_root / f"contracts/paper_trade_stress_{trade_id}.json", stress_payload)
+        ticket_rows = responses.get("/api/tickets")
+        if isinstance(ticket_rows, list) and ticket_rows:
+            ticket_id = ticket_rows[0].get("ticket_id")
+            if ticket_id:
+                response = client.get(f"/api/tickets/{ticket_id}")
+                response.raise_for_status()
+                payload = response.json()
+                responses[f"/api/tickets/{ticket_id}"] = payload
+                write_json(bundle_root / "contracts/ticket_detail.json", payload)
     return responses
 
 
@@ -762,6 +797,11 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     daily_briefing = contracts["/api/session/daily-briefing"]
     weekly_review = contracts["/api/session/weekly-review"]
     operational_backlog = contracts["/api/session/operational-backlog"]
+    replay = contracts["/api/replay?symbol=BTC"]
+    scenario_stress = contracts["/api/replay/scenario-stress?symbol=BTC"]
+    tickets = contracts["/api/tickets"]
+    shadow_mode = contracts["/api/tickets/shadow-mode"]
+    broker_snapshot = contracts["/api/tickets/broker-snapshot"]
     journal = contracts["/api/journal"]
     strategies = contracts["/api/strategies"]
     backtests = contracts["/api/backtests"]
@@ -793,6 +833,17 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/paper_trade_closed.json", closed_paper_trades[0])
     if isinstance(paper_trade_reviews, list) and paper_trade_reviews:
         write_json(bundle_root / "samples/paper_trade_review.json", paper_trade_reviews[0])
+    if isinstance(tickets, list) and tickets:
+        write_json(bundle_root / "samples/trade_ticket_sample.json", tickets[0])
+        write_json(bundle_root / "samples/checklist_sample.json", tickets[0].get("checklist_status", {}))
+    if isinstance(shadow_mode, list) and shadow_mode:
+        write_json(bundle_root / "samples/shadow_mode_sample.json", shadow_mode[0])
+    if isinstance(broker_snapshot, dict):
+        write_json(bundle_root / "samples/adapter_interface_sample.json", broker_snapshot)
+    if isinstance(replay, dict):
+        write_json(bundle_root / "samples/replay_sample.json", replay)
+    if isinstance(scenario_stress, dict):
+        write_json(bundle_root / "samples/scenario_stress_sample.json", scenario_stress)
     if isinstance(review_tasks, list) and review_tasks:
         write_json(bundle_root / "samples/review_task_sample.json", review_tasks[0])
     if isinstance(daily_briefing, dict):
@@ -829,6 +880,13 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
             bundle_root / "samples/family_outcome_diagnostic_summary.json",
             weekly_review.get("signal_family_outcomes", []),
         )
+    active_trade_detail = contracts.get("/api/portfolio/paper-trades/paper_trade_open_eth")
+    if isinstance(active_trade_detail, dict):
+        write_json(bundle_root / "samples/execution_realism_sample.json", active_trade_detail.get("execution_realism", {}))
+        write_json(bundle_root / "samples/event_timeline_sample.json", active_trade_detail.get("timeline", {}))
+    active_trade_stress = contracts.get("/api/portfolio/paper-trades/paper_trade_open_eth/scenario-stress")
+    if active_trade_stress is not None:
+        write_json(bundle_root / "samples/active_trade_stress_example.json", active_trade_stress)
     if isinstance(paper_trade_analytics, dict):
         write_json(bundle_root / "samples/adherence_summary_example.json", paper_trade_analytics.get("hygiene_summary", {}))
     if isinstance(journal, list) and journal:
@@ -845,6 +903,9 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     backtest_detail = contracts.get(f"/api/backtests/{backtests[0]['id']}") if isinstance(backtests, list) and backtests else None
     if isinstance(backtest_detail, dict):
         write_json(bundle_root / "samples/backtest_validation_summary.json", backtest_detail)
+    ticket_detail = contracts.get(f"/api/tickets/{tickets[0]['ticket_id']}") if isinstance(tickets, list) and tickets else None
+    if isinstance(ticket_detail, dict):
+        write_json(bundle_root / "samples/manual_fill_reconciliation_sample.json", ticket_detail.get("manual_fills", []))
     write_text(
         bundle_root / "samples/seed_counts.txt",
         textwrap.dedent(

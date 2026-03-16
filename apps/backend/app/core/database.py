@@ -101,6 +101,56 @@ def _ensure_contract_columns() -> None:
             "notes": "TEXT DEFAULT ''",
             "metadata_json": "TEXT DEFAULT '{}'",
         },
+        "papertraderecord": {
+            "entry_slippage_bps": "REAL DEFAULT 0.0",
+            "stop_slippage_bps": "REAL DEFAULT 0.0",
+            "target_fill_mode": "TEXT DEFAULT 'touch'",
+            "gap_through_stop_flag": "BOOLEAN DEFAULT 0",
+            "event_latency_penalty": "REAL DEFAULT 0.0",
+            "delayed_source_penalty": "REAL DEFAULT 0.0",
+        },
+        "tradeticketrecord": {
+            "ticket_id": "TEXT",
+            "signal_id": "TEXT",
+            "risk_report_id": "TEXT",
+            "trade_id": "TEXT",
+            "strategy_id": "TEXT",
+            "symbol": "TEXT DEFAULT ''",
+            "side": "TEXT DEFAULT 'long'",
+            "proposed_entry_zone_json": "TEXT DEFAULT '{}'",
+            "planned_stop": "REAL DEFAULT 0.0",
+            "planned_targets_json": "TEXT DEFAULT '{}'",
+            "planned_size_json": "TEXT DEFAULT '{}'",
+            "realism_summary_json": "TEXT DEFAULT '{}'",
+            "freshness_summary_json": "TEXT DEFAULT '{}'",
+            "checklist_status_json": "TEXT DEFAULT '{}'",
+            "approval_status": "TEXT DEFAULT 'draft'",
+            "status": "TEXT DEFAULT 'draft'",
+            "shadow_status": "TEXT DEFAULT 'pending'",
+            "shadow_summary_json": "TEXT DEFAULT '{}'",
+            "approval_notes": "TEXT DEFAULT ''",
+            "created_at": "TIMESTAMP",
+            "expires_at": "TIMESTAMP",
+            "notes": "TEXT DEFAULT ''",
+            "updated_at": "TIMESTAMP",
+        },
+        "manualfillrecord": {
+            "fill_id": "TEXT",
+            "ticket_id": "TEXT",
+            "trade_id": "TEXT",
+            "source": "TEXT DEFAULT 'manual'",
+            "symbol": "TEXT DEFAULT ''",
+            "side": "TEXT DEFAULT 'long'",
+            "filled_at": "TIMESTAMP",
+            "fill_price": "REAL DEFAULT 0.0",
+            "fill_size": "REAL DEFAULT 0.0",
+            "fees": "REAL DEFAULT 0.0",
+            "slippage_bps": "REAL DEFAULT 0.0",
+            "notes": "TEXT DEFAULT ''",
+            "import_batch_id": "TEXT",
+            "reconciliation_json": "TEXT DEFAULT '{}'",
+            "updated_at": "TIMESTAMP",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -136,6 +186,21 @@ def _ensure_contract_columns() -> None:
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_papertradereviewrecord_trade_id_unique ON papertradereviewrecord (trade_id)"
         )
         connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_tradeticketrecord_ticket_id_unique ON tradeticketrecord (ticket_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_tradeticketrecord_status ON tradeticketrecord (status)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_tradeticketrecord_signal_id ON tradeticketrecord (signal_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_manualfillrecord_fill_id_unique ON manualfillrecord (fill_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_manualfillrecord_ticket_id ON manualfillrecord (ticket_id)"
+        )
+        connection.exec_driver_sql(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_reviewtaskrecord_task_id_unique ON reviewtaskrecord (task_id)"
         )
         connection.exec_driver_sql(
@@ -147,7 +212,7 @@ def _ensure_contract_columns() -> None:
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AlertRecord, Asset, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

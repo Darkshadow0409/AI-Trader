@@ -6,12 +6,14 @@ import type {
   AssetContextView,
   BacktestListView,
   BarView,
+  BrokerAdapterSnapshotView,
   DailyBriefingView,
   HealthView,
   JournalReviewView,
   NewsView,
   OperationalBacklogView,
   OpportunityHunterView,
+  ReplayView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
   PaperTradeReviewView,
@@ -22,9 +24,14 @@ import type {
   RiskDetailView,
   RiskExposureView,
   RiskView,
+  ScenarioStressItemView,
+  ScenarioStressSummaryView,
   SessionOverviewView,
   SignalDetailView,
   SignalView,
+  TradeTimelineView,
+  TradeTicketDetailView,
+  TradeTicketView,
   WalletBalanceView,
   WatchlistView,
 } from "../types/api";
@@ -159,12 +166,16 @@ function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
     data_quality: "loading",
     lifecycle_events: [],
     outcome: null,
+    execution_realism: null,
+    execution_quality: null,
     adherence: null,
     review_due: false,
     data_reality: null,
     linked_signal: null,
     linked_risk: null,
     review: null,
+    timeline: null,
+    scenario_stress: [],
   };
 }
 
@@ -173,6 +184,7 @@ export function useDashboardData(
   selectedSignalId: string | null,
   selectedRiskReportId: string | null,
   selectedTradeId: string | null,
+  selectedTicketId: string | null,
 ) {
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
     status: "loading",
@@ -313,6 +325,9 @@ export function useDashboardData(
       by_realism_grade: [],
       by_freshness_state: [],
       by_asset: [],
+      by_signal_quality: [],
+      by_plan_quality: [],
+      by_execution_quality: [],
       hygiene_summary: {
         trade_count: 0,
         reviewed_trade_count: 0,
@@ -364,6 +379,49 @@ export function useDashboardData(
     selectedTradeId ? emptyPaperTradeDetail(selectedTradeId) : null,
     [selectedTradeId],
   );
+  const paperTradeTimeline = usePollingResource<TradeTimelineView | null>(
+    () => (selectedTradeId ? apiClient.paperTradeTimeline(selectedTradeId) : Promise.resolve(null)),
+    null,
+    [selectedTradeId],
+  );
+  const paperTradeScenarioStress = usePollingResource<ScenarioStressItemView[]>(
+    () => (selectedTradeId ? apiClient.paperTradeScenarioStress(selectedTradeId) : Promise.resolve([])),
+    [],
+    [selectedTradeId],
+  );
+  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), []);
+  const tradeTicketDetail = usePollingResource<TradeTicketDetailView | null>(
+    () => (selectedTicketId ? apiClient.tradeTicketDetail(selectedTicketId) : Promise.resolve(null)),
+    null,
+    [selectedTicketId],
+  );
+  const shadowModeTickets = usePollingResource<TradeTicketDetailView[]>(() => apiClient.shadowModeTickets(), []);
+  const brokerSnapshot = usePollingResource<BrokerAdapterSnapshotView>(
+    () => apiClient.brokerSnapshot(),
+    { generated_at: "", balances: [], positions: [], fill_imports: [] },
+  );
+  const replay = usePollingResource<ReplayView>(
+    () => apiClient.replay(selectedSymbol, selectedSignalId, selectedTradeId),
+    {
+      generated_at: "",
+      symbol: selectedSymbol,
+      signal_id: selectedSignalId,
+      trade_id: selectedTradeId,
+      event_window_minutes: 180,
+      frames: [],
+    },
+    [selectedSymbol, selectedSignalId, selectedTradeId],
+  );
+  const scenarioStress = usePollingResource<ScenarioStressSummaryView>(
+    () => apiClient.scenarioStress(selectedSymbol, selectedSignalId, selectedTradeId),
+    {
+      generated_at: "",
+      signal_impacts: [],
+      active_trade_impacts: [],
+      promoted_strategy_impacts: [],
+    },
+    [selectedSymbol, selectedSignalId, selectedTradeId],
+  );
 
   return {
     health,
@@ -390,6 +448,14 @@ export function useDashboardData(
     paperTradeAnalytics,
     paperTradeReviews,
     paperTradeDetail,
+    paperTradeTimeline,
+    paperTradeScenarioStress,
+    tradeTickets,
+    tradeTicketDetail,
+    shadowModeTickets,
+    brokerSnapshot,
+    replay,
+    scenarioStress,
     walletBalance,
     journal,
     alerts,

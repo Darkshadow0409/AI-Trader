@@ -43,6 +43,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     daily_briefing = client.get("/api/session/daily-briefing")
     weekly_review = client.get("/api/session/weekly-review")
     operational_backlog = client.get("/api/session/operational-backlog")
+    replay = client.get("/api/replay?symbol=BTC")
+    scenario_stress = client.get("/api/replay/scenario-stress?symbol=BTC")
+    tickets = client.get("/api/tickets")
+    shadow_mode = client.get("/api/tickets/shadow-mode")
+    broker_snapshot = client.get("/api/tickets/broker-snapshot")
     refresh = client.post("/api/system/refresh")
     assert news.status_code == 200
     assert watchlist.status_code == 200
@@ -72,6 +77,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert daily_briefing.status_code == 200
     assert weekly_review.status_code == 200
     assert operational_backlog.status_code == 200
+    assert replay.status_code == 200
+    assert scenario_stress.status_code == 200
+    assert tickets.status_code == 200
+    assert shadow_mode.status_code == 200
+    assert broker_snapshot.status_code == 200
     assert refresh.status_code == 200
     assert len(bars.json()) > 0
     assert len(strategies.json()) >= 3
@@ -106,6 +116,25 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert active_paper_detail is not None and active_paper_detail.status_code == 200
     assert "outcome" in active_paper_detail.json()
     assert "lifecycle_events" in active_paper_detail.json()
+    assert "execution_realism" in active_paper_detail.json()
+    assert "execution_quality" in active_paper_detail.json()
+    assert "timeline" in active_paper_detail.json()
+    assert "scenario_stress" in active_paper_detail.json()
+    active_paper_timeline = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}/timeline") if active_paper.json() else None
+    active_paper_stress = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}/scenario-stress") if active_paper.json() else None
+    assert active_paper_timeline is not None and active_paper_timeline.status_code == 200
+    assert active_paper_stress is not None and active_paper_stress.status_code == 200
+    assert "frames" in replay.json()
+    assert "signal_impacts" in scenario_stress.json()
+    assert isinstance(tickets.json(), list)
+    assert isinstance(shadow_mode.json(), list)
+    assert "balances" in broker_snapshot.json()
+
+    ticket_detail = client.get(f"/api/tickets/{tickets.json()[0]['ticket_id']}") if tickets.json() else None
+    assert ticket_detail is not None and ticket_detail.status_code == 200
+    assert "checklist_status" in ticket_detail.json()
+    assert "manual_fills" in ticket_detail.json()
+    assert "shadow_summary" in ticket_detail.json()
 
     if review_tasks.json():
         task_id = review_tasks.json()[0]["task_id"]
@@ -167,6 +196,48 @@ def test_api_starts_and_loads_sample_data() -> None:
 
     strategy_detail = client.get(f"/api/strategies/{strategies.json()[0]['name']}")
     backtest_detail = client.get(f"/api/backtests/{backtests.json()[0]['id']}")
+    created_ticket = client.post(
+        "/api/tickets",
+        json={
+            "signal_id": signals.json()[0]["signal_id"],
+            "risk_report_id": risk.json()[0]["risk_report_id"],
+            "symbol": "BTC",
+            "side": "long",
+            "notes": "smoke ticket",
+        },
+    )
+    assert created_ticket.status_code == 201
+    ticket_id = created_ticket.json()["ticket_id"]
+    updated_ticket = client.patch(
+        f"/api/tickets/{ticket_id}",
+        json={
+            "checklist_status": {
+                "freshness_acceptable": True,
+                "realism_acceptable": True,
+                "risk_budget_available": True,
+                "cluster_exposure_acceptable": True,
+                "review_complete": True,
+                "operator_acknowledged": True,
+            }
+        },
+    )
+    assert updated_ticket.status_code == 200
+    approval_ticket = client.post(
+        f"/api/tickets/{ticket_id}/approval",
+        json={"approval_status": "approved", "approval_notes": "smoke approval"},
+    )
+    assert approval_ticket.status_code == 200
+    assert approval_ticket.json()["approval_status"] == "approved"
+    created_fill = client.post(
+        f"/api/tickets/{ticket_id}/fills",
+        json={"fill_price": 71900, "fill_size": 0.25, "fees": 5.0, "notes": "smoke fill"},
+    )
+    assert created_fill.status_code == 201
+    imported_fills = client.post(
+        f"/api/tickets/{ticket_id}/fills/import",
+        json={"fills": [{"fill_price": 71910, "fill_size": 0.1, "fees": 2.0, "notes": "imported smoke fill"}], "import_batch_id": "smoke_batch"},
+    )
+    assert imported_fills.status_code == 201
     created = client.post(
         "/api/backtests/run",
         json={"strategy_name": "trend_breakout_v1", "search_method": "grid", "max_trials": 4},

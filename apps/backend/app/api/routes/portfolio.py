@@ -15,7 +15,9 @@ from app.models.schemas import (
     PaperTradePartialExitRequest,
     PaperTradeProposalRequest,
     PaperTradeScaleRequest,
+    ScenarioStressItemView,
     PaperTradeView,
+    TradeTimelineView,
     WalletBalanceView,
 )
 from app.services.dashboard_data import list_wallet_balances
@@ -27,6 +29,8 @@ from app.services.paper_trading import (
     close_paper_trade,
     create_proposed_paper_trade,
     get_paper_trade_detail,
+    get_paper_trade_scenario_stress,
+    get_paper_trade_timeline,
     invalidate_paper_trade,
     list_paper_trades,
     open_paper_trade,
@@ -98,6 +102,22 @@ def paper_trade_summary(session: Session = Depends(get_session)) -> PaperTradeAn
 @router.get("/paper-trades/{trade_id}", response_model=PaperTradeDetailView)
 def paper_trade_detail(trade_id: str, session: Session = Depends(get_session)) -> PaperTradeDetailView:
     detail = get_paper_trade_detail(session, trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Paper trade not found.")
+    return detail
+
+
+@router.get("/paper-trades/{trade_id}/timeline", response_model=TradeTimelineView)
+def paper_trade_timeline(trade_id: str, session: Session = Depends(get_session)) -> TradeTimelineView:
+    detail = get_paper_trade_timeline(session, trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Paper trade not found.")
+    return detail
+
+
+@router.get("/paper-trades/{trade_id}/scenario-stress", response_model=list[ScenarioStressItemView])
+def paper_trade_scenario_stress(trade_id: str, session: Session = Depends(get_session)) -> list[ScenarioStressItemView]:
+    detail = get_paper_trade_scenario_stress(session, trade_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Paper trade not found.")
     return detail

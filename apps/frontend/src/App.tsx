@@ -13,9 +13,11 @@ import { BacktestsTab } from "./tabs/BacktestsTab";
 import { JournalTab } from "./tabs/JournalTab";
 import { NewsTab } from "./tabs/NewsTab";
 import { ResearchTab } from "./tabs/ResearchTab";
+import { ReplayTab } from "./tabs/ReplayTab";
 import { RiskExposureTab } from "./tabs/RiskExposureTab";
 import { SessionDashboardTab } from "./tabs/SessionDashboardTab";
 import { StrategyLabTab } from "./tabs/StrategyLabTab";
+import { TradeTicketsTab } from "./tabs/TradeTicketsTab";
 import { WalletBalanceTab } from "./tabs/WalletBalanceTab";
 import { WatchlistTab } from "./tabs/WatchlistTab";
 
@@ -31,7 +33,9 @@ type TabKey =
   | "backtests"
   | "risk"
   | "journal"
-  | "session";
+  | "session"
+  | "replay"
+  | "trade_tickets";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "signals", label: "Signals" },
@@ -46,6 +50,8 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "risk", label: "Risk / Exposure" },
   { key: "journal", label: "Journal / Trade Review" },
   { key: "session", label: "Session / Review Queue" },
+  { key: "replay", label: "Replay / Stress" },
+  { key: "trade_tickets", label: "Trade Tickets / Shadow" },
 ];
 
 function activeTabLabel(tab: TabKey): string {
@@ -58,7 +64,8 @@ export default function App() {
   const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [selectedRiskReportId, setSelectedRiskReportId] = useState<string | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
-  const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId, selectedTradeId);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId, selectedTradeId, selectedTicketId);
   const paperTradeRows = useMemo(
     () => [...resources.proposedPaperTrades.data, ...resources.activePaperTrades.data, ...resources.closedPaperTrades.data],
     [resources.activePaperTrades.data, resources.closedPaperTrades.data, resources.proposedPaperTrades.data],
@@ -92,6 +99,15 @@ export default function App() {
     setSelectedTradeId(nextTradeId);
   }, [paperTradeRows, selectedSymbol, selectedTradeId]);
 
+  useEffect(() => {
+    const ticketRows = resources.tradeTickets.data;
+    const nextTicketId = ticketRows.find((row) => row.ticket_id === selectedTicketId && row.symbol === selectedSymbol)?.ticket_id
+      ?? ticketRows.find((row) => row.symbol === selectedSymbol)?.ticket_id
+      ?? ticketRows[0]?.ticket_id
+      ?? null;
+    setSelectedTicketId(nextTicketId);
+  }, [resources.tradeTickets.data, selectedSymbol, selectedTicketId]);
+
   function focusSymbol(symbol: string, signalId?: string | null, riskReportId?: string | null) {
     setSelectedSymbol(symbol);
     if (signalId !== undefined) {
@@ -114,6 +130,24 @@ export default function App() {
     }
     if (trade.risk_report_id) {
       setSelectedRiskReportId(trade.risk_report_id);
+    }
+  }
+
+  function focusTicket(ticketId: string | null) {
+    setSelectedTicketId(ticketId);
+    const ticket = resources.tradeTickets.data.find((row) => row.ticket_id === ticketId);
+    if (!ticket) {
+      return;
+    }
+    setSelectedSymbol(ticket.symbol);
+    if (ticket.signal_id) {
+      setSelectedSignalId(ticket.signal_id);
+    }
+    if (ticket.risk_report_id) {
+      setSelectedRiskReportId(ticket.risk_report_id);
+    }
+    if (ticket.trade_id) {
+      setSelectedTradeId(ticket.trade_id);
     }
   }
 
@@ -169,9 +203,11 @@ export default function App() {
                 resources.paperTradeAnalytics.refresh(),
                 resources.paperTradeReviews.refresh(),
                 resources.alerts.refresh(),
+                resources.replay.refresh(),
+                resources.scenarioStress.refresh(),
               ]);
               if (selectedTradeId) {
-                await resources.paperTradeDetail.refresh();
+                await Promise.all([resources.paperTradeDetail.refresh(), resources.paperTradeTimeline.refresh(), resources.paperTradeScenarioStress.refresh()]);
               }
             }}
             onOpenRisk={setSelectedRiskReportId}
@@ -224,9 +260,10 @@ export default function App() {
                 resources.paperTradeAnalytics.refresh(),
                 resources.closedPaperTrades.refresh(),
                 resources.alerts.refresh(),
+                resources.scenarioStress.refresh(),
               ]);
               if (selectedTradeId) {
-                await resources.paperTradeDetail.refresh();
+                await Promise.all([resources.paperTradeDetail.refresh(), resources.paperTradeTimeline.refresh(), resources.paperTradeScenarioStress.refresh()]);
               }
             }}
             onSelectTrade={focusTrade}
@@ -257,6 +294,40 @@ export default function App() {
             overview={resources.sessionOverview.data}
             reviewTasks={resources.reviewTasks.data}
             weeklyReview={resources.weeklyReview.data}
+          />
+        );
+      case "replay":
+        return (
+          <ReplayTab
+            replay={resources.replay.data}
+            scenarioStress={resources.scenarioStress.data}
+            timeline={resources.paperTradeTimeline.data}
+          />
+        );
+      case "trade_tickets":
+        return (
+          <TradeTicketsTab
+            brokerSnapshot={resources.brokerSnapshot.data}
+            detail={resources.tradeTicketDetail.data}
+            onChanged={async () => {
+              await Promise.all([
+                resources.tradeTickets.refresh(),
+                resources.tradeTicketDetail.refresh(),
+                resources.shadowModeTickets.refresh(),
+                resources.brokerSnapshot.refresh(),
+                resources.alerts.refresh(),
+              ]);
+            }}
+            onOpenRisk={setSelectedRiskReportId}
+            onOpenSignal={setSelectedSignalId}
+            onSelectTicket={focusTicket}
+            onSelectTrade={focusTrade}
+            selectedRiskReportId={selectedRiskReportId}
+            selectedSignalId={selectedSignalId}
+            selectedSymbol={selectedSymbol}
+            selectedTicketId={selectedTicketId}
+            shadowRows={resources.shadowModeTickets.data}
+            tickets={resources.tradeTickets.data}
           />
         );
       default:

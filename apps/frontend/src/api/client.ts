@@ -29,6 +29,12 @@ import {
   mockPaperTradesActive,
   mockPaperTradesClosed,
   mockPaperTradesProposed,
+  mockBrokerSnapshot,
+  mockReplay,
+  mockScenarioStressSummary,
+  mockShadowTickets,
+  mockTicketDetail,
+  mockTicketList,
   mockWalletBalances,
   mockWatchlist,
 } from "./mockData";
@@ -47,9 +53,14 @@ import type {
   JournalEntryCreateRequest,
   JournalEntryUpdateRequest,
   JournalReviewView,
+  ManualFillCreateRequest,
+  ManualFillImportRequest,
+  ManualFillView,
   NewsView,
+  BrokerAdapterSnapshotView,
   OperationalBacklogView,
   OpportunityHunterView,
+  ReplayView,
   PaperTradeAnalyticsView,
   PaperTradeCloseRequest,
   PaperTradeDetailView,
@@ -67,11 +78,19 @@ import type {
   RiskDetailView,
   RiskExposureView,
   RiskView,
+  ScenarioStressItemView,
+  ScenarioStressSummaryView,
   SessionOverviewView,
   SignalDetailView,
   SignalView,
   StrategyDetailView,
   StrategyListView,
+  TradeTimelineView,
+  TradeTicketApprovalRequest,
+  TradeTicketCreateRequest,
+  TradeTicketDetailView,
+  TradeTicketUpdateRequest,
+  TradeTicketView,
   WalletBalanceView,
   WeeklyReviewView,
   WatchlistView,
@@ -144,6 +163,9 @@ export const apiClient = {
   activePaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/active", mockPaperTradesActive),
   closedPaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/closed", mockPaperTradesClosed),
   paperTradeDetail: (tradeId: string) => requestJson<PaperTradeDetailView>(`/portfolio/paper-trades/${tradeId}`, mockPaperTradeDetail),
+  paperTradeTimeline: (tradeId: string) => requestJson<TradeTimelineView>(`/portfolio/paper-trades/${tradeId}/timeline`, mockPaperTradeDetail.timeline!),
+  paperTradeScenarioStress: (tradeId: string) =>
+    requestJson<ScenarioStressItemView[]>(`/portfolio/paper-trades/${tradeId}/scenario-stress`, mockPaperTradeDetail.scenario_stress),
   createProposedPaperTrade: (payload: PaperTradeProposalRequest) =>
     requestJson<PaperTradeDetailView>("/portfolio/paper-trades/proposed", mockPaperTradeDetail, {
       method: "POST",
@@ -200,6 +222,61 @@ export const apiClient = {
       body: JSON.stringify(payload),
     }),
   alerts: () => requestJson<AlertEnvelope[]>("/alerts", mockAlerts),
+  replay: (symbol: string, signalId?: string | null, tradeId?: string | null, eventWindowMinutes = 180) =>
+    requestJson<ReplayView>(
+      `/replay?symbol=${encodeURIComponent(symbol)}&event_window_minutes=${eventWindowMinutes}${signalId ? `&signal_id=${encodeURIComponent(signalId)}` : ""}${tradeId ? `&trade_id=${encodeURIComponent(tradeId)}` : ""}`,
+      mockReplay,
+    ),
+  scenarioStress: (symbol?: string | null, signalId?: string | null, tradeId?: string | null) =>
+    requestJson<ScenarioStressSummaryView>(
+      `/replay/scenario-stress${symbol || signalId || tradeId ? "?" : ""}${symbol ? `symbol=${encodeURIComponent(symbol)}&` : ""}${signalId ? `signal_id=${encodeURIComponent(signalId)}&` : ""}${tradeId ? `trade_id=${encodeURIComponent(tradeId)}&` : ""}`.replace(/[?&]$/, ""),
+      mockScenarioStressSummary,
+    ),
+  tradeTickets: () => requestJson<TradeTicketView[]>("/tickets", mockTicketList),
+  tradeTicketDetail: (ticketId: string) => requestJson<TradeTicketDetailView>(`/tickets/${ticketId}`, mockTicketDetail),
+  shadowModeTickets: () => requestJson<TradeTicketDetailView[]>("/tickets/shadow-mode", mockShadowTickets),
+  brokerSnapshot: () => requestJson<BrokerAdapterSnapshotView>("/tickets/broker-snapshot", mockBrokerSnapshot),
+  createTradeTicket: (payload: TradeTicketCreateRequest) =>
+    requestJson<TradeTicketDetailView>("/tickets", mockTicketDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateTradeTicket: (ticketId: string, payload: TradeTicketUpdateRequest) =>
+    requestJson<TradeTicketDetailView>(`/tickets/${ticketId}`, mockTicketDetail, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  approveTradeTicket: (ticketId: string, payload: TradeTicketApprovalRequest) =>
+    requestJson<TradeTicketDetailView>(`/tickets/${ticketId}/approval`, mockTicketDetail, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  invalidateTradeTicket: (ticketId: string, note = "") =>
+    requestJson<TradeTicketDetailView>(`/tickets/${ticketId}/invalidate?note=${encodeURIComponent(note)}`, mockTicketDetail, {
+      method: "POST",
+    }),
+  expireTradeTicket: (ticketId: string, note = "") =>
+    requestJson<TradeTicketDetailView>(`/tickets/${ticketId}/expire?note=${encodeURIComponent(note)}`, mockTicketDetail, {
+      method: "POST",
+    }),
+  shadowActivateTradeTicket: (ticketId: string, note = "") =>
+    requestJson<TradeTicketDetailView>(`/tickets/${ticketId}/shadow-active?note=${encodeURIComponent(note)}`, mockTicketDetail, {
+      method: "POST",
+    }),
+  manualExecuteTradeTicket: (ticketId: string, note = "", tradeId?: string | null) =>
+    requestJson<TradeTicketDetailView>(`/tickets/${ticketId}/manually-executed?note=${encodeURIComponent(note)}${tradeId ? `&trade_id=${encodeURIComponent(tradeId)}` : ""}`, mockTicketDetail, {
+      method: "POST",
+    }),
+  createManualFill: (ticketId: string, payload: ManualFillCreateRequest) =>
+    requestJson<ManualFillView>(`/tickets/${ticketId}/fills`, mockTicketDetail.manual_fills[0], {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  importManualFills: (ticketId: string, payload: ManualFillImportRequest) =>
+    requestJson<ManualFillView[]>(`/tickets/${ticketId}/fills/import`, mockTicketDetail.manual_fills, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   strategies: () => requestJson<StrategyListView[]>("/strategies", mockStrategies),
   strategyDetail: (strategyName: string) =>
     requestJson<StrategyDetailView>(`/strategies/${strategyName}`, mockStrategyDetail),

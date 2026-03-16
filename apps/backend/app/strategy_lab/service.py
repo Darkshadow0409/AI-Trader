@@ -11,7 +11,7 @@ from sqlmodel import Session, desc, select
 
 from app.core.clock import naive_utc_now
 from app.core.settings import get_settings
-from app.models.entities import BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, MacroEvent, MarketBar, PipelineRun, SignalRecord, StrategyRegistryEntry, StrategyStateTransition
+from app.models.entities import BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, MacroEvent, MarketBar, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, SignalRecord, StrategyRegistryEntry, StrategyStateTransition
 from app.models.schemas import (
     BacktestDetailView,
     BacktestListView,
@@ -26,6 +26,7 @@ from app.models.schemas import (
     StrategyDetailView,
     StrategyLifecycleUpdateRequest,
     StrategyListView,
+    StrategyOperatorFeedbackView,
 )
 from app.services.data_reality import asset_reality
 from app.strategy_lab.backtestingpy_runner import run_backtesting_validation
@@ -44,6 +45,8 @@ from app.strategy_lab.walk_forward import generate_walk_forward_windows
 settings = get_settings()
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
 LIFECYCLE_STATES = {"experimental", "paper_validating", "promoted", "demoted"}
+CLOSED_PAPER_STATUSES = {"closed_win", "closed_loss", "invalidated", "timed_out", "cancelled"}
+OPERATOR_FAILURE_CATEGORIES = {"operator_timing", "operator_sizing", "realism_ignored", "execution_plan_violation"}
 
 
 def _clean_number(value: Any) -> float:
@@ -219,6 +222,100 @@ def _aggregate_forward_validation(session: Session, strategy_name: str) -> Forwa
         invalidation_rate=round(sum(1 for row in rows if row.invalidated) / sample_size, 2),
         time_stop_frequency=round(sum(1 for row in rows if row.time_stopped) / sample_size, 2),
         modes=modes,
+    )
+
+
+def _normalize_failure_categories(values: list[str] | None, primary: str = "") -> list[str]:
+    normalized: list[str] = []
+    for item in ([primary] if primary else []) + list(values or []):
+        candidate = str(item).strip()
+        if candidate and candidate not in normalized:
+            normalized.append(candidate)
+    return normalized
+
+
+def _strategy_operator_feedback(session: Session, strategy_name: str) -> StrategyOperatorFeedbackView | None:
+    trades = session.exec(
+        select(PaperTradeRecord)
+        .where(PaperTradeRecord.strategy_id == strategy_name)
+        .where(PaperTradeRecord.status.in_(CLOSED_PAPER_STATUSES))
+        .order_by(desc(PaperTradeRecord.closed_at))
+    ).all()
+    if not trades:
+        return None
+    reviews = {
+        row.trade_id: row
+        for row in session.exec(
+            select(PaperTradeReviewRecord).where(PaperTradeReviewRecord.trade_id.in_([trade.trade_id for trade in trades]))
+        ).all()
+    }
+    adherence_scores: list[float] = []
+    expectancy_values: list[float] = []
+    realism_weighted_values: list[float] = []
+    operator_error_count = 0
+    failure_counts: dict[str, int] = {}
+    for trade in trades:
+        review = reviews.get(trade.trade_id)
+        outcome = trade.outcome_json or {}
+        realized = _clean_number(outcome.get("realized_pnl_pct", 0.0))
+        expectancy_values.append(realized)
+        reality = asset_reality(
+            session,
+            trade.symbol,
+            as_of=trade.closed_at or trade.updated_at,
+            data_quality=trade.data_quality,
+        )
+        realism_weighted_values.append(realized * max(0.2, reality.realism_score / 100))
+        metrics: list[bool] = []
+        entry_ok = review.entered_inside_suggested_zone if review and review.entered_inside_suggested_zone is not None else outcome.get("entry_quality_label") == "inside_zone" if trade.actual_entry is not None else None
+        if entry_ok is not None:
+            metrics.append(bool(entry_ok))
+        if review and review.invalidation_respected is not None:
+            metrics.append(bool(review.invalidation_respected))
+        if review and review.time_stop_respected is not None:
+            metrics.append(bool(review.time_stop_respected))
+        if review and review.size_plan_respected is not None:
+            metrics.append(bool(review.size_plan_respected))
+        elif review and (review.oversized is True or review.undersized is True):
+            metrics.append(False)
+        if review and review.exited_per_plan is not None:
+            metrics.append(bool(review.exited_per_plan))
+        if review and review.realism_warning_ignored is not None:
+            metrics.append(not review.realism_warning_ignored)
+        adherence_scores.append(round(sum(1 for item in metrics if item) / len(metrics), 2) if metrics else 0.0)
+        categories = _normalize_failure_categories(review.failure_categories_json if review else [], review.failure_category if review else "")
+        if any(category in OPERATOR_FAILURE_CATEGORIES for category in categories):
+            operator_error_count += 1
+        for category in categories:
+            failure_counts[category] = failure_counts.get(category, 0) + 1
+    adherence_rate = round(sum(adherence_scores) / len(adherence_scores), 2) if adherence_scores else 0.0
+    adherence_adjusted = round((sum(expectancy_values) / len(expectancy_values)) * adherence_rate, 2) if expectancy_values else 0.0
+    realism_adjusted = round(sum(realism_weighted_values) / len(realism_weighted_values), 2) if realism_weighted_values else 0.0
+    operator_error_rate = round(operator_error_count / len(trades), 2) if trades else 0.0
+    drift_indicator = "stable"
+    if adherence_rate < 0.55 or adherence_adjusted < 0:
+        drift_indicator = "degrading"
+    elif adherence_rate < 0.7 or realism_adjusted < 0:
+        drift_indicator = "monitor"
+    dominant_failure_categories = [
+        category for category, _ in sorted(failure_counts.items(), key=lambda item: (-item[1], item[0]))[:3]
+    ]
+    notes = [
+        f"Adherence-adjusted expectancy proxy: {adherence_adjusted:+.2f}%.",
+        f"Realism-adjusted expectancy proxy: {realism_adjusted:+.2f}%.",
+        f"Operator-error-tagged review share: {operator_error_rate:.2f}.",
+    ]
+    if dominant_failure_categories:
+        notes.append(f"Dominant failure tags: {', '.join(dominant_failure_categories)}.")
+    return StrategyOperatorFeedbackView(
+        trade_count=len(trades),
+        adherence_rate=adherence_rate,
+        adherence_adjusted_expectancy_proxy=adherence_adjusted,
+        realism_adjusted_expectancy_proxy=realism_adjusted,
+        operator_error_rate=operator_error_rate,
+        drift_indicator=drift_indicator,
+        dominant_failure_categories=dominant_failure_categories,
+        notes=notes,
     )
 
 
@@ -731,11 +828,15 @@ def strategy_detail_view(session: Session, row: StrategyRegistryEntry) -> Strate
         .where(ForwardValidationRecord.strategy_name == row.name)
         .order_by(desc(ForwardValidationRecord.opened_at))
     ).all()
+    operator_feedback = _strategy_operator_feedback(session, row.name)
+    if operator_feedback is not None:
+        rationale.notes = [*rationale.notes, *operator_feedback.notes]
     return StrategyDetailView(
         **strategy_list_view(session, row).model_dump(),
         search_space=row.search_space_json,
         spec=row.spec_json,
         promotion_rationale=rationale,
+        operator_feedback_summary=operator_feedback,
         calibration_summary=_calibration_snapshots(session, row.name),
         forward_validation_summary=_aggregate_forward_validation(session, row.name),
         forward_validation_records=[_forward_validation_view(item) for item in forward_records],

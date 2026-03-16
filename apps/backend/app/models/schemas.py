@@ -277,18 +277,34 @@ class PaperTradeOutcomeView(BaseModel):
     realized_pnl_pct: float
 
 
+class PaperTradeAdherenceView(BaseModel):
+    entered_inside_suggested_zone: bool | None = None
+    invalidation_respected: bool | None = None
+    time_stop_respected: bool | None = None
+    realism_warning_ignored: bool | None = None
+    size_plan_respected: bool | None = None
+    exited_per_plan: bool | None = None
+    adherence_score: float = 0.0
+    breached_rules: list[str] = Field(default_factory=list)
+
+
 class PaperTradeReviewView(BaseModel):
     review_id: str
     trade_id: str
     thesis_respected: bool | None = None
     invalidation_respected: bool | None = None
+    entered_inside_suggested_zone: bool | None = None
+    time_stop_respected: bool | None = None
     entered_too_early: bool | None = None
     entered_too_late: bool | None = None
     oversized: bool | None = None
     undersized: bool | None = None
     realism_warning_ignored: bool | None = None
+    size_plan_respected: bool | None = None
+    exited_per_plan: bool | None = None
     catalyst_mattered: bool | None = None
     failure_category: str = ""
+    failure_categories: list[str] = Field(default_factory=list)
     operator_notes: str = ""
     updated_at: datetime
 
@@ -316,6 +332,7 @@ class PaperTradeView(BaseModel):
     data_quality: str
     lifecycle_events: list[dict[str, Any]] = Field(default_factory=list)
     outcome: PaperTradeOutcomeView | None = None
+    adherence: PaperTradeAdherenceView | None = None
     review_due: bool = False
     data_reality: DataRealityView | None = None
 
@@ -366,13 +383,18 @@ class PaperTradeCloseRequest(BaseModel):
 class PaperTradeReviewRequest(BaseModel):
     thesis_respected: bool | None = None
     invalidation_respected: bool | None = None
+    entered_inside_suggested_zone: bool | None = None
+    time_stop_respected: bool | None = None
     entered_too_early: bool | None = None
     entered_too_late: bool | None = None
     oversized: bool | None = None
     undersized: bool | None = None
     realism_warning_ignored: bool | None = None
+    size_plan_respected: bool | None = None
+    exited_per_plan: bool | None = None
     catalyst_mattered: bool | None = None
     failure_category: str = ""
+    failure_categories: list[str] = Field(default_factory=list)
     operator_notes: str = ""
 
 
@@ -389,13 +411,51 @@ class PaperTradeAnalyticsBucketView(BaseModel):
     avg_mae_pct: float
 
 
+class PaperTradeFailureCategoryView(BaseModel):
+    category: str
+    trade_count: int
+    operator_error: bool
+
+
+class PaperTradeHygieneSummaryView(BaseModel):
+    trade_count: int
+    reviewed_trade_count: int
+    adherence_rate: float
+    invalidation_discipline_rate: float
+    realism_warning_violation_rate: float
+    review_completion_rate: float
+    poor_adherence_streak: int
+    review_backlog: int
+    realism_warning_violation_count: int
+    invalidation_breach_count: int
+    promoted_strategy_drift_count: int
+    promoted_strategy_drift: list[str] = Field(default_factory=list)
+
+
 class PaperTradeAnalyticsView(BaseModel):
     generated_at: datetime
     by_signal_family: list[PaperTradeAnalyticsBucketView]
+    by_asset_class: list[PaperTradeAnalyticsBucketView]
     by_strategy: list[PaperTradeAnalyticsBucketView]
+    by_strategy_lifecycle_state: list[PaperTradeAnalyticsBucketView]
     by_score_bucket: list[PaperTradeAnalyticsBucketView]
     by_realism_bucket: list[PaperTradeAnalyticsBucketView]
+    by_realism_grade: list[PaperTradeAnalyticsBucketView]
+    by_freshness_state: list[PaperTradeAnalyticsBucketView]
     by_asset: list[PaperTradeAnalyticsBucketView]
+    hygiene_summary: PaperTradeHygieneSummaryView
+    failure_categories: list[PaperTradeFailureCategoryView]
+
+
+class StrategyOperatorFeedbackView(BaseModel):
+    trade_count: int
+    adherence_rate: float
+    adherence_adjusted_expectancy_proxy: float
+    realism_adjusted_expectancy_proxy: float
+    operator_error_rate: float
+    drift_indicator: str
+    dominant_failure_categories: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
 
 class WalletBalanceLineView(BaseModel):
@@ -579,6 +639,7 @@ class StrategyDetailView(StrategyListView):
     search_space: dict[str, Any]
     spec: dict[str, Any]
     promotion_rationale: PromotionRationaleView
+    operator_feedback_summary: StrategyOperatorFeedbackView | None = None
     calibration_summary: list[CalibrationSnapshotView]
     forward_validation_summary: ForwardValidationSummaryView
     forward_validation_records: list[ForwardValidationRecordView]

@@ -47,6 +47,7 @@ TEST_FILES = [
     "apps/backend/tests/test_pipeline_scripts.py",
     "apps/backend/tests/test_connector_fallbacks.py",
     "apps/backend/tests/test_data_reality.py",
+    "apps/backend/tests/test_decision_quality.py",
     "apps/backend/tests/test_feature_pipeline.py",
     "apps/backend/tests/test_paper_trading.py",
     "apps/backend/tests/test_promotion_core.py",
@@ -398,7 +399,7 @@ def build_review_readme() -> str:
 
         ## Milestone actually complete
 
-        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts. Milestone 5 adds verification tiering, observability, hardening tests, and reviewability docs. Milestone 6A upgrades market-data reality with explicit research-to-tradable mapping, delayed/live timing semantics, stronger oil or metals penalties, and clearer operator-visible trust limits.
+        Milestone 1 is complete and reviewable: monorepo scaffold, seed and backfill scripts, BTC and ETH plus FRED and EIA ingestion with fixture fallback, feature engine v1, trend-breakout and event-driven signals, risk reports, FastAPI routes, and a working dashboard. Milestone 1.5 contract hardening is also present through explicit `signal_id` and `risk_report_id`. Milestone 2A operator-console work is present for signal and risk detail views, opportunity hunting, active trade tracking, journal writes, and in-app alerts. Milestone 2B adds thin Telegram and Discord delivery sinks behind the local alert contract. Milestone 3A adds strategy lifecycle states, forward-validation summaries, calibration snapshots, promotion rationale, and demotion rules. Milestone 3B adds provenance contracts, freshness-policy states, deterministic realism scoring, stronger proxy or oil or metals penalties, and UI-visible data-reality summaries. Milestone 4 adds a first-class paper-trade ledger, lifecycle endpoints, structured review, empirical outcome analytics, and lifecycle alerts. Milestone 5 adds verification tiering, observability, hardening tests, and reviewability docs. Milestone 6A upgrades market-data reality with explicit research-to-tradable mapping, delayed/live timing semantics, stronger oil or metals penalties, and clearer operator-visible trust limits. Milestone 6B adds operator adherence analytics, structured failure attribution, decision-hygiene summaries, and strategy feedback that separates operator error from signal quality.
 
         ## Intentionally stubbed
 
@@ -779,6 +780,25 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/paper_trade_review.json", paper_trade_reviews[0])
     if isinstance(paper_trade_analytics, dict):
         write_json(bundle_root / "samples/paper_trade_analytics_summary.json", paper_trade_analytics)
+        write_json(bundle_root / "samples/adherence_summary_example.json", paper_trade_analytics.get("hygiene_summary", {}))
+        write_json(bundle_root / "samples/family_outcome_diagnostic_summary.json", paper_trade_analytics.get("by_signal_family", []))
+        write_json(
+            bundle_root / "samples/hygiene_dashboard_sample.json",
+            {
+                "hygiene_summary": paper_trade_analytics.get("hygiene_summary", {}),
+                "failure_categories": paper_trade_analytics.get("failure_categories", []),
+                "by_signal_family": paper_trade_analytics.get("by_signal_family", []),
+                "by_strategy_lifecycle_state": paper_trade_analytics.get("by_strategy_lifecycle_state", []),
+            },
+        )
+    if isinstance(paper_trade_reviews, list):
+        realism_violation = next(
+            (item for item in paper_trade_reviews if item.get("realism_warning_ignored")),
+            None,
+        )
+        if realism_violation:
+            write_json(bundle_root / "samples/realism_warning_violation_example.json", realism_violation)
+            write_json(bundle_root / "samples/failure_attribution_example.json", realism_violation)
     if isinstance(journal, list) and journal:
         write_json(bundle_root / "samples/seeded_journal_entry.json", journal[0])
     shutil.copy2(

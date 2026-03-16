@@ -72,6 +72,13 @@ def _ensure_contract_columns() -> None:
             "lifecycle_updated_at": "TIMESTAMP",
             "lifecycle_note": "TEXT DEFAULT ''",
         },
+        "papertradereviewrecord": {
+            "entered_inside_suggested_zone": "BOOLEAN",
+            "time_stop_respected": "BOOLEAN",
+            "size_plan_respected": "BOOLEAN",
+            "exited_per_plan": "BOOLEAN",
+            "failure_categories_json": "TEXT DEFAULT '[]'",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():

@@ -124,6 +124,11 @@ describe("frontend contract alignment", () => {
       lifecycle_updated_at: expect.any(String),
       data_reality: expect.any(Object),
       promotion_rationale: expect.any(Object),
+      operator_feedback_summary: expect.objectContaining({
+        adherence_adjusted_expectancy_proxy: expect.any(Number),
+        realism_adjusted_expectancy_proxy: expect.any(Number),
+        operator_error_rate: expect.any(Number),
+      }),
       calibration_summary: expect.any(Array),
       forward_validation_summary: expect.any(Object),
       data_realism_penalties: expect.any(Array),
@@ -147,6 +152,10 @@ describe("frontend contract alignment", () => {
         entry_quality_label: expect.any(String),
         realized_pnl_pct: expect.any(Number),
       }),
+      adherence: expect.objectContaining({
+        adherence_score: expect.any(Number),
+        breached_rules: expect.any(Array),
+      }),
     });
     expect(paperTradeDetail).toMatchObject({
       linked_signal: expect.any(Object),
@@ -154,14 +163,26 @@ describe("frontend contract alignment", () => {
     });
     expect(paperTradeReview).toMatchObject({
       trade_id: expect.any(String),
+      entered_inside_suggested_zone: expect.anything(),
+      size_plan_respected: expect.anything(),
+      failure_categories: expect.any(Array),
       operator_notes: expect.any(String),
     });
     expect(paperTradeAnalytics).toMatchObject({
       by_signal_family: expect.any(Array),
+      by_asset_class: expect.any(Array),
       by_strategy: expect.any(Array),
+      by_strategy_lifecycle_state: expect.any(Array),
       by_score_bucket: expect.any(Array),
       by_realism_bucket: expect.any(Array),
+      by_realism_grade: expect.any(Array),
+      by_freshness_state: expect.any(Array),
       by_asset: expect.any(Array),
+      hygiene_summary: expect.objectContaining({
+        adherence_rate: expect.any(Number),
+        review_completion_rate: expect.any(Number),
+      }),
+      failure_categories: expect.any(Array),
     });
   });
 });

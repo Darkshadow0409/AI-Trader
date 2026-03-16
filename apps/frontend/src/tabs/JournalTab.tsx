@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/client";
 import { StateBlock } from "../components/StateBlock";
 import type {
+  PaperTradeFailureCategoryView,
   JournalReviewView,
   PaperTradeAnalyticsBucketView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
+  PaperTradeHygieneSummaryView,
   PaperTradeReviewRequest,
   PaperTradeReviewView,
   PaperTradeView,
@@ -40,6 +42,10 @@ function decodeBool(value: string): boolean | null {
     return false;
   }
   return null;
+}
+
+function titleize(value: string): string {
+  return value.replace(/_/g, " ");
 }
 
 function AnalyticsTable({ title, rows }: { title: string; rows: PaperTradeAnalyticsBucketView[] }) {
@@ -78,6 +84,75 @@ function AnalyticsTable({ title, rows }: { title: string; rows: PaperTradeAnalyt
   );
 }
 
+function HygienePanel({ summary }: { summary: PaperTradeHygieneSummaryView }) {
+  return (
+    <article className="panel compact-panel">
+      <h3>Decision Hygiene</h3>
+      <div className="metric-grid">
+        <div>
+          <span className="metric-label">Adherence rate</span>
+          <strong>{(summary.adherence_rate * 100).toFixed(0)}%</strong>
+        </div>
+        <div>
+          <span className="metric-label">Invalidation discipline</span>
+          <strong>{(summary.invalidation_discipline_rate * 100).toFixed(0)}%</strong>
+        </div>
+        <div>
+          <span className="metric-label">Realism violations</span>
+          <strong>{summary.realism_warning_violation_count}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Review completion</span>
+          <strong>{(summary.review_completion_rate * 100).toFixed(0)}%</strong>
+        </div>
+        <div>
+          <span className="metric-label">Poor-adherence streak</span>
+          <strong>{summary.poor_adherence_streak}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Promoted drift</span>
+          <strong>{summary.promoted_strategy_drift_count}</strong>
+        </div>
+      </div>
+      {summary.promoted_strategy_drift.length > 0 ? (
+        <p className="muted-copy">Drift watch: {summary.promoted_strategy_drift.join(", ")}</p>
+      ) : (
+        <p className="muted-copy">No promoted-strategy drift flags in the current fixture cohort.</p>
+      )}
+    </article>
+  );
+}
+
+function FailureTable({ rows }: { rows: PaperTradeFailureCategoryView[] }) {
+  return (
+    <article className="panel compact-panel">
+      <h3>Failure Attribution</h3>
+      {rows.length === 0 ? (
+        <p className="muted-copy">No structured failure tags yet.</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Trades</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.category}>
+                <td>{titleize(row.category)}</td>
+                <td>{row.trade_count}</td>
+                <td>{row.operator_error ? "operator" : "system/context"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </article>
+  );
+}
+
 export function JournalTab({
   rows,
   reviews,
@@ -100,13 +175,18 @@ export function JournalTab({
   const [reviewDraft, setReviewDraft] = useState<PaperTradeReviewRequest>({
     thesis_respected: selectedReview?.thesis_respected ?? null,
     invalidation_respected: selectedReview?.invalidation_respected ?? null,
+    entered_inside_suggested_zone: selectedReview?.entered_inside_suggested_zone ?? selectedTrade?.adherence?.entered_inside_suggested_zone ?? null,
+    time_stop_respected: selectedReview?.time_stop_respected ?? selectedTrade?.adherence?.time_stop_respected ?? null,
     entered_too_early: selectedReview?.entered_too_early ?? null,
     entered_too_late: selectedReview?.entered_too_late ?? null,
     oversized: selectedReview?.oversized ?? null,
     undersized: selectedReview?.undersized ?? null,
     realism_warning_ignored: selectedReview?.realism_warning_ignored ?? null,
+    size_plan_respected: selectedReview?.size_plan_respected ?? selectedTrade?.adherence?.size_plan_respected ?? null,
+    exited_per_plan: selectedReview?.exited_per_plan ?? selectedTrade?.adherence?.exited_per_plan ?? null,
     catalyst_mattered: selectedReview?.catalyst_mattered ?? null,
     failure_category: selectedReview?.failure_category ?? "",
+    failure_categories: selectedReview?.failure_categories ?? [],
     operator_notes: selectedReview?.operator_notes ?? "",
   });
 
@@ -114,16 +194,21 @@ export function JournalTab({
     setReviewDraft({
       thesis_respected: selectedReview?.thesis_respected ?? null,
       invalidation_respected: selectedReview?.invalidation_respected ?? null,
+      entered_inside_suggested_zone: selectedReview?.entered_inside_suggested_zone ?? selectedTrade?.adherence?.entered_inside_suggested_zone ?? null,
+      time_stop_respected: selectedReview?.time_stop_respected ?? selectedTrade?.adherence?.time_stop_respected ?? null,
       entered_too_early: selectedReview?.entered_too_early ?? null,
       entered_too_late: selectedReview?.entered_too_late ?? null,
       oversized: selectedReview?.oversized ?? null,
       undersized: selectedReview?.undersized ?? null,
       realism_warning_ignored: selectedReview?.realism_warning_ignored ?? null,
+      size_plan_respected: selectedReview?.size_plan_respected ?? selectedTrade?.adherence?.size_plan_respected ?? null,
+      exited_per_plan: selectedReview?.exited_per_plan ?? selectedTrade?.adherence?.exited_per_plan ?? null,
       catalyst_mattered: selectedReview?.catalyst_mattered ?? null,
       failure_category: selectedReview?.failure_category ?? "",
+      failure_categories: selectedReview?.failure_categories ?? [],
       operator_notes: selectedReview?.operator_notes ?? "",
     });
-  }, [selectedReview]);
+  }, [selectedReview, selectedTrade]);
 
   async function handleSaveReview() {
     if (!selectedTrade) {
@@ -179,11 +264,17 @@ export function JournalTab({
             </table>
           )}
         </article>
+        <HygienePanel summary={analytics.hygiene_summary} />
         <AnalyticsTable rows={analytics.by_signal_family} title="Outcomes by Signal Family" />
+        <AnalyticsTable rows={analytics.by_asset_class} title="Outcomes by Asset Class" />
         <AnalyticsTable rows={analytics.by_strategy} title="Outcomes by Strategy" />
+        <AnalyticsTable rows={analytics.by_strategy_lifecycle_state} title="Outcomes by Strategy Lifecycle" />
         <AnalyticsTable rows={analytics.by_score_bucket} title="Outcomes by Score Bucket" />
         <AnalyticsTable rows={analytics.by_realism_bucket} title="Outcomes by Realism Bucket" />
+        <AnalyticsTable rows={analytics.by_realism_grade} title="Outcomes by Realism Grade" />
+        <AnalyticsTable rows={analytics.by_freshness_state} title="Outcomes by Freshness State" />
         <AnalyticsTable rows={analytics.by_asset} title="Outcomes by Asset" />
+        <FailureTable rows={analytics.failure_categories} />
       </div>
 
       <div className="stack">
@@ -226,6 +317,28 @@ export function JournalTab({
                   <select
                     value={encodeBool(reviewDraft.invalidation_respected)}
                     onChange={(event) => setReviewDraft((current) => ({ ...current, invalidation_respected: decodeBool(event.target.value) }))}
+                  >
+                    <option value="unknown">unknown</option>
+                    <option value="yes">yes</option>
+                    <option value="no">no</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Entered Inside Zone</span>
+                  <select
+                    value={encodeBool(reviewDraft.entered_inside_suggested_zone)}
+                    onChange={(event) => setReviewDraft((current) => ({ ...current, entered_inside_suggested_zone: decodeBool(event.target.value) }))}
+                  >
+                    <option value="unknown">unknown</option>
+                    <option value="yes">yes</option>
+                    <option value="no">no</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Time Stop Respected</span>
+                  <select
+                    value={encodeBool(reviewDraft.time_stop_respected)}
+                    onChange={(event) => setReviewDraft((current) => ({ ...current, time_stop_respected: decodeBool(event.target.value) }))}
                   >
                     <option value="unknown">unknown</option>
                     <option value="yes">yes</option>
@@ -288,6 +401,28 @@ export function JournalTab({
                   </select>
                 </label>
                 <label className="field">
+                  <span>Size Plan Respected</span>
+                  <select
+                    value={encodeBool(reviewDraft.size_plan_respected)}
+                    onChange={(event) => setReviewDraft((current) => ({ ...current, size_plan_respected: decodeBool(event.target.value) }))}
+                  >
+                    <option value="unknown">unknown</option>
+                    <option value="yes">yes</option>
+                    <option value="no">no</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Exited Per Plan</span>
+                  <select
+                    value={encodeBool(reviewDraft.exited_per_plan)}
+                    onChange={(event) => setReviewDraft((current) => ({ ...current, exited_per_plan: decodeBool(event.target.value) }))}
+                  >
+                    <option value="unknown">unknown</option>
+                    <option value="yes">yes</option>
+                    <option value="no">no</option>
+                  </select>
+                </label>
+                <label className="field">
                   <span>Catalyst Mattered</span>
                   <select
                     value={encodeBool(reviewDraft.catalyst_mattered)}
@@ -299,13 +434,38 @@ export function JournalTab({
                   </select>
                 </label>
                 <label className="field">
-                  <span>Failure Category</span>
+                  <span>Primary Failure Category</span>
                   <input
                     value={reviewDraft.failure_category ?? ""}
                     onChange={(event) => setReviewDraft((current) => ({ ...current, failure_category: event.target.value }))}
                   />
                 </label>
+                <label className="field">
+                  <span>Failure Tags</span>
+                  <input
+                    value={(reviewDraft.failure_categories ?? []).join(", ")}
+                    onChange={(event) =>
+                      setReviewDraft((current) => ({
+                        ...current,
+                        failure_categories: event.target.value
+                          .split(",")
+                          .map((item) => item.trim())
+                          .filter(Boolean),
+                      }))
+                    }
+                  />
+                </label>
               </div>
+              {selectedTrade.adherence ? (
+                <div className="metric-row compact-row">
+                  <span>Derived adherence {(selectedTrade.adherence.adherence_score * 100).toFixed(0)}%</span>
+                  <span>
+                    {selectedTrade.adherence.breached_rules.length > 0
+                      ? selectedTrade.adherence.breached_rules.map((item) => titleize(item)).join(", ")
+                      : "no derived breaches"}
+                  </span>
+                </div>
+              ) : null}
               <label className="field">
                 <span>Operator Notes</span>
                 <textarea

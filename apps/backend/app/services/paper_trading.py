@@ -14,7 +14,10 @@ from app.core.telemetry import record_paper_trade_event
 from app.models.entities import MarketBar, PaperTradeRecord, PaperTradeReviewRecord, StrategyRegistryEntry
 from app.models.schemas import (
     AlertEnvelope,
+    PaperTradeAdherenceView,
     PaperTradeAnalyticsBucketView,
+    PaperTradeFailureCategoryView,
+    PaperTradeHygieneSummaryView,
     PaperTradeAnalyticsView,
     PaperTradeCloseRequest,
     PaperTradeDetailView,
@@ -38,6 +41,7 @@ FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
 ACTIVE_PAPER_STATUSES = {"opened", "scaled_in", "partially_exited"}
 CLOSED_PAPER_STATUSES = {"closed_win", "closed_loss", "invalidated", "timed_out", "cancelled"}
 PAPER_STATUSES = {"proposed", *ACTIVE_PAPER_STATUSES, *CLOSED_PAPER_STATUSES}
+OPERATOR_FAILURE_CATEGORIES = {"operator_timing", "operator_sizing", "realism_ignored", "execution_plan_violation"}
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -67,6 +71,15 @@ def _realism_bucket(realism_score: float) -> str:
     if realism_score >= 45:
         return "usable"
     return "weak"
+
+
+def _normalize_failure_categories(values: list[str] | None, primary: str = "") -> list[str]:
+    normalized: list[str] = []
+    for item in ([primary] if primary else []) + list(values or []):
+        candidate = str(item).strip()
+        if candidate and candidate not in normalized:
+            normalized.append(candidate)
+    return normalized
 
 
 def _signal_maps(session: Session) -> tuple[dict[str, SignalView], dict[str, RiskView]]:
@@ -226,15 +239,59 @@ def _review_view(row: PaperTradeReviewRecord | None) -> PaperTradeReviewView | N
         trade_id=row.trade_id,
         thesis_respected=row.thesis_respected,
         invalidation_respected=row.invalidation_respected,
+        entered_inside_suggested_zone=row.entered_inside_suggested_zone,
+        time_stop_respected=row.time_stop_respected,
         entered_too_early=row.entered_too_early,
         entered_too_late=row.entered_too_late,
         oversized=row.oversized,
         undersized=row.undersized,
         realism_warning_ignored=row.realism_warning_ignored,
+        size_plan_respected=row.size_plan_respected,
+        exited_per_plan=row.exited_per_plan,
         catalyst_mattered=row.catalyst_mattered,
         failure_category=row.failure_category,
+        failure_categories=_normalize_failure_categories(row.failure_categories_json, row.failure_category),
         operator_notes=row.operator_notes,
         updated_at=row.updated_at,
+    )
+
+
+def _adherence_view(trade: PaperTradeRecord, outcome: PaperTradeOutcomeView | None, review: PaperTradeReviewRecord | None) -> PaperTradeAdherenceView:
+    entry_in_zone_default = None if trade.actual_entry is None or outcome is None else outcome.entry_quality_label == "inside_zone"
+    time_stop_default = None if trade.status != "timed_out" and trade.close_reason != "time_stop" else True
+    size_plan_default = None
+    if review is not None and review.oversized is not None and review.undersized is not None:
+        size_plan_default = not review.oversized and not review.undersized
+    elif review is not None and (review.oversized is True or review.undersized is True):
+        size_plan_default = False
+    exited_per_plan_default = None
+    if trade.closed_at is not None:
+        exited_per_plan_default = trade.close_reason in {"target_hit", "target_partial", "time_stop", "stop_hit", "invalidated"}
+        if outcome is not None and outcome.target_attainment in {"base", "stretch"}:
+            exited_per_plan_default = True
+
+    adherence = {
+        "entered_inside_suggested_zone": review.entered_inside_suggested_zone if review is not None and review.entered_inside_suggested_zone is not None else entry_in_zone_default,
+        "invalidation_respected": review.invalidation_respected if review is not None else None,
+        "time_stop_respected": review.time_stop_respected if review is not None and review.time_stop_respected is not None else time_stop_default,
+        "realism_warning_ignored": review.realism_warning_ignored if review is not None else None,
+        "size_plan_respected": review.size_plan_respected if review is not None and review.size_plan_respected is not None else size_plan_default,
+        "exited_per_plan": review.exited_per_plan if review is not None and review.exited_per_plan is not None else exited_per_plan_default,
+    }
+    scored_values: list[bool] = []
+    breached_rules: list[str] = []
+    for key, value in adherence.items():
+        if value is None:
+            continue
+        is_positive = (not value) if key == "realism_warning_ignored" else bool(value)
+        scored_values.append(is_positive)
+        if not is_positive:
+            breached_rules.append(key)
+    adherence_score = round(sum(1 for value in scored_values if value) / len(scored_values), 2) if scored_values else 0.0
+    return PaperTradeAdherenceView(
+        **adherence,
+        adherence_score=adherence_score,
+        breached_rules=breached_rules,
     )
 
 
@@ -247,6 +304,7 @@ def _trade_view(
 ) -> PaperTradeView:
     outcome = _compute_outcome(session, row)
     review = reviews.get(row.trade_id)
+    adherence = _adherence_view(row, outcome, review)
     linked_signal = signals.get(row.signal_id or "")
     reality = asset_reality(
         session,
@@ -281,6 +339,7 @@ def _trade_view(
         data_quality=row.data_quality,
         lifecycle_events=row.lifecycle_events_json,
         outcome=outcome,
+        adherence=adherence,
         review_due=row.status in CLOSED_PAPER_STATUSES and review is None,
         data_reality=reality,
     )
@@ -349,13 +408,18 @@ def seed_paper_trades(session: Session) -> None:
                     trade_id=str(item["trade_id"]),
                     thesis_respected=item.get("thesis_respected"),
                     invalidation_respected=item.get("invalidation_respected"),
+                    entered_inside_suggested_zone=item.get("entered_inside_suggested_zone"),
+                    time_stop_respected=item.get("time_stop_respected"),
                     entered_too_early=item.get("entered_too_early"),
                     entered_too_late=item.get("entered_too_late"),
                     oversized=item.get("oversized"),
                     undersized=item.get("undersized"),
                     realism_warning_ignored=item.get("realism_warning_ignored"),
+                    size_plan_respected=item.get("size_plan_respected"),
+                    exited_per_plan=item.get("exited_per_plan"),
                     catalyst_mattered=item.get("catalyst_mattered"),
                     failure_category=str(item.get("failure_category", "")),
+                    failure_categories_json=_normalize_failure_categories(item.get("failure_categories"), str(item.get("failure_category", ""))),
                     operator_notes=str(item.get("operator_notes", "")),
                     updated_at=_parse_iso(item["updated_at"]) if item.get("updated_at") else naive_utc_now(),
                 )
@@ -578,7 +642,11 @@ def upsert_paper_trade_review(session: Session, trade_id: str, payload: PaperTra
     if review is None:
         review = PaperTradeReviewRecord(review_id=_stable_id("review", trade_id), trade_id=trade_id)
     for field, value in payload.model_dump().items():
-        setattr(review, field, value)
+        if field == "failure_categories":
+            review.failure_categories_json = _normalize_failure_categories(value, payload.failure_category)
+        else:
+            setattr(review, field, value)
+    review.failure_categories_json = _normalize_failure_categories(review.failure_categories_json, review.failure_category)
     review.updated_at = naive_utc_now()
     session.add(review)
     session.commit()
@@ -616,9 +684,78 @@ def _aggregate_bucket(grouping: str, key: str, trades: list[PaperTradeView], sig
     )
 
 
+def _hygiene_summary(
+    closed: list[PaperTradeView],
+    reviews: dict[str, PaperTradeReviewRecord],
+    strategy_lifecycle: dict[str, str],
+) -> tuple[PaperTradeHygieneSummaryView, list[str]]:
+    reviewed = [trade for trade in closed if trade.trade_id in reviews]
+    adherence_values = [trade.adherence.adherence_score for trade in reviewed if trade.adherence is not None]
+    invalidation_checks = [trade.adherence.invalidation_respected for trade in reviewed if trade.adherence and trade.adherence.invalidation_respected is not None]
+    realism_violations = [
+        trade for trade in reviewed if trade.adherence and trade.adherence.realism_warning_ignored is True
+    ]
+    invalidation_breaches = [
+        trade for trade in reviewed if trade.adherence and trade.adherence.invalidation_respected is False
+    ]
+    poor_streak = 0
+    for trade in sorted(closed, key=lambda item: item.closed_at or naive_utc_now(), reverse=True):
+        if trade.adherence is None or trade.adherence.adherence_score >= 0.67:
+            break
+        poor_streak += 1
+    promoted_groups: dict[str, list[PaperTradeView]] = {}
+    for trade in closed:
+        lifecycle_state = strategy_lifecycle.get(trade.strategy_id or "", "manual")
+        if lifecycle_state == "promoted":
+            promoted_groups.setdefault(trade.strategy_id or "manual", []).append(trade)
+    drift: list[str] = []
+    for strategy_name, rows in promoted_groups.items():
+        expectancy = sum((row.outcome.realized_pnl_pct if row.outcome else 0.0) for row in rows) / len(rows)
+        adherence = sum((row.adherence.adherence_score if row.adherence else 0.0) for row in rows) / len(rows)
+        if expectancy < 0 or adherence < 0.6:
+            drift.append(strategy_name)
+    return (
+        PaperTradeHygieneSummaryView(
+            trade_count=len(closed),
+            reviewed_trade_count=len(reviewed),
+            adherence_rate=round(sum(adherence_values) / len(adherence_values), 2) if adherence_values else 0.0,
+            invalidation_discipline_rate=round(sum(1 for item in invalidation_checks if item) / len(invalidation_checks), 2) if invalidation_checks else 0.0,
+            realism_warning_violation_rate=round(len(realism_violations) / len(reviewed), 2) if reviewed else 0.0,
+            review_completion_rate=round(len(reviewed) / len(closed), 2) if closed else 0.0,
+            poor_adherence_streak=poor_streak,
+            review_backlog=sum(1 for trade in closed if trade.review_due),
+            realism_warning_violation_count=len(realism_violations),
+            invalidation_breach_count=len(invalidation_breaches),
+            promoted_strategy_drift_count=len(drift),
+            promoted_strategy_drift=drift,
+        ),
+        drift,
+    )
+
+
+def _failure_categories(reviews: dict[str, PaperTradeReviewRecord]) -> list[PaperTradeFailureCategoryView]:
+    counts: dict[str, int] = {}
+    for review in reviews.values():
+        for category in _normalize_failure_categories(review.failure_categories_json, review.failure_category):
+            counts[category] = counts.get(category, 0) + 1
+    return [
+        PaperTradeFailureCategoryView(
+            category=category,
+            trade_count=count,
+            operator_error=category in OPERATOR_FAILURE_CATEGORIES,
+        )
+        for category, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
 def paper_trade_analytics(session: Session) -> PaperTradeAnalyticsView:
     closed = list_paper_trades(session, statuses=CLOSED_PAPER_STATUSES)
     signals, _ = _signal_maps(session)
+    reviews = {row.trade_id: row for row in session.exec(select(PaperTradeReviewRecord)).all()}
+    strategy_lifecycle = {
+        row.name: row.lifecycle_state
+        for row in session.exec(select(StrategyRegistryEntry)).all()
+    }
 
     def group_rows(grouping: str, key_fn: Any) -> list[PaperTradeAnalyticsBucketView]:
         groups: dict[str, list[PaperTradeView]] = {}
@@ -626,13 +763,21 @@ def paper_trade_analytics(session: Session) -> PaperTradeAnalyticsView:
             groups.setdefault(str(key_fn(trade)), []).append(trade)
         return [_aggregate_bucket(grouping, key, rows, signals) for key, rows in sorted(groups.items())]
 
+    hygiene_summary, _ = _hygiene_summary(closed, reviews, strategy_lifecycle)
+
     return PaperTradeAnalyticsView(
         generated_at=naive_utc_now(),
         by_signal_family=group_rows("signal_family", lambda trade: signals.get(trade.signal_id or "").signal_type if signals.get(trade.signal_id or "") else "manual"),
+        by_asset_class=group_rows("asset_class", lambda trade: trade.data_reality.provenance.asset_class if trade.data_reality else "unknown"),
         by_strategy=group_rows("strategy", lambda trade: trade.strategy_id or "manual"),
+        by_strategy_lifecycle_state=group_rows("strategy_lifecycle_state", lambda trade: strategy_lifecycle.get(trade.strategy_id or "", "manual")),
         by_score_bucket=group_rows("score_bucket", lambda trade: _bucket_label(signals.get(trade.signal_id or "").score if signals.get(trade.signal_id or "") else 0.0)),
         by_realism_bucket=group_rows("realism_bucket", lambda trade: _realism_bucket(trade.data_reality.realism_score if trade.data_reality else 0.0)),
+        by_realism_grade=group_rows("realism_grade", lambda trade: trade.data_reality.provenance.realism_grade if trade.data_reality else "unknown"),
+        by_freshness_state=group_rows("freshness_state", lambda trade: trade.data_reality.freshness_state if trade.data_reality else "unknown"),
         by_asset=group_rows("asset", lambda trade: trade.symbol),
+        hygiene_summary=hygiene_summary,
+        failure_categories=_failure_categories(reviews),
     )
 
 
@@ -741,3 +886,101 @@ def refresh_paper_trade_alerts(session: Session) -> None:
                     data_quality="fixture",
                 ),
             )
+    reviews = {row.trade_id: row for row in session.exec(select(PaperTradeReviewRecord)).all()}
+    strategy_lifecycle = {row.name: row.lifecycle_state for row in session.exec(select(StrategyRegistryEntry)).all()}
+    hygiene_summary, drift = _hygiene_summary(closed, reviews, strategy_lifecycle)
+    if hygiene_summary.realism_warning_violation_count >= 2:
+        dispatch_alert(
+            session,
+            AlertEnvelope(
+                alert_id=stable_alert_id("repeated_realism_warning_violation", hygiene_summary.realism_warning_violation_count),
+                created_at=naive_utc_now(),
+                signal_id=None,
+                risk_report_id=None,
+                asset_ids=sorted({trade.symbol for trade in closed if trade.adherence and trade.adherence.realism_warning_ignored}),
+                severity="warning",
+                category="repeated_realism_warning_violation",
+                channel_targets=choose_channel_targets("warning"),
+                title="Repeated realism-warning violations",
+                body=f"{hygiene_summary.realism_warning_violation_count} reviewed paper trades ignored realism warnings.",
+                tags=["decision_hygiene", "realism_warning"],
+                dedupe_key=f"repeated_realism_warning_violation:{hygiene_summary.realism_warning_violation_count}",
+                data_quality="paper",
+            ),
+        )
+    if hygiene_summary.invalidation_breach_count >= 2:
+        dispatch_alert(
+            session,
+            AlertEnvelope(
+                alert_id=stable_alert_id("repeated_invalidation_breaches", hygiene_summary.invalidation_breach_count),
+                created_at=naive_utc_now(),
+                signal_id=None,
+                risk_report_id=None,
+                asset_ids=sorted({trade.symbol for trade in closed if trade.adherence and trade.adherence.invalidation_respected is False}),
+                severity="warning",
+                category="repeated_invalidation_breaches",
+                channel_targets=choose_channel_targets("warning"),
+                title="Repeated invalidation breaches",
+                body=f"{hygiene_summary.invalidation_breach_count} reviewed paper trades failed invalidation discipline.",
+                tags=["decision_hygiene", "invalidation"],
+                dedupe_key=f"repeated_invalidation_breaches:{hygiene_summary.invalidation_breach_count}",
+                data_quality="paper",
+            ),
+        )
+    if hygiene_summary.review_backlog >= 2:
+        dispatch_alert(
+            session,
+            AlertEnvelope(
+                alert_id=stable_alert_id("paper_trade_review_backlog", hygiene_summary.review_backlog),
+                created_at=naive_utc_now(),
+                signal_id=None,
+                risk_report_id=None,
+                asset_ids=sorted({trade.symbol for trade in closed if trade.review_due}),
+                severity="info",
+                category="paper_trade_review_backlog",
+                channel_targets=choose_channel_targets("info"),
+                title="Paper-trade review backlog",
+                body=f"{hygiene_summary.review_backlog} closed paper trades are awaiting structured review.",
+                tags=["decision_hygiene", "review_backlog"],
+                dedupe_key=f"paper_trade_review_backlog:{hygiene_summary.review_backlog}",
+                data_quality="paper",
+            ),
+        )
+    if hygiene_summary.poor_adherence_streak >= 2:
+        dispatch_alert(
+            session,
+            AlertEnvelope(
+                alert_id=stable_alert_id("poor_adherence_streak", hygiene_summary.poor_adherence_streak),
+                created_at=naive_utc_now(),
+                signal_id=None,
+                risk_report_id=None,
+                asset_ids=[],
+                severity="warning",
+                category="poor_adherence_streak",
+                channel_targets=choose_channel_targets("warning"),
+                title="Poor adherence streak",
+                body=f"The last {hygiene_summary.poor_adherence_streak} closed paper trades show weak adherence.",
+                tags=["decision_hygiene", "adherence"],
+                dedupe_key=f"poor_adherence_streak:{hygiene_summary.poor_adherence_streak}",
+                data_quality="paper",
+            ),
+        )
+    for strategy_name in drift:
+        dispatch_alert(
+            session,
+            AlertEnvelope(
+                alert_id=stable_alert_id("promoted_strategy_drift", strategy_name),
+                created_at=naive_utc_now(),
+                signal_id=None,
+                risk_report_id=None,
+                asset_ids=[],
+                severity="warning",
+                category="promoted_strategy_drift",
+                channel_targets=choose_channel_targets("warning"),
+                title=f"{strategy_name} operator drift",
+                body=f"Promoted strategy {strategy_name} shows degraded paper-trade adherence or expectancy.",
+                tags=[strategy_name, "decision_hygiene"],
+                dedupe_key=f"promoted_strategy_drift:{strategy_name}",
+                data_quality="paper",
+            ),
+        )

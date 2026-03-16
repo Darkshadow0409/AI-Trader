@@ -351,6 +351,12 @@ export function StrategyLabTab() {
               <span className="metric-label">Time-stop</span>
               <strong>{formatRatio(strategyDetail.forward_validation_summary.time_stop_frequency)}</strong>
             </div>
+            {strategyDetail.operator_feedback_summary ? (
+              <div>
+                <span className="metric-label">Adherence</span>
+                <strong>{formatRatio(strategyDetail.operator_feedback_summary.adherence_rate)}</strong>
+              </div>
+            ) : null}
           </div>
           <div className="detail-columns">
             <div>
@@ -393,6 +399,39 @@ export function StrategyLabTab() {
                 </tbody>
               </table>
             </div>
+            {strategyDetail.operator_feedback_summary ? (
+              <div>
+                <h3>Operator feedback</h3>
+                <table className="data-table">
+                  <tbody>
+                    <tr>
+                      <td>Trade count</td>
+                      <td>{strategyDetail.operator_feedback_summary.trade_count}</td>
+                    </tr>
+                    <tr>
+                      <td>Adherence-adjusted outcome</td>
+                      <td>{formatPct(strategyDetail.operator_feedback_summary.adherence_adjusted_expectancy_proxy)}</td>
+                    </tr>
+                    <tr>
+                      <td>Realism-adjusted outcome</td>
+                      <td>{formatPct(strategyDetail.operator_feedback_summary.realism_adjusted_expectancy_proxy)}</td>
+                    </tr>
+                    <tr>
+                      <td>Operator-error share</td>
+                      <td>{formatRatio(strategyDetail.operator_feedback_summary.operator_error_rate)}</td>
+                    </tr>
+                    <tr>
+                      <td>Drift indicator</td>
+                      <td>{titleize(strategyDetail.operator_feedback_summary.drift_indicator)}</td>
+                    </tr>
+                    <tr>
+                      <td>Dominant failures</td>
+                      <td>{strategyDetail.operator_feedback_summary.dominant_failure_categories.join(", ") || "n/a"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
           <div className="detail-columns">
             <div>

@@ -155,6 +155,7 @@ function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
     data_quality: "loading",
     lifecycle_events: [],
     outcome: null,
+    adherence: null,
     review_due: false,
     data_reality: null,
     linked_signal: null,
@@ -203,7 +204,33 @@ export function useDashboardData(
   const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), []);
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
     () => apiClient.paperTradeAnalytics(),
-    { generated_at: "", by_signal_family: [], by_strategy: [], by_score_bucket: [], by_realism_bucket: [], by_asset: [] },
+    {
+      generated_at: "",
+      by_signal_family: [],
+      by_asset_class: [],
+      by_strategy: [],
+      by_strategy_lifecycle_state: [],
+      by_score_bucket: [],
+      by_realism_bucket: [],
+      by_realism_grade: [],
+      by_freshness_state: [],
+      by_asset: [],
+      hygiene_summary: {
+        trade_count: 0,
+        reviewed_trade_count: 0,
+        adherence_rate: 0,
+        invalidation_discipline_rate: 0,
+        realism_warning_violation_rate: 0,
+        review_completion_rate: 0,
+        poor_adherence_streak: 0,
+        review_backlog: 0,
+        realism_warning_violation_count: 0,
+        invalidation_breach_count: 0,
+        promoted_strategy_drift_count: 0,
+        promoted_strategy_drift: [],
+      },
+      failure_categories: [],
+    },
   );
   const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(() => apiClient.paperTradeReviews(), []);
   const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), []);

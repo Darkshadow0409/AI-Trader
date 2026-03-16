@@ -674,6 +674,50 @@ export const mockActiveTrades: ActiveTradeView[] = [
   },
 ];
 
+const btcProposedAdherence = {
+  entered_inside_suggested_zone: null,
+  invalidation_respected: null,
+  time_stop_respected: null,
+  realism_warning_ignored: null,
+  size_plan_respected: null,
+  exited_per_plan: null,
+  adherence_score: 0,
+  breached_rules: [],
+};
+
+const ethOpenAdherence = {
+  entered_inside_suggested_zone: true,
+  invalidation_respected: null,
+  time_stop_respected: null,
+  realism_warning_ignored: null,
+  size_plan_respected: true,
+  exited_per_plan: null,
+  adherence_score: 1,
+  breached_rules: [],
+};
+
+const btcClosedAdherence = {
+  entered_inside_suggested_zone: true,
+  invalidation_respected: true,
+  time_stop_respected: null,
+  realism_warning_ignored: false,
+  size_plan_respected: true,
+  exited_per_plan: true,
+  adherence_score: 1,
+  breached_rules: [],
+};
+
+const ethInvalidatedAdherence = {
+  entered_inside_suggested_zone: true,
+  invalidation_respected: false,
+  time_stop_respected: null,
+  realism_warning_ignored: true,
+  size_plan_respected: false,
+  exited_per_plan: false,
+  adherence_score: 0.25,
+  breached_rules: ["invalidation_respected", "realism_warning_ignored", "size_plan_respected", "exited_per_plan"],
+};
+
 export const mockPaperTradesProposed: PaperTradeView[] = [
   {
     trade_id: "paper_trade_proposed_btc",
@@ -710,6 +754,7 @@ export const mockPaperTradesProposed: PaperTradeView[] = [
       plan_adherence_flags: { entry_in_zone: false, size_defined: true, target_reached: false, stop_respected: true },
       realized_pnl_pct: 0,
     },
+    adherence: btcProposedAdherence,
     review_due: false,
     data_reality: btcDataReality,
   },
@@ -752,6 +797,7 @@ export const mockPaperTradesActive: PaperTradeView[] = [
       plan_adherence_flags: { entry_in_zone: true, size_defined: true, target_reached: false, stop_respected: true },
       realized_pnl_pct: -0.81,
     },
+    adherence: ethOpenAdherence,
     review_due: false,
     data_reality: ethDataReality,
   },
@@ -795,6 +841,7 @@ export const mockPaperTradesClosed: PaperTradeView[] = [
       plan_adherence_flags: { entry_in_zone: true, size_defined: true, target_reached: true, stop_respected: true },
       realized_pnl_pct: 3.58,
     },
+    adherence: btcClosedAdherence,
     review_due: false,
     data_reality: btcDataReality,
   },
@@ -835,7 +882,8 @@ export const mockPaperTradesClosed: PaperTradeView[] = [
       plan_adherence_flags: { entry_in_zone: true, size_defined: true, target_reached: false, stop_respected: true },
       realized_pnl_pct: -3.96,
     },
-    review_due: true,
+    adherence: ethInvalidatedAdherence,
+    review_due: false,
     data_reality: ethDataReality,
   },
 ];
@@ -846,15 +894,40 @@ export const mockPaperTradeReviews: PaperTradeReviewView[] = [
     trade_id: "paper_trade_closed_btc",
     thesis_respected: true,
     invalidation_respected: true,
+    entered_inside_suggested_zone: true,
+    time_stop_respected: null,
     entered_too_early: false,
     entered_too_late: false,
     oversized: false,
     undersized: false,
     realism_warning_ignored: false,
+    size_plan_respected: true,
+    exited_per_plan: true,
     catalyst_mattered: true,
     failure_category: "",
+    failure_categories: [],
     operator_notes: "Execution stayed inside the planned zone and the base target exit respected the original thesis.",
     updated_at: "2026-03-12T16:00:00Z",
+  },
+  {
+    review_id: "paper_review_invalidated_eth",
+    trade_id: "paper_trade_invalidated_eth",
+    thesis_respected: false,
+    invalidation_respected: false,
+    entered_inside_suggested_zone: true,
+    time_stop_respected: null,
+    entered_too_early: true,
+    entered_too_late: false,
+    oversized: true,
+    undersized: false,
+    realism_warning_ignored: true,
+    size_plan_respected: false,
+    exited_per_plan: false,
+    catalyst_mattered: true,
+    failure_category: "operator_timing",
+    failure_categories: ["operator_timing", "realism_ignored", "execution_plan_violation"],
+    operator_notes: "The setup was entered before the release cleared and the realism warning was ignored.",
+    updated_at: "2026-03-10T19:00:00Z",
   },
 ];
 
@@ -893,6 +966,20 @@ export const mockPaperTradeAnalytics: PaperTradeAnalyticsView = {
       avg_mae_pct: -4.02,
     },
   ],
+  by_asset_class: [
+    {
+      grouping: "asset_class",
+      key: "crypto",
+      trade_count: 2,
+      hit_rate: 0.5,
+      expectancy_proxy: -0.19,
+      target_attainment_rate: 0.5,
+      invalidation_rate: 0.5,
+      avg_entry_zone_delta_pct: 0.1,
+      avg_mfe_pct: 2.18,
+      avg_mae_pct: -2.42,
+    },
+  ],
   by_strategy: [
     {
       grouping: "strategy",
@@ -909,6 +996,32 @@ export const mockPaperTradeAnalytics: PaperTradeAnalyticsView = {
     {
       grouping: "strategy",
       key: "vol_expansion_v1",
+      trade_count: 1,
+      hit_rate: 0,
+      expectancy_proxy: -3.96,
+      target_attainment_rate: 0,
+      invalidation_rate: 1,
+      avg_entry_zone_delta_pct: -0.01,
+      avg_mfe_pct: 0.45,
+      avg_mae_pct: -4.02,
+    },
+  ],
+  by_strategy_lifecycle_state: [
+    {
+      grouping: "strategy_lifecycle_state",
+      key: "promoted",
+      trade_count: 1,
+      hit_rate: 1,
+      expectancy_proxy: 3.58,
+      target_attainment_rate: 1,
+      invalidation_rate: 0,
+      avg_entry_zone_delta_pct: 0.2,
+      avg_mfe_pct: 3.9,
+      avg_mae_pct: -0.82,
+    },
+    {
+      grouping: "strategy_lifecycle_state",
+      key: "experimental",
       trade_count: 1,
       hit_rate: 0,
       expectancy_proxy: -3.96,
@@ -971,6 +1084,34 @@ export const mockPaperTradeAnalytics: PaperTradeAnalyticsView = {
       avg_mae_pct: -4.02,
     },
   ],
+  by_realism_grade: [
+    {
+      grouping: "realism_grade",
+      key: "B",
+      trade_count: 2,
+      hit_rate: 0.5,
+      expectancy_proxy: -0.19,
+      target_attainment_rate: 0.5,
+      invalidation_rate: 0.5,
+      avg_entry_zone_delta_pct: 0.1,
+      avg_mfe_pct: 2.18,
+      avg_mae_pct: -2.42,
+    },
+  ],
+  by_freshness_state: [
+    {
+      grouping: "freshness_state",
+      key: "fresh",
+      trade_count: 2,
+      hit_rate: 0.5,
+      expectancy_proxy: -0.19,
+      target_attainment_rate: 0.5,
+      invalidation_rate: 0.5,
+      avg_entry_zone_delta_pct: 0.1,
+      avg_mfe_pct: 2.18,
+      avg_mae_pct: -2.42,
+    },
+  ],
   by_asset: [
     {
       grouping: "asset",
@@ -996,6 +1137,25 @@ export const mockPaperTradeAnalytics: PaperTradeAnalyticsView = {
       avg_mfe_pct: 0.45,
       avg_mae_pct: -4.02,
     },
+  ],
+  hygiene_summary: {
+    trade_count: 2,
+    reviewed_trade_count: 2,
+    adherence_rate: 0.63,
+    invalidation_discipline_rate: 0.5,
+    realism_warning_violation_rate: 0.5,
+    review_completion_rate: 1,
+    poor_adherence_streak: 1,
+    review_backlog: 0,
+    realism_warning_violation_count: 1,
+    invalidation_breach_count: 1,
+    promoted_strategy_drift_count: 0,
+    promoted_strategy_drift: [],
+  },
+  failure_categories: [
+    { category: "operator_timing", trade_count: 1, operator_error: true },
+    { category: "execution_plan_violation", trade_count: 1, operator_error: true },
+    { category: "realism_ignored", trade_count: 1, operator_error: true },
   ],
 };
 
@@ -1155,6 +1315,20 @@ export const mockStrategyDetail: StrategyDetailView = {
     },
     notes: ["Calibration buckets compare cohorts only. They are not probability-of-profit estimates.", "Total realism penalty: 38.0"],
     penalties: mockTrendPenalties,
+  },
+  operator_feedback_summary: {
+    trade_count: 1,
+    adherence_rate: 1,
+    adherence_adjusted_expectancy_proxy: 3.58,
+    realism_adjusted_expectancy_proxy: 1.72,
+    operator_error_rate: 0,
+    drift_indicator: "stable",
+    dominant_failure_categories: [],
+    notes: [
+      "Adherence-adjusted expectancy proxy: +3.58%.",
+      "Realism-adjusted expectancy proxy: +1.72%.",
+      "Operator-error-tagged review share: 0.00.",
+    ],
   },
   calibration_summary: mockCalibrationSummary,
   forward_validation_summary: {

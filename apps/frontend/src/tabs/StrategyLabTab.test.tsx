@@ -134,6 +134,16 @@ describe("StrategyLabTab", () => {
               notes: ["Calibration buckets compare cohorts only."],
               penalties: [{ code: "fixture_only", severity: "warning", summary: "fixture", score_penalty: 14 }],
             },
+            operator_feedback_summary: {
+              trade_count: 2,
+              adherence_rate: 0.75,
+              adherence_adjusted_expectancy_proxy: 0.9,
+              realism_adjusted_expectancy_proxy: 0.52,
+              operator_error_rate: 0.25,
+              drift_indicator: "monitor",
+              dominant_failure_categories: ["operator_timing"],
+              notes: ["Adherence-adjusted expectancy proxy: +0.90%."],
+            },
             calibration_summary: [
               {
                 strategy_name: "trend_breakout_v1",
@@ -403,6 +413,8 @@ describe("StrategyLabTab", () => {
     expect(await screen.findByRole("heading", { name: "Equity Curve" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Search space" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Strategy Promotion / Validation" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Operator feedback" })).toBeInTheDocument();
+    expect(await screen.findByText("Adherence-adjusted outcome")).toBeInTheDocument();
     expect((await screen.findAllByText("BTCUSD -> BTCUSD")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText("fixture")).length).toBeGreaterThan(0);
     expect(screen.getByTestId("equity-chart")).toBeInTheDocument();

@@ -282,10 +282,22 @@ export interface PromotionRationaleView {
   penalties: DataRealismPenaltyView[];
 }
 
+export interface StrategyOperatorFeedbackView {
+  trade_count: number;
+  adherence_rate: number;
+  adherence_adjusted_expectancy_proxy: number;
+  realism_adjusted_expectancy_proxy: number;
+  operator_error_rate: number;
+  drift_indicator: string;
+  dominant_failure_categories: string[];
+  notes: string[];
+}
+
 export interface StrategyDetailView extends StrategyListView {
   search_space: Record<string, unknown>;
   spec: Record<string, unknown>;
   promotion_rationale: PromotionRationaleView;
+  operator_feedback_summary: StrategyOperatorFeedbackView | null;
   calibration_summary: CalibrationSnapshotView[];
   forward_validation_summary: ForwardValidationSummaryView;
   forward_validation_records: ForwardValidationRecordView[];
@@ -443,18 +455,34 @@ export interface PaperTradeOutcomeView {
   realized_pnl_pct: number;
 }
 
+export interface PaperTradeAdherenceView {
+  entered_inside_suggested_zone: boolean | null;
+  invalidation_respected: boolean | null;
+  time_stop_respected: boolean | null;
+  realism_warning_ignored: boolean | null;
+  size_plan_respected: boolean | null;
+  exited_per_plan: boolean | null;
+  adherence_score: number;
+  breached_rules: string[];
+}
+
 export interface PaperTradeReviewView {
   review_id: string;
   trade_id: string;
   thesis_respected: boolean | null;
   invalidation_respected: boolean | null;
+  entered_inside_suggested_zone: boolean | null;
+  time_stop_respected: boolean | null;
   entered_too_early: boolean | null;
   entered_too_late: boolean | null;
   oversized: boolean | null;
   undersized: boolean | null;
   realism_warning_ignored: boolean | null;
+  size_plan_respected: boolean | null;
+  exited_per_plan: boolean | null;
   catalyst_mattered: boolean | null;
   failure_category: string;
+  failure_categories: string[];
   operator_notes: string;
   updated_at: string;
 }
@@ -482,6 +510,7 @@ export interface PaperTradeView {
   data_quality: string;
   lifecycle_events: Array<Record<string, unknown>>;
   outcome: PaperTradeOutcomeView | null;
+  adherence: PaperTradeAdherenceView | null;
   review_due: boolean;
   data_reality: DataRealityView | null;
 }
@@ -532,13 +561,18 @@ export interface PaperTradeCloseRequest {
 export interface PaperTradeReviewRequest {
   thesis_respected?: boolean | null;
   invalidation_respected?: boolean | null;
+  entered_inside_suggested_zone?: boolean | null;
+  time_stop_respected?: boolean | null;
   entered_too_early?: boolean | null;
   entered_too_late?: boolean | null;
   oversized?: boolean | null;
   undersized?: boolean | null;
   realism_warning_ignored?: boolean | null;
+  size_plan_respected?: boolean | null;
+  exited_per_plan?: boolean | null;
   catalyst_mattered?: boolean | null;
   failure_category?: string;
+  failure_categories?: string[];
   operator_notes?: string;
 }
 
@@ -555,13 +589,40 @@ export interface PaperTradeAnalyticsBucketView {
   avg_mae_pct: number;
 }
 
+export interface PaperTradeFailureCategoryView {
+  category: string;
+  trade_count: number;
+  operator_error: boolean;
+}
+
+export interface PaperTradeHygieneSummaryView {
+  trade_count: number;
+  reviewed_trade_count: number;
+  adherence_rate: number;
+  invalidation_discipline_rate: number;
+  realism_warning_violation_rate: number;
+  review_completion_rate: number;
+  poor_adherence_streak: number;
+  review_backlog: number;
+  realism_warning_violation_count: number;
+  invalidation_breach_count: number;
+  promoted_strategy_drift_count: number;
+  promoted_strategy_drift: string[];
+}
+
 export interface PaperTradeAnalyticsView {
   generated_at: string;
   by_signal_family: PaperTradeAnalyticsBucketView[];
+  by_asset_class: PaperTradeAnalyticsBucketView[];
   by_strategy: PaperTradeAnalyticsBucketView[];
+  by_strategy_lifecycle_state: PaperTradeAnalyticsBucketView[];
   by_score_bucket: PaperTradeAnalyticsBucketView[];
   by_realism_bucket: PaperTradeAnalyticsBucketView[];
+  by_realism_grade: PaperTradeAnalyticsBucketView[];
+  by_freshness_state: PaperTradeAnalyticsBucketView[];
   by_asset: PaperTradeAnalyticsBucketView[];
+  hygiene_summary: PaperTradeHygieneSummaryView;
+  failure_categories: PaperTradeFailureCategoryView[];
 }
 
 export interface WalletBalanceLineView {

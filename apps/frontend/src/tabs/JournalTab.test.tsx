@@ -40,18 +40,25 @@ describe("JournalTab", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Review Queue" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Decision Hygiene" })).toBeInTheDocument();
     expect(screen.getAllByText("paper_trade_closed_btc").length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "Outcomes by Strategy" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Failure Attribution" })).toBeInTheDocument();
 
     const notesField = screen.getByLabelText("Operator Notes");
     await user.clear(notesField);
     await user.type(notesField, "Updated structured review note.");
+    await user.clear(screen.getByLabelText("Failure Tags"));
+    await user.type(screen.getByLabelText("Failure Tags"), "operator_timing");
     await user.click(screen.getByRole("button", { name: "Save Review" }));
 
     await waitFor(() => {
       expect(saveSpy).toHaveBeenCalledWith(
         "paper_trade_closed_btc",
-        expect.objectContaining({ operator_notes: "Updated structured review note." }),
+        expect.objectContaining({
+          operator_notes: "Updated structured review note.",
+          failure_categories: ["operator_timing"],
+        }),
       );
       expect(onChanged).toHaveBeenCalled();
     });

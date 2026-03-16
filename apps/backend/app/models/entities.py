@@ -184,13 +184,18 @@ class PaperTradeReviewRecord(SQLModel, table=True):
     trade_id: str = Field(index=True, unique=True)
     thesis_respected: bool | None = None
     invalidation_respected: bool | None = None
+    entered_inside_suggested_zone: bool | None = None
+    time_stop_respected: bool | None = None
     entered_too_early: bool | None = None
     entered_too_late: bool | None = None
     oversized: bool | None = None
     undersized: bool | None = None
     realism_warning_ignored: bool | None = None
+    size_plan_respected: bool | None = None
+    exited_per_plan: bool | None = None
     catalyst_mattered: bool | None = None
     failure_category: str = ""
+    failure_categories_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     operator_notes: str = ""
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 

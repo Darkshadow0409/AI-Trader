@@ -4,6 +4,7 @@ import {
   mockBacktestDetail,
   mockDailyBriefing,
   mockDeskSummary,
+  mockMarketCharts,
   mockNews,
   mockOperationalBacklog,
   mockCommandCenter,
@@ -30,11 +31,13 @@ import {
   mockTicketDetail,
   mockTicketList,
   mockStrategyDetail,
+  mockWatchlistSummary,
 } from "./mockData";
 import type {
   AlertEnvelope,
   BacktestDetailView,
   BrokerAdapterSnapshotView,
+  MarketChartView,
   DailyBriefingView,
   DeskSummaryView,
   ManualFillView,
@@ -63,12 +66,14 @@ import type {
   StrategyDetailView,
   TradeTicketDetailView,
   TradeTicketView,
+  WatchlistSummaryView,
 } from "../types/api";
 
 describe("frontend contract alignment", () => {
   it("keeps representative mock payloads aligned with backend field names", () => {
     const signal: SignalView = mockSignals[0];
     const news: NewsView = mockNews[0];
+    const marketChart: MarketChartView = mockMarketCharts["BTC:1d"];
     const risk: RiskView = mockRisk[0];
     const ribbon: RibbonView = mockRibbon;
     const signalDetail: SignalDetailView = mockSignalDetail;
@@ -93,6 +98,7 @@ describe("frontend contract alignment", () => {
     const shadowTicket: TradeTicketDetailView = mockShadowTickets[0];
     const manualFill: ManualFillView = mockTicketDetail.manual_fills[0];
     const brokerSnapshot: BrokerAdapterSnapshotView = mockTicketDetail.broker_snapshot!;
+    const watchlistSummary: WatchlistSummaryView = mockWatchlistSummary[0];
     const paperTrade: PaperTradeView = mockPaperTradesActive[0];
     const paperTradeDetail: PaperTradeDetailView = mockPaperTradeDetail;
     const paperTradeReview: PaperTradeReviewView = mockPaperTradeReviews[0];
@@ -130,6 +136,24 @@ describe("frontend contract alignment", () => {
       freshness_minutes: expect.any(Number),
       entity_tags: expect.any(Array),
       affected_assets: expect.any(Array),
+    });
+    expect(marketChart).toMatchObject({
+      symbol: expect.any(String),
+      timeframe: expect.any(String),
+      available_timeframes: expect.any(Array),
+      status: expect.any(String),
+      bars: expect.any(Array),
+      indicators: expect.objectContaining({
+        ema_20: expect.any(Array),
+        ema_50: expect.any(Array),
+        ema_200: expect.any(Array),
+        rsi_14: expect.any(Array),
+        atr_14: expect.any(Array),
+      }),
+      overlays: expect.objectContaining({
+        markers: expect.any(Array),
+        price_lines: expect.any(Array),
+      }),
     });
     expect(risk).toMatchObject({
       risk_report_id: expect.stringMatching(/^risk_/),
@@ -318,6 +342,15 @@ describe("frontend contract alignment", () => {
       balances: expect.any(Array),
       positions: expect.any(Array),
       fill_imports: expect.any(Array),
+    });
+    expect(watchlistSummary).toMatchObject({
+      symbol: expect.any(String),
+      last_price: expect.any(Number),
+      change_pct: expect.any(Number),
+      freshness_state: expect.any(String),
+      realism_grade: expect.any(String),
+      top_setup_tag: expect.any(String),
+      sparkline: expect.any(Array),
     });
     expect(paperTrade).toMatchObject({
       trade_id: expect.stringContaining("paper_trade"),

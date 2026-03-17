@@ -68,12 +68,13 @@ function activeTabLabel(tab: TabKey): string {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("desk");
   const [selectedSymbol, setSelectedSymbol] = useState("BTC");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("1d");
   const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [selectedRiskReportId, setSelectedRiskReportId] = useState<string | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
-  const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId, selectedTradeId, selectedTicketId);
+  const resources = useDashboardData(selectedSymbol, selectedTimeframe, selectedSignalId, selectedRiskReportId, selectedTradeId, selectedTicketId);
   const paperTradeRows = useMemo(
     () => [...resources.proposedPaperTrades.data, ...resources.activePaperTrades.data, ...resources.closedPaperTrades.data],
     [resources.activePaperTrades.data, resources.closedPaperTrades.data, resources.proposedPaperTrades.data],
@@ -176,6 +177,7 @@ export default function App() {
       resources.alerts.refresh(),
       resources.assetContext.refresh(),
       resources.bars.refresh(),
+      resources.marketChart.refresh(),
     ]);
     if (selectedSignalId) {
       await resources.signalDetail.refresh();
@@ -245,11 +247,11 @@ export default function App() {
         resources.overview.error,
         resources.watchlist.error,
         resources.assetContext.error,
-        resources.bars.error,
+        resources.marketChart.error,
       ]
         .filter(Boolean)
         .join(" | "),
-    [resources.assetContext.error, resources.bars.error, resources.health.error, resources.overview.error, resources.watchlist.error],
+    [resources.assetContext.error, resources.health.error, resources.marketChart.error, resources.overview.error, resources.watchlist.error],
   );
 
   const navItems: NavItem[] = useMemo(
@@ -455,7 +457,7 @@ export default function App() {
           onSelectTab={(key) => setActiveTab(key as TabKey)}
           research={resources.research.data}
           selectedSymbol={selectedSymbol}
-          watchlist={resources.watchlist.data}
+          watchlist={resources.watchlistSummary.data}
         />
 
         <main className="main-pane operator-main">
@@ -492,12 +494,22 @@ export default function App() {
               extra={
                 <div className="inline-tags">
                   <span className="tag">{resources.assetContext.data.research?.trend_state ?? "n/a"}</span>
-                  <span className="tag">{resources.assetContext.data.data_reality?.freshness_state ?? "loading"}</span>
+                  <span className="tag">{resources.marketChart.data.freshness_state ?? resources.assetContext.data.data_reality?.freshness_state ?? "loading"}</span>
                   <span className="tag">{resources.assetContext.data.data_reality?.provenance.realism_grade ?? "n/a"}</span>
                 </div>
               }
             >
-              {resources.bars.data.length > 0 ? <PriceChart bars={resources.bars.data} /> : <StateBlock empty />}
+              <PriceChart
+                chart={resources.marketChart.data}
+                error={resources.marketChart.error}
+                loading={resources.marketChart.loading}
+                onTimeframeChange={setSelectedTimeframe}
+                selectedRisk={resources.riskDetail.data}
+                selectedSignal={resources.signalDetail.data}
+                selectedTicket={resources.tradeTicketDetail.data}
+                selectedTrade={resources.paperTradeDetail.data}
+                timeframe={selectedTimeframe}
+              />
             </Panel>
             <SignalDetailsCard
               context={resources.assetContext.data}

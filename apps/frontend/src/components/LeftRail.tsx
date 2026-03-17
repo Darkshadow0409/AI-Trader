@@ -1,4 +1,4 @@
-import type { ExecutionGateView, OperationalBacklogView, ResearchView, WatchlistView } from "../types/api";
+import type { ExecutionGateView, OperationalBacklogView, ResearchView, WatchlistSummaryView } from "../types/api";
 
 export interface NavItem {
   key: string;
@@ -16,7 +16,7 @@ interface LeftRailProps {
   onSelectTab: (key: string) => void;
   research: ResearchView[];
   selectedSymbol: string;
-  watchlist: WatchlistView[];
+  watchlist: WatchlistSummaryView[];
 }
 
 function scoutAssets(research: ResearchView[]): ResearchView[] {
@@ -27,6 +27,27 @@ function scoutAssets(research: ResearchView[]): ResearchView[] {
       return (right.breakout_distance - rightPenalty / 100) - (left.breakout_distance - leftPenalty / 100);
     })
     .slice(0, 6);
+}
+
+function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) {
+    return <span className="compact-copy">n/a</span>;
+  }
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const path = points
+    .map((point, index) => {
+      const x = (index / (points.length - 1)) * 44;
+      const y = 16 - ((point - min) / range) * 16;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg aria-hidden="true" className="sparkline" viewBox="0 0 44 16">
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
 }
 
 export function LeftRail({
@@ -86,9 +107,21 @@ export function LeftRail({
             onClick={() => onSelectSymbol(item.symbol)}
             type="button"
           >
-            <strong>{item.symbol}</strong>
-            <span>{item.status}</span>
-            <small>{item.last_signal_score.toFixed(1)}</small>
+            <div className="stack compact-stack">
+              <div className="rail-header">
+                <strong>{item.symbol}</strong>
+                <small>{item.realism_grade}</small>
+              </div>
+              <small>
+                {item.last_price.toFixed(2)} / {item.change_pct >= 0 ? "+" : ""}
+                {item.change_pct.toFixed(2)}%
+              </small>
+              <small>
+                {item.freshness_state} / {item.top_setup_tag}
+              </small>
+            </div>
+            <Sparkline points={item.sparkline} />
+            <small>{item.freshness_minutes}m</small>
           </button>
         ))}
       </section>

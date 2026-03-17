@@ -23,6 +23,57 @@ class BarView(BaseModel):
     volume: float
 
 
+class ChartIndicatorPointView(BaseModel):
+    timestamp: datetime
+    value: float
+
+
+class ChartIndicatorSetView(BaseModel):
+    ema_20: list[ChartIndicatorPointView] = Field(default_factory=list)
+    ema_50: list[ChartIndicatorPointView] = Field(default_factory=list)
+    ema_200: list[ChartIndicatorPointView] = Field(default_factory=list)
+    rsi_14: list[ChartIndicatorPointView] = Field(default_factory=list)
+    atr_14: list[ChartIndicatorPointView] = Field(default_factory=list)
+
+
+class ChartOverlayMarkerView(BaseModel):
+    marker_id: str
+    timestamp: datetime
+    label: str
+    kind: str
+    tone: str
+
+
+class ChartOverlayLineView(BaseModel):
+    line_id: str
+    label: str
+    value: float
+    kind: str
+    tone: str
+
+
+class ChartOverlayView(BaseModel):
+    markers: list[ChartOverlayMarkerView] = Field(default_factory=list)
+    price_lines: list[ChartOverlayLineView] = Field(default_factory=list)
+
+
+class MarketChartView(BaseModel):
+    symbol: str
+    timeframe: str
+    available_timeframes: list[str] = Field(default_factory=list)
+    status: str
+    status_note: str
+    source_mode: str
+    freshness_minutes: int
+    freshness_state: str
+    data_quality: str
+    is_fixture_mode: bool
+    bars: list[BarView] = Field(default_factory=list)
+    indicators: ChartIndicatorSetView = Field(default_factory=ChartIndicatorSetView)
+    overlays: ChartOverlayView = Field(default_factory=ChartOverlayView)
+    data_reality: DataRealityView | None = None
+
+
 class DataRealismPenaltyView(BaseModel):
     code: str
     severity: str
@@ -113,6 +164,19 @@ class WatchlistView(BaseModel):
     last_signal_score: float
     updated_at: datetime
     freshness_minutes: int
+
+
+class WatchlistSummaryView(BaseModel):
+    symbol: str
+    label: str
+    status: str
+    last_price: float
+    change_pct: float
+    freshness_minutes: int
+    freshness_state: str
+    realism_grade: str
+    top_setup_tag: str
+    sparkline: list[float] = Field(default_factory=list)
 
 
 class OpportunityView(BaseModel):

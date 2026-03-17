@@ -11,6 +11,7 @@ import {
   mockHealth,
   mockHighRiskSignals,
   mockJournal,
+  mockMarketCharts,
   mockNews,
   mockOperationalBacklog,
   mockCommandCenter,
@@ -51,6 +52,7 @@ import {
   mockTicketSummary,
   mockWalletBalances,
   mockWatchlist,
+  mockWatchlistSummary,
 } from "./mockData";
 import type {
   ActiveTradeCreateRequest,
@@ -62,6 +64,7 @@ import type {
   BacktestListView,
   BacktestRunRequest,
   BarView,
+  MarketChartView,
   DailyBriefingView,
   DeskSummaryView,
   HomeOperatorSummaryView,
@@ -124,6 +127,7 @@ import type {
   WalletBalanceView,
   WeeklyReviewView,
   WatchlistView,
+  WatchlistSummaryView,
 } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
@@ -187,12 +191,15 @@ export const apiClient = {
   highRiskSignals: () => requestJson<SignalView[]>("/signals/high-risk", mockHighRiskSignals),
   news: () => requestJson<NewsView[]>("/news", mockNews),
   watchlist: () => requestJson<WatchlistView[]>("/watchlist", mockWatchlist),
+  watchlistSummary: () => requestJson<WatchlistSummaryView[]>("/watchlist/summary", mockWatchlistSummary),
   opportunities: () => requestJson<OpportunityHunterView>("/watchlist/opportunity-hunter", mockOpportunities),
   research: () => requestJson<ResearchView[]>("/research", mockResearch),
   risk: () => requestJson<RiskView[]>("/risk/latest", mockRisk),
   riskDetail: (riskReportId: string) => requestJson<RiskDetailView>(`/risk/${riskReportId}`, mockRiskDetail),
   riskExposure: () => requestJson<RiskExposureView[]>("/risk/exposure", mockRiskExposure),
   bars: (symbol: string) => requestJson<BarView[]>(`/market/bars/${symbol}`, mockBars[symbol] ?? mockBars.BTC),
+  marketChart: (symbol: string, timeframe = "1d") =>
+    requestJson<MarketChartView>(`/market/chart/${symbol}?timeframe=${encodeURIComponent(timeframe)}`, mockMarketCharts[`${symbol}:${timeframe}`] ?? mockMarketCharts[`${symbol}:1d`]),
   assetContext: (symbol: string) =>
     requestJson<AssetContextView>(`/dashboard/assets/${symbol}`, mockAssetContexts[symbol] ?? mockAssetContexts.BTC),
   activeTrades: () => requestJson<ActiveTradeView[]>("/portfolio/active-trades", mockActiveTrades),

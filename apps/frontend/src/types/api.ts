@@ -15,6 +15,57 @@ export interface BarView {
   volume: number;
 }
 
+export interface ChartIndicatorPointView {
+  timestamp: string;
+  value: number;
+}
+
+export interface ChartIndicatorSetView {
+  ema_20: ChartIndicatorPointView[];
+  ema_50: ChartIndicatorPointView[];
+  ema_200: ChartIndicatorPointView[];
+  rsi_14: ChartIndicatorPointView[];
+  atr_14: ChartIndicatorPointView[];
+}
+
+export interface ChartOverlayMarkerView {
+  marker_id: string;
+  timestamp: string;
+  label: string;
+  kind: string;
+  tone: string;
+}
+
+export interface ChartOverlayLineView {
+  line_id: string;
+  label: string;
+  value: number;
+  kind: string;
+  tone: string;
+}
+
+export interface ChartOverlayView {
+  markers: ChartOverlayMarkerView[];
+  price_lines: ChartOverlayLineView[];
+}
+
+export interface MarketChartView {
+  symbol: string;
+  timeframe: string;
+  available_timeframes: string[];
+  status: string;
+  status_note: string;
+  source_mode: string;
+  freshness_minutes: number;
+  freshness_state: string;
+  data_quality: string;
+  is_fixture_mode: boolean;
+  bars: BarView[];
+  indicators: ChartIndicatorSetView;
+  overlays: ChartOverlayView;
+  data_reality: DataRealityView | null;
+}
+
 export interface DataRealismPenaltyView {
   code: string;
   severity: string;
@@ -105,6 +156,19 @@ export interface WatchlistView {
   last_signal_score: number;
   updated_at: string;
   freshness_minutes: number;
+}
+
+export interface WatchlistSummaryView {
+  symbol: string;
+  label: string;
+  status: string;
+  last_price: number;
+  change_pct: number;
+  freshness_minutes: number;
+  freshness_state: string;
+  realism_grade: string;
+  top_setup_tag: string;
+  sparkline: number[];
 }
 
 export interface OpportunityView {

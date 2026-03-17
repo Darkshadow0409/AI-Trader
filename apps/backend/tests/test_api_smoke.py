@@ -20,6 +20,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     risk = client.get("/api/risk/latest")
     exposure = client.get("/api/risk/exposure")
     bars = client.get("/api/market/bars/BTC")
+    market_chart = client.get("/api/market/chart/BTC?timeframe=1d")
+    market_chart_empty = client.get("/api/market/chart/BTC?timeframe=15m")
     strategies = client.get("/api/strategies")
     backtests = client.get("/api/backtests")
     overview = client.get("/api/dashboard/overview")
@@ -32,6 +34,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     wallet = client.get("/api/portfolio/wallet-balance")
     journal = client.get("/api/journal")
     opportunities = client.get("/api/watchlist/opportunity-hunter")
+    watchlist_summary = client.get("/api/watchlist/summary")
     alerts = client.get("/api/alerts")
     risk_detail = client.get(f"/api/risk/{risk.json()[0]['risk_report_id']}") if risk.json() else None
     proposed_paper = client.get("/api/portfolio/paper-trades/proposed")
@@ -62,6 +65,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert risk.status_code == 200
     assert exposure.status_code == 200
     assert bars.status_code == 200
+    assert market_chart.status_code == 200
+    assert market_chart_empty.status_code == 200
     assert strategies.status_code == 200
     assert backtests.status_code == 200
     assert overview.status_code == 200
@@ -74,6 +79,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert wallet.status_code == 200
     assert journal.status_code == 200
     assert opportunities.status_code == 200
+    assert watchlist_summary.status_code == 200
     assert alerts.status_code == 200
     assert risk_detail is not None and risk_detail.status_code == 200
     assert proposed_paper.status_code == 200
@@ -100,6 +106,11 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert control_center.status_code == 200
     assert pilot_export.status_code == 200
     assert len(bars.json()) > 0
+    assert market_chart.json()["status"] in {"ok", "stale"}
+    assert market_chart.json()["bars"]
+    assert market_chart.json()["indicators"]["ema_20"] is not None
+    assert market_chart_empty.json()["status"] == "no_data"
+    assert "available_timeframes" in market_chart_empty.json()
     assert len(strategies.json()) >= 3
     assert len(backtests.json()) >= 1
     assert "macro_regime" in overview.json()
@@ -109,6 +120,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert isinstance(wallet.json(), list)
     assert isinstance(journal.json(), list)
     assert "focus_queue" in opportunities.json()
+    assert isinstance(watchlist_summary.json(), list)
+    assert "sparkline" in watchlist_summary.json()[0]
     assert isinstance(alerts.json(), list)
     assert isinstance(proposed_paper.json(), list)
     assert isinstance(active_paper.json(), list)

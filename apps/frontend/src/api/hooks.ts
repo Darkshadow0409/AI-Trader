@@ -6,6 +6,7 @@ import type {
   AssetContextView,
   BacktestListView,
   BarView,
+  MarketChartView,
   BrokerAdapterSnapshotView,
   CommandCenterStatusView,
   DailyBriefingView,
@@ -47,6 +48,7 @@ import type {
   TradeTicketView,
   WalletBalanceView,
   WatchlistView,
+  WatchlistSummaryView,
 } from "../types/api";
 
 export interface ResourceState<T> {
@@ -194,6 +196,7 @@ function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
 
 export function useDashboardData(
   selectedSymbol: string,
+  selectedTimeframe: string,
   selectedSignalId: string | null,
   selectedRiskReportId: string | null,
   selectedTradeId: string | null,
@@ -468,6 +471,7 @@ export function useDashboardData(
   const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), []);
   const news = usePollingResource<NewsView[]>(() => apiClient.news(), []);
   const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), []);
+  const watchlistSummary = usePollingResource<WatchlistSummaryView[]>(() => apiClient.watchlistSummary(), []);
   const opportunities = usePollingResource<OpportunityHunterView>(
     () => apiClient.opportunities(),
     { generated_at: "", focus_queue: [], scout_queue: [] },
@@ -518,6 +522,26 @@ export function useDashboardData(
   const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), []);
   const backtests = usePollingResource<BacktestListView[]>(() => apiClient.backtests(), []);
   const bars = usePollingResource<BarView[]>(() => apiClient.bars(selectedSymbol), [], [selectedSymbol]);
+  const marketChart = usePollingResource<MarketChartView>(
+    () => apiClient.marketChart(selectedSymbol, selectedTimeframe),
+    {
+      symbol: selectedSymbol,
+      timeframe: selectedTimeframe,
+      available_timeframes: [],
+      status: "loading",
+      status_note: "Loading chart data…",
+      source_mode: "loading",
+      freshness_minutes: 0,
+      freshness_state: "loading",
+      data_quality: "loading",
+      is_fixture_mode: false,
+      bars: [],
+      indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
+      overlays: { markers: [], price_lines: [] },
+      data_reality: null,
+    },
+    [selectedSymbol, selectedTimeframe],
+  );
   const assetContext = usePollingResource<AssetContextView>(
     () => apiClient.assetContext(selectedSymbol),
     {
@@ -619,6 +643,7 @@ export function useDashboardData(
     highRiskSignals,
     news,
     watchlist,
+    watchlistSummary,
     opportunities,
     research,
     risk,
@@ -645,6 +670,7 @@ export function useDashboardData(
     alerts,
     backtests,
     bars,
+    marketChart,
     assetContext,
   };
 }

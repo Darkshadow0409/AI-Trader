@@ -5,6 +5,7 @@ import type {
   BacktestDetailView,
   BacktestListView,
   BarView,
+  ChartIndicatorPointView,
   BrokerAdapterSnapshotView,
   CommandCenterStatusView,
   DailyBriefingView,
@@ -24,6 +25,7 @@ import type {
   PilotMetricSummaryView,
   PilotSummaryView,
   OpportunityHunterView,
+  MarketChartView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
   PaperTradeReviewView,
@@ -51,6 +53,7 @@ import type {
   WalletBalanceView,
   WeeklyReviewView,
   WatchlistView,
+  WatchlistSummaryView,
 } from "../types/api";
 
 export const mockHealth: HealthView = {
@@ -424,6 +427,45 @@ export const mockResearch: ResearchView[] = [
   },
 ];
 
+export const mockWatchlistSummary: WatchlistSummaryView[] = [
+  {
+    symbol: "BTC",
+    label: "Bitcoin",
+    status: "active",
+    last_price: 71880,
+    change_pct: 3.07,
+    freshness_minutes: 5,
+    freshness_state: "fresh",
+    realism_grade: "B",
+    top_setup_tag: "trend_breakout",
+    sparkline: [69740, 70420, 70980, 71880],
+  },
+  {
+    symbol: "ETH",
+    label: "Ethereum",
+    status: "active",
+    last_price: 3566,
+    change_pct: 0.34,
+    freshness_minutes: 5,
+    freshness_state: "fresh",
+    realism_grade: "B",
+    top_setup_tag: "event_driven",
+    sparkline: [3554, 3622, 3588, 3566],
+  },
+  {
+    symbol: "WTI",
+    label: "WTI Crude",
+    status: "context",
+    last_price: 78.9,
+    change_pct: 0.38,
+    freshness_minutes: 10,
+    freshness_state: "fresh",
+    realism_grade: "E",
+    top_setup_tag: "context_only",
+    sparkline: [78.6, 79.0, 79.2, 78.9],
+  },
+];
+
 export const mockRisk: RiskView[] = [
   {
     risk_report_id: "risk_28782b441c135ccf921f5dbc7f3d6d77",
@@ -625,6 +667,149 @@ export const mockBars: Record<string, BarView[]> = {
     { symbol: "WTI", timestamp: "2026-03-13T00:00:00Z", open: 79.0, high: 79.7, low: 78.7, close: 79.2, volume: 7280 },
     { symbol: "WTI", timestamp: "2026-03-14T00:00:00Z", open: 79.2, high: 79.6, low: 78.4, close: 78.9, volume: 7400 },
   ],
+};
+
+function buildIndicatorPoints(values: number[], sourceBars: BarView[]): ChartIndicatorPointView[] {
+  return values.map((value, index) => ({ timestamp: sourceBars[index]?.timestamp ?? sourceBars[sourceBars.length - 1]?.timestamp ?? "", value }));
+}
+
+const btcBars = mockBars.BTC;
+const ethBars = mockBars.ETH;
+const wtiBars = mockBars.WTI;
+
+export const mockMarketCharts: Record<string, MarketChartView> = {
+  "BTC:1d": {
+    symbol: "BTC",
+    timeframe: "1d",
+    available_timeframes: ["1d"],
+    status: "ok",
+    status_note: "Fixture mode is active. Use this chart for research, paper workflow, and review, not live execution claims.",
+    source_mode: "sample",
+    freshness_minutes: 5,
+    freshness_state: "fresh",
+    data_quality: "fixture",
+    is_fixture_mode: true,
+    bars: btcBars,
+    indicators: {
+      ema_20: buildIndicatorPoints([70010, 70440, 70910, 71405], btcBars),
+      ema_50: buildIndicatorPoints([69880, 70120, 70410, 70760], btcBars),
+      ema_200: buildIndicatorPoints([68920, 69040, 69210, 69480], btcBars),
+      rsi_14: buildIndicatorPoints([56, 61, 64, 68], btcBars),
+      atr_14: buildIndicatorPoints([1480, 1555, 1632, 1720], btcBars),
+    },
+    overlays: {
+      markers: [
+        { marker_id: "signal-btc", timestamp: "2026-03-14T00:00:00Z", label: "signal trend_breakout", kind: "signal", tone: "accent" },
+        { marker_id: "ticket-btc", timestamp: "2026-03-15T11:30:00Z", label: "ticket approved", kind: "ticket", tone: "warning" },
+      ],
+      price_lines: [
+        { line_id: "btc-entry", label: "entry reference", value: 71880, kind: "entry", tone: "accent" },
+        { line_id: "btc-stop", label: "risk stop", value: 68450, kind: "stop", tone: "negative" },
+        { line_id: "btc-target-base", label: "target base", value: 73120, kind: "target", tone: "positive" },
+        { line_id: "btc-target-stretch", label: "target stretch", value: 74840, kind: "target", tone: "positive" },
+      ],
+    },
+    data_reality: btcDataReality,
+  },
+  "ETH:1d": {
+    symbol: "ETH",
+    timeframe: "1d",
+    available_timeframes: ["1d"],
+    status: "ok",
+    status_note: "Fixture mode is active. Event-sensitive ETH setup should be read alongside macro context.",
+    source_mode: "sample",
+    freshness_minutes: 5,
+    freshness_state: "fresh",
+    data_quality: "fixture",
+    is_fixture_mode: true,
+    bars: ethBars,
+    indicators: {
+      ema_20: buildIndicatorPoints([3560, 3588, 3594, 3586], ethBars),
+      ema_50: buildIndicatorPoints([3534, 3552, 3564, 3565], ethBars),
+      ema_200: buildIndicatorPoints([3390, 3406, 3421, 3438], ethBars),
+      rsi_14: buildIndicatorPoints([52, 58, 54, 49], ethBars),
+      atr_14: buildIndicatorPoints([88, 94, 101, 104], ethBars),
+    },
+    overlays: {
+      markers: [{ marker_id: "signal-eth", timestamp: "2026-03-14T00:00:00Z", label: "signal event_driven", kind: "signal", tone: "warning" }],
+      price_lines: [
+        { line_id: "eth-entry", label: "entry reference", value: 3588, kind: "entry", tone: "accent" },
+        { line_id: "eth-stop", label: "risk stop", value: 3440, kind: "stop", tone: "negative" },
+        { line_id: "eth-target-base", label: "target base", value: 3745, kind: "target", tone: "positive" },
+      ],
+    },
+    data_reality: ethDataReality,
+  },
+  "WTI:1d": {
+    symbol: "WTI",
+    timeframe: "1d",
+    available_timeframes: ["1d"],
+    status: "stale",
+    status_note: "Fixture mode and proxy-grade oil context are suitable for research, not intraday execution claims.",
+    source_mode: "sample",
+    freshness_minutes: 10,
+    freshness_state: "fresh",
+    data_quality: "fixture",
+    is_fixture_mode: true,
+    bars: wtiBars,
+    indicators: {
+      ema_20: buildIndicatorPoints([78.7, 78.8, 78.9, 78.95], wtiBars),
+      ema_50: buildIndicatorPoints([78.6, 78.7, 78.75, 78.8], wtiBars),
+      ema_200: buildIndicatorPoints([78.2, 78.25, 78.3, 78.34], wtiBars),
+      rsi_14: buildIndicatorPoints([48, 52, 54, 49], wtiBars),
+      atr_14: buildIndicatorPoints([0.9, 0.95, 0.97, 1.02], wtiBars),
+    },
+    overlays: { markers: [], price_lines: [] },
+    data_reality: wtiDataReality,
+  },
+  "BTC:15m": {
+    symbol: "BTC",
+    timeframe: "15m",
+    available_timeframes: ["1d"],
+    status: "no_data",
+    status_note: "No 15m bars are available for BTC. Available timeframes: 1d.",
+    source_mode: "sample",
+    freshness_minutes: 9999,
+    freshness_state: "unusable",
+    data_quality: "missing",
+    is_fixture_mode: true,
+    bars: [],
+    indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
+    overlays: { markers: [], price_lines: [] },
+    data_reality: btcDataReality,
+  },
+  "BTC:1h": {
+    symbol: "BTC",
+    timeframe: "1h",
+    available_timeframes: ["1d"],
+    status: "no_data",
+    status_note: "No 1h bars are available for BTC. Available timeframes: 1d.",
+    source_mode: "sample",
+    freshness_minutes: 9999,
+    freshness_state: "unusable",
+    data_quality: "missing",
+    is_fixture_mode: true,
+    bars: [],
+    indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
+    overlays: { markers: [], price_lines: [] },
+    data_reality: btcDataReality,
+  },
+  "BTC:4h": {
+    symbol: "BTC",
+    timeframe: "4h",
+    available_timeframes: ["1d"],
+    status: "no_data",
+    status_note: "No 4h bars are available for BTC. Available timeframes: 1d.",
+    source_mode: "sample",
+    freshness_minutes: 9999,
+    freshness_state: "unusable",
+    data_quality: "missing",
+    is_fixture_mode: true,
+    bars: [],
+    indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
+    overlays: { markers: [], price_lines: [] },
+    data_reality: btcDataReality,
+  },
 };
 
 export const mockAssetContexts: Record<string, AssetContextView> = {

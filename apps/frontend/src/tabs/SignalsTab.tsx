@@ -1,14 +1,12 @@
-import type { BarView, SignalView } from "../types/api";
-import { PriceChart } from "../components/PriceChart";
+import type { SignalView } from "../types/api";
 
 interface SignalsTabProps {
   signals: SignalView[];
-  bars: BarView[];
   selectedSymbol: string;
   onSelectSymbol: (symbol: string) => void;
 }
 
-export function SignalsTab({ signals, bars, selectedSymbol, onSelectSymbol }: SignalsTabProps) {
+export function SignalsTab({ signals, selectedSymbol, onSelectSymbol }: SignalsTabProps) {
   return (
     <section className="tab-grid">
       <div className="panel">
@@ -27,7 +25,9 @@ export function SignalsTab({ signals, bars, selectedSymbol, onSelectSymbol }: Si
             ))}
           </div>
         </div>
-        <PriceChart bars={bars} />
+        <div className="state-block">
+          Chart-first signal review now lives in the main desk workspace. Use the watchlist rail or a signal row to load the full chart, risk overlays, and ticket context.
+        </div>
       </div>
       <div className="stack">
         {signals.map((signal) => (

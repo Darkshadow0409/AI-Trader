@@ -49,6 +49,9 @@ CONTRACT_FILES = [
     ("/api/tickets/shadow-mode", "GET", "contracts/tickets_shadow_mode.json"),
     ("/api/tickets/broker-snapshot", "GET", "contracts/tickets_broker_snapshot.json"),
     ("/api/market/bars/BTC", "GET", "contracts/market_bars_BTC.json"),
+    ("/api/market/chart/BTC?timeframe=1d", "GET", "contracts/market_chart_BTC_1d.json"),
+    ("/api/market/chart/BTC?timeframe=15m", "GET", "contracts/market_chart_BTC_15m.json"),
+    ("/api/watchlist/summary", "GET", "contracts/watchlist_summary.json"),
     ("/api/system/refresh", "POST", "contracts/system_refresh.json"),
     ("/api/strategies", "GET", "contracts/strategies.json"),
     ("/api/backtests", "GET", "contracts/backtests.json"),
@@ -80,11 +83,14 @@ TEST_FILES = [
     "apps/backend/tests/test_session_workflow.py",
     "apps/backend/tests/test_signal_and_risk_invariants.py",
     "apps/backend/tests/test_trade_tickets.py",
+    "apps/backend/tests/test_ui_summary_routes.py",
     "apps/backend/tests/test_risk_engine.py",
     "apps/frontend/src/App.test.tsx",
     "apps/frontend/src/api/client.test.ts",
     "apps/frontend/src/api/contracts.test.ts",
     "apps/frontend/src/components/CommandCenter.test.tsx",
+    "apps/frontend/src/components/LeftRail.test.tsx",
+    "apps/frontend/src/components/PriceChart.test.tsx",
     "apps/frontend/src/components/SignalDetailsCard.test.tsx",
     "apps/frontend/src/components/TopRibbon.test.tsx",
     "apps/frontend/src/tabs/ActiveTradesTab.test.tsx",
@@ -139,6 +145,8 @@ CORE_FILES = [
     "apps/backend/app/services/replay_engine.py",
     "apps/backend/app/services/session_workflow.py",
     "apps/backend/app/services/trade_tickets.py",
+    "apps/backend/app/services/market_views.py",
+    "apps/backend/app/services/ui_summaries.py",
     "apps/backend/app/services/broker_adapters.py",
     "apps/backend/app/strategy_lab/registry.py",
     "apps/backend/app/strategy_lab/service.py",
@@ -173,6 +181,7 @@ CORE_FILES = [
     "apps/frontend/src/tabs/TradeTicketsTab.tsx",
     "apps/frontend/src/components/CommandCenter.tsx",
     "apps/frontend/src/components/LeftRail.tsx",
+    "apps/frontend/src/components/PriceChart.tsx",
     "apps/frontend/src/components/TopRibbon.tsx",
     "apps/frontend/src/components/ContextSidebar.tsx",
     "apps/frontend/src/components/SignalTable.tsx",
@@ -211,8 +220,10 @@ def run_command(command: list[str], cwd: Path, env: dict[str, str] | None = None
         env=env,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
-    output = completed.stdout
+    output = completed.stdout or ""
     if completed.stderr:
         if output and not output.endswith("\n"):
             output += "\n"
@@ -844,6 +855,9 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     tickets = contracts["/api/tickets"]
     shadow_mode = contracts["/api/tickets/shadow-mode"]
     broker_snapshot = contracts["/api/tickets/broker-snapshot"]
+    market_chart_btc_1d = contracts["/api/market/chart/BTC?timeframe=1d"]
+    market_chart_btc_15m = contracts["/api/market/chart/BTC?timeframe=15m"]
+    watchlist_summary = contracts["/api/watchlist/summary"]
     journal = contracts["/api/journal"]
     strategies = contracts["/api/strategies"]
     backtests = contracts["/api/backtests"]
@@ -861,6 +875,8 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/seeded_news_item.json", news[0])
     if isinstance(watchlist, list) and watchlist:
         write_json(bundle_root / "samples/seeded_watchlist_item.json", watchlist[0])
+    if isinstance(watchlist_summary, list) and watchlist_summary:
+        write_json(bundle_root / "samples/watchlist_summary_sample.json", watchlist_summary[0])
     if isinstance(opportunities, dict):
         write_json(bundle_root / "samples/opportunity_hunter.json", opportunities)
     if isinstance(alerts, list) and alerts:
@@ -886,6 +902,20 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/replay_sample.json", replay)
     if isinstance(scenario_stress, dict):
         write_json(bundle_root / "samples/scenario_stress_sample.json", scenario_stress)
+    if isinstance(market_chart_btc_1d, dict):
+        write_json(bundle_root / "samples/chart_data_sample.json", market_chart_btc_1d)
+        write_json(bundle_root / "samples/chart_overlay_sample.json", market_chart_btc_1d.get("overlays", {}))
+    if isinstance(market_chart_btc_15m, dict):
+        write_json(
+            bundle_root / "samples/chart_no_data_state_sample.json",
+            {
+                "status": market_chart_btc_15m.get("status"),
+                "status_note": market_chart_btc_15m.get("status_note"),
+                "available_timeframes": market_chart_btc_15m.get("available_timeframes"),
+                "source_mode": market_chart_btc_15m.get("source_mode"),
+                "freshness_state": market_chart_btc_15m.get("freshness_state"),
+            },
+        )
     if isinstance(review_tasks, list) and review_tasks:
         write_json(bundle_root / "samples/review_task_sample.json", review_tasks[0])
     if isinstance(daily_briefing, dict):

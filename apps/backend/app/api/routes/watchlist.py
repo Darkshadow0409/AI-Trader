@@ -6,7 +6,8 @@ from sqlmodel import Session, desc, select
 from app.core.clock import naive_utc_now
 from app.core.database import get_session
 from app.models.entities import WatchlistItem
-from app.models.schemas import OpportunityHunterView, WatchlistView
+from app.models.schemas import OpportunityHunterView, WatchlistSummaryView, WatchlistView
+from app.services.market_views import list_watchlist_summaries
 from app.services.operator_console import list_opportunities
 
 
@@ -34,3 +35,8 @@ def list_watchlist(session: Session = Depends(get_session)) -> list[WatchlistVie
 @router.get("/opportunity-hunter", response_model=OpportunityHunterView)
 def opportunity_hunter(session: Session = Depends(get_session)) -> OpportunityHunterView:
     return list_opportunities(session)
+
+
+@router.get("/summary", response_model=list[WatchlistSummaryView])
+def watchlist_summary(session: Session = Depends(get_session)) -> list[WatchlistSummaryView]:
+    return list_watchlist_summaries(session)

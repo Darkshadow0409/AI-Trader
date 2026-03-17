@@ -3,9 +3,12 @@ import {
   mockAlerts,
   mockBacktestDetail,
   mockDailyBriefing,
+  mockDeskSummary,
   mockNews,
   mockOperationalBacklog,
+  mockCommandCenter,
   mockPilotDashboard,
+  mockPilotExportResponse,
   mockPilotMetrics,
   mockOpportunities,
   mockPaperTradeAnalytics,
@@ -33,10 +36,13 @@ import type {
   BacktestDetailView,
   BrokerAdapterSnapshotView,
   DailyBriefingView,
+  DeskSummaryView,
   ManualFillView,
   NewsView,
   OperationalBacklogView,
+  CommandCenterStatusView,
   PilotDashboardView,
+  PilotExportResponse,
   PilotMetricSummaryView,
   OpportunityHunterView,
   PaperTradeAnalyticsView,
@@ -70,9 +76,12 @@ describe("frontend contract alignment", () => {
     const alert: AlertEnvelope = mockAlerts[0];
     const reviewTask: ReviewTaskView = mockReviewTasks[0];
     const dailyBriefing: DailyBriefingView = mockDailyBriefing;
+    const deskSummary: DeskSummaryView = mockDeskSummary;
     const sessionOverview: SessionOverviewView = mockSessionOverview;
     const operationalBacklog: OperationalBacklogView = mockOperationalBacklog;
+    const commandCenter: CommandCenterStatusView = mockCommandCenter;
     const pilotMetrics: PilotMetricSummaryView = mockPilotMetrics;
+    const pilotExportResponse: PilotExportResponse = mockPilotExportResponse;
     const executionGate: ExecutionGateView = mockExecutionGate;
     const pilotDashboard: PilotDashboardView = mockPilotDashboard;
     const adapterHealth: AdapterHealthView = mockAdapterHealth[0];
@@ -190,6 +199,21 @@ describe("frontend contract alignment", () => {
       high_priority_count: expect.any(Number),
       items: expect.any(Array),
     });
+    expect(deskSummary).toMatchObject({
+      session_states: expect.any(Array),
+      execution_gate: expect.any(Object),
+      review_tasks: expect.any(Array),
+      open_tickets: expect.any(Array),
+      active_paper_trades: expect.any(Array),
+      shadow_divergence: expect.any(Array),
+    });
+    expect(commandCenter).toMatchObject({
+      runtime_status: expect.any(String),
+      source_mode: expect.any(String),
+      pipeline_status: expect.any(String),
+      available_actions: expect.any(Array),
+      notes: expect.any(Array),
+    });
     expect(pilotMetrics).toMatchObject({
       ticket_conversion: expect.any(Object),
       shadow_metrics: expect.any(Object),
@@ -216,6 +240,11 @@ describe("frontend contract alignment", () => {
       divergence_hotspots: expect.any(Array),
       operator_discipline: expect.any(Object),
       review_backlog: expect.any(Object),
+    });
+    expect(pilotExportResponse).toMatchObject({
+      report_path: expect.any(String),
+      source_mode: expect.any(String),
+      pipeline_status: expect.any(String),
     });
     expect(adapterHealth).toMatchObject({
       adapter_name: expect.any(String),

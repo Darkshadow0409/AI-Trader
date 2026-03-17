@@ -1085,6 +1085,23 @@ export interface SessionOverviewView {
   operational_backlog: OperationalBacklogView;
 }
 
+export interface DeskSummaryView {
+  generated_at: string;
+  session_states: SessionStateView[];
+  execution_gate: ExecutionGateView;
+  operational_backlog: OperationalBacklogView;
+  review_tasks: ReviewTaskView[];
+  degraded_sources: DegradedSourceView[];
+  high_priority_signals: SignalView[];
+  high_risk_signals: SignalView[];
+  focus_opportunities: OpportunityView[];
+  open_tickets: TradeTicketView[];
+  active_paper_trades: PaperTradeView[];
+  shadow_divergence: Array<Record<string, unknown>>;
+  adapter_health: AdapterHealthView[];
+  audit_log_tail: AuditLogView[];
+}
+
 export interface PilotMetricSummaryView {
   generated_at: string;
   ticket_conversion: Record<string, number>;
@@ -1133,4 +1150,129 @@ export interface PilotDashboardView {
   execution_gate: ExecutionGateView;
   adapter_health: AdapterHealthView[];
   recent_audit_logs: AuditLogView[];
+}
+
+export interface OpsActionSpecView {
+  action_name: string;
+  label: string;
+  category: string;
+  is_heavy: boolean;
+  warning: string;
+}
+
+export interface OpsActionView {
+  action_id: string;
+  action_name: string;
+  category: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  summary: string;
+  log_path: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface OpsActionRequest {
+  confirm_heavy?: boolean;
+}
+
+export interface OpsSummaryView {
+  generated_at: string;
+  latest_fast_verify: OpsActionView | null;
+  latest_full_verify: OpsActionView | null;
+  latest_export: OpsActionView | null;
+  latest_bundle: OpsActionView | null;
+  latest_refresh: OpsActionView | null;
+  latest_contract_snapshot: OpsActionView | null;
+  action_history: OpsActionView[];
+  available_actions: OpsActionSpecView[];
+}
+
+export interface CommandCenterStatusView {
+  generated_at: string;
+  runtime_status: string;
+  backend_health: string;
+  frontend_runtime_status: string;
+  source_mode: string;
+  pipeline_status: string;
+  pipeline_freshness_minutes: number;
+  last_refresh: string | null;
+  latest_export_path: string | null;
+  latest_export_generated_at: string | null;
+  latest_review_bundle_path: string | null;
+  latest_review_bundle_generated_at: string | null;
+  frontend_build_generated_at: string | null;
+  diagnostics_updated_at: string | null;
+  verify_fast_available: boolean;
+  verify_full_available: boolean;
+  review_bundle_available: boolean;
+  available_actions: string[];
+  safe_actions: OpsActionSpecView[];
+  heavy_actions: OpsActionSpecView[];
+  latest_fast_verify: OpsActionView | null;
+  latest_full_verify: OpsActionView | null;
+  latest_export: OpsActionView | null;
+  latest_bundle: OpsActionView | null;
+  latest_refresh_action: OpsActionView | null;
+  latest_contract_snapshot: OpsActionView | null;
+  action_history: OpsActionView[];
+  notes: string[];
+}
+
+export interface PilotExportResponse {
+  generated_at: string;
+  report_path: string;
+  source_mode: string;
+  pipeline_status: string;
+}
+
+export interface HomeOperatorSummaryView {
+  generated_at: string;
+  session_states: SessionStateView[];
+  session_state: string;
+  pilot_gate_state: string;
+  degraded_source_count: number;
+  review_backlog_counts: Record<string, number>;
+  top_signals_summary: SignalView[];
+  open_ticket_counts: Record<string, number>;
+  active_trade_counts: Record<string, number>;
+  shadow_divergence_summary: Record<string, unknown>;
+  adapter_health_summary: Record<string, number>;
+}
+
+export interface SignalsSummaryView {
+  generated_at: string;
+  filter_metadata: Record<string, string[]>;
+  grouped_counts: Record<string, Record<string, number>>;
+  top_ranked_signals: SignalView[];
+  warning_counts: Record<string, number>;
+}
+
+export interface TicketSummaryView {
+  generated_at: string;
+  counts_by_state: Record<string, number>;
+  checklist_blockers: Record<string, number>;
+  shadow_active_count: number;
+  reconciliation_needed_count: number;
+  ready_for_review_count: number;
+}
+
+export interface ReviewSummaryView {
+  generated_at: string;
+  overdue_reviews: number;
+  adherence_summary: Record<string, number>;
+  failure_attribution_summary: Record<string, number>;
+  realism_warning_violations: number;
+  review_completion_trend: Record<string, number>;
+}
+
+export interface PilotSummaryView {
+  generated_at: string;
+  gate_state: string;
+  blockers: string[];
+  ticket_funnel: Record<string, number>;
+  divergence_metrics: Record<string, number>;
+  adapter_health: AdapterHealthView[];
+  audit_anomalies: AuditLogView[];
+  asset_class_trust_split: Array<Record<string, unknown>>;
 }

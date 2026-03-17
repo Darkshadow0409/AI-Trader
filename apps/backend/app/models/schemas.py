@@ -918,6 +918,23 @@ class SessionOverviewView(BaseModel):
     operational_backlog: OperationalBacklogView
 
 
+class DeskSummaryView(BaseModel):
+    generated_at: datetime
+    session_states: list[SessionStateView] = Field(default_factory=list)
+    execution_gate: ExecutionGateView
+    operational_backlog: OperationalBacklogView
+    review_tasks: list[ReviewTaskView] = Field(default_factory=list)
+    degraded_sources: list[DegradedSourceView] = Field(default_factory=list)
+    high_priority_signals: list[SignalView] = Field(default_factory=list)
+    high_risk_signals: list[SignalView] = Field(default_factory=list)
+    focus_opportunities: list[OpportunityView] = Field(default_factory=list)
+    open_tickets: list[TradeTicketView] = Field(default_factory=list)
+    active_paper_trades: list[PaperTradeView] = Field(default_factory=list)
+    shadow_divergence: list[dict[str, Any]] = Field(default_factory=list)
+    adapter_health: list["AdapterHealthView"] = Field(default_factory=list)
+    audit_log_tail: list["AuditLogView"] = Field(default_factory=list)
+
+
 class PilotMetricSummaryView(BaseModel):
     generated_at: datetime
     ticket_conversion: dict[str, float]
@@ -966,6 +983,131 @@ class PilotDashboardView(BaseModel):
     execution_gate: ExecutionGateView
     adapter_health: list[AdapterHealthView] = Field(default_factory=list)
     recent_audit_logs: list[AuditLogView] = Field(default_factory=list)
+
+
+class OpsActionSpecView(BaseModel):
+    action_name: str
+    label: str
+    category: str
+    is_heavy: bool
+    warning: str = ""
+
+
+class OpsActionView(BaseModel):
+    action_id: str
+    action_name: str
+    category: str
+    status: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    summary: str
+    log_path: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpsActionRequest(BaseModel):
+    confirm_heavy: bool = False
+
+
+class OpsSummaryView(BaseModel):
+    generated_at: datetime
+    latest_fast_verify: OpsActionView | None = None
+    latest_full_verify: OpsActionView | None = None
+    latest_export: OpsActionView | None = None
+    latest_bundle: OpsActionView | None = None
+    latest_refresh: OpsActionView | None = None
+    latest_contract_snapshot: OpsActionView | None = None
+    action_history: list[OpsActionView] = Field(default_factory=list)
+    available_actions: list[OpsActionSpecView] = Field(default_factory=list)
+
+
+class CommandCenterStatusView(BaseModel):
+    generated_at: datetime
+    runtime_status: str
+    backend_health: str = "ok"
+    frontend_runtime_status: str = "available"
+    source_mode: str
+    pipeline_status: str
+    pipeline_freshness_minutes: int = 0
+    last_refresh: datetime | None = None
+    latest_export_path: str | None = None
+    latest_export_generated_at: datetime | None = None
+    latest_review_bundle_path: str | None = None
+    latest_review_bundle_generated_at: datetime | None = None
+    frontend_build_generated_at: datetime | None = None
+    diagnostics_updated_at: datetime | None = None
+    verify_fast_available: bool = True
+    verify_full_available: bool = True
+    review_bundle_available: bool = True
+    available_actions: list[str] = Field(default_factory=list)
+    safe_actions: list[OpsActionSpecView] = Field(default_factory=list)
+    heavy_actions: list[OpsActionSpecView] = Field(default_factory=list)
+    latest_fast_verify: OpsActionView | None = None
+    latest_full_verify: OpsActionView | None = None
+    latest_export: OpsActionView | None = None
+    latest_bundle: OpsActionView | None = None
+    latest_refresh_action: OpsActionView | None = None
+    latest_contract_snapshot: OpsActionView | None = None
+    action_history: list[OpsActionView] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class PilotExportResponse(BaseModel):
+    generated_at: datetime
+    report_path: str
+    source_mode: str
+    pipeline_status: str
+
+
+class HomeOperatorSummaryView(BaseModel):
+    generated_at: datetime
+    session_states: list[SessionStateView] = Field(default_factory=list)
+    session_state: str
+    pilot_gate_state: str
+    degraded_source_count: int
+    review_backlog_counts: dict[str, int] = Field(default_factory=dict)
+    top_signals_summary: list[SignalView] = Field(default_factory=list)
+    open_ticket_counts: dict[str, int] = Field(default_factory=dict)
+    active_trade_counts: dict[str, int] = Field(default_factory=dict)
+    shadow_divergence_summary: dict[str, Any] = Field(default_factory=dict)
+    adapter_health_summary: dict[str, int] = Field(default_factory=dict)
+
+
+class SignalsSummaryView(BaseModel):
+    generated_at: datetime
+    filter_metadata: dict[str, list[str]] = Field(default_factory=dict)
+    grouped_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    top_ranked_signals: list[SignalView] = Field(default_factory=list)
+    warning_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class TicketSummaryView(BaseModel):
+    generated_at: datetime
+    counts_by_state: dict[str, int] = Field(default_factory=dict)
+    checklist_blockers: dict[str, int] = Field(default_factory=dict)
+    shadow_active_count: int = 0
+    reconciliation_needed_count: int = 0
+    ready_for_review_count: int = 0
+
+
+class ReviewSummaryView(BaseModel):
+    generated_at: datetime
+    overdue_reviews: int
+    adherence_summary: dict[str, float] = Field(default_factory=dict)
+    failure_attribution_summary: dict[str, int] = Field(default_factory=dict)
+    realism_warning_violations: int
+    review_completion_trend: dict[str, float] = Field(default_factory=dict)
+
+
+class PilotSummaryView(BaseModel):
+    generated_at: datetime
+    gate_state: str
+    blockers: list[str] = Field(default_factory=list)
+    ticket_funnel: dict[str, float] = Field(default_factory=dict)
+    divergence_metrics: dict[str, float] = Field(default_factory=dict)
+    adapter_health: list[AdapterHealthView] = Field(default_factory=list)
+    audit_anomalies: list[AuditLogView] = Field(default_factory=list)
+    asset_class_trust_split: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class StrategyListView(BaseModel):

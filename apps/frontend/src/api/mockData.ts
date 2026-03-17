@@ -6,22 +6,30 @@ import type {
   BacktestListView,
   BarView,
   BrokerAdapterSnapshotView,
+  CommandCenterStatusView,
   DailyBriefingView,
+  DeskSummaryView,
   DegradedSourceView,
   DataRealityView,
   HealthView,
+  HomeOperatorSummaryView,
   JournalReviewView,
   ManualFillView,
   NewsView,
+  OpsActionView,
+  OpsSummaryView,
   OperationalBacklogView,
   PilotDashboardView,
+  PilotExportResponse,
   PilotMetricSummaryView,
+  PilotSummaryView,
   OpportunityHunterView,
   PaperTradeAnalyticsView,
   PaperTradeDetailView,
   PaperTradeReviewView,
   PaperTradeView,
   ResearchView,
+  ReviewSummaryView,
   ReviewTaskView,
   RibbonView,
   RiskDetailView,
@@ -32,11 +40,13 @@ import type {
   AdapterHealthView,
   AuditLogView,
   SignalDetailView,
+  SignalsSummaryView,
   SignalView,
   StrategyDriftWarningView,
   StrategyDetailView,
   StrategyListView,
   TradeTicketDetailView,
+  TicketSummaryView,
   TradeTicketView,
   WalletBalanceView,
   WeeklyReviewView,
@@ -2019,6 +2029,237 @@ export const mockPilotDashboard: PilotDashboardView = {
   execution_gate: mockExecutionGate,
   adapter_health: mockAdapterHealth,
   recent_audit_logs: mockAuditLogs,
+};
+
+export const mockDeskSummary: DeskSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  session_states: mockSessionOverview.states,
+  execution_gate: mockExecutionGate,
+  operational_backlog: mockOperationalBacklog,
+  review_tasks: mockReviewTasks,
+  degraded_sources: mockDailyBriefing.degraded_data_sources,
+  high_priority_signals: mockSignals,
+  high_risk_signals: mockHighRiskSignals,
+  focus_opportunities: mockOpportunities.focus_queue,
+  open_tickets: mockTicketList,
+  active_paper_trades: mockPaperTradesActive,
+  shadow_divergence: [
+    {
+      ticket_id: "ticket_btc_manual",
+      symbol: "BTC",
+      reason: "no_material_mismatch",
+      observed_vs_plan_pct: 0.18,
+      freshness_state: "fresh",
+    },
+  ],
+  adapter_health: mockAdapterHealth,
+  audit_log_tail: mockAuditLogs,
+};
+
+export const mockHomeSummary: HomeOperatorSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  session_states: mockSessionOverview.states,
+  session_state: "post_session",
+  pilot_gate_state: mockExecutionGate.status,
+  degraded_source_count: mockDailyBriefing.degraded_data_sources.length,
+  review_backlog_counts: {
+    overdue: mockOperationalBacklog.overdue_count,
+    high_priority: mockOperationalBacklog.high_priority_count,
+    open_reviews: mockReviewTasks.length,
+  },
+  top_signals_summary: mockSignals,
+  open_ticket_counts: {
+    ready_for_review: 1,
+    shadow_active: 1,
+    manually_executed: 1,
+  },
+  active_trade_counts: {
+    proposed: mockPaperTradesProposed.length,
+    opened: mockPaperTradesActive.length,
+    closed: mockPaperTradesClosed.length,
+  },
+  shadow_divergence_summary: {
+    count: mockDeskSummary.shadow_divergence.length,
+    max_observed_vs_plan_pct: 0.18,
+  },
+  adapter_health_summary: {
+    healthy: 1,
+  },
+};
+
+const mockOpsHistory: OpsActionView[] = [
+  {
+    action_id: "ops_refresh_001",
+    action_name: "system_refresh",
+    category: "safe_common",
+    status: "success",
+    started_at: "2026-03-15T11:25:00Z",
+    finished_at: "2026-03-15T11:25:03Z",
+    summary: "source_mode=sample | bars_ingested=1080 | signals_emitted=2 | risk_reports_built=2",
+    log_path: "data/ops_logs/ops_refresh_001.log",
+    details: { source_mode: "sample", bars_ingested: 1080, signals_emitted: 2, risk_reports_built: 2 },
+  },
+  {
+    action_id: "ops_verify_fast_001",
+    action_name: "verify_fast",
+    category: "safe_common",
+    status: "success",
+    started_at: "2026-03-15T11:26:00Z",
+    finished_at: "2026-03-15T11:26:18Z",
+    summary: "backend tests passed | frontend tests passed | build passed",
+    log_path: "data/ops_logs/ops_verify_fast_001.log",
+    details: { backend: "passed", frontend: "passed", build: "passed" },
+  },
+  {
+    action_id: "ops_export_001",
+    action_name: "pilot_export",
+    category: "safe_common",
+    status: "success",
+    started_at: "2026-03-15T11:27:00Z",
+    finished_at: "2026-03-15T11:27:05Z",
+    summary: "pilot_report_20260315_113000 exported",
+    log_path: "data/ops_logs/ops_export_001.log",
+    details: { report_path: "data/exports/pilot_report_20260315_113000" },
+  },
+  {
+    action_id: "ops_bundle_001",
+    action_name: "build_review_bundle",
+    category: "heavy_maintenance",
+    status: "success",
+    started_at: "2026-03-15T11:28:00Z",
+    finished_at: "2026-03-15T11:29:15Z",
+    summary: "review_bundle.zip regenerated",
+    log_path: "data/ops_logs/ops_bundle_001.log",
+    details: { artifact: "review_bundle.zip" },
+  },
+];
+
+export const mockOpsSummary: OpsSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  latest_fast_verify: mockOpsHistory[1],
+  latest_full_verify: null,
+  latest_export: mockOpsHistory[2],
+  latest_bundle: mockOpsHistory[3],
+  latest_refresh: mockOpsHistory[0],
+  latest_contract_snapshot: null,
+  action_history: mockOpsHistory,
+  available_actions: [
+    { action_name: "system_refresh", label: "Refresh System", category: "safe_common", is_heavy: false, warning: "Refreshes the in-app pipeline state from fixture-safe sources." },
+    { action_name: "fixture_refresh", label: "Refresh Fixture Data", category: "safe_common", is_heavy: false, warning: "Re-seeds deterministic fixture-mode data and refreshes derived views." },
+    { action_name: "pilot_export", label: "Trigger Pilot Export", category: "safe_common", is_heavy: false, warning: "Writes a timestamped pilot report under data/exports." },
+    { action_name: "save_contract_snapshots", label: "Save Contract Snapshots", category: "heavy_maintenance", is_heavy: true, warning: "Captures fixture-mode API contract snapshots for regression review." },
+    { action_name: "build_review_bundle", label: "Build Review Bundle", category: "heavy_maintenance", is_heavy: true, warning: "Runs the compact review artifact builder and can take noticeable time." },
+    { action_name: "verify_fast", label: "Run Fast Verify", category: "safe_common", is_heavy: false, warning: "Runs the fast local verification path." },
+    { action_name: "verify_full", label: "Run Full Verify", category: "heavy_maintenance", is_heavy: true, warning: "Runs the full local verification chain and is slower." },
+  ],
+};
+
+export const mockCommandCenter: CommandCenterStatusView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  runtime_status: "fixture_mode",
+  backend_health: "ok",
+  frontend_runtime_status: "built",
+  source_mode: "sample",
+  pipeline_status: "completed",
+  pipeline_freshness_minutes: 22,
+  last_refresh: "2026-03-15T11:30:00Z",
+  latest_export_path: "data/exports/pilot_report_20260315_113000",
+  latest_export_generated_at: "2026-03-15T11:30:00Z",
+  latest_review_bundle_path: "review_bundle.zip",
+  latest_review_bundle_generated_at: "2026-03-15T11:30:00Z",
+  frontend_build_generated_at: "2026-03-15T11:30:00Z",
+  diagnostics_updated_at: "2026-03-15T11:30:00Z",
+  verify_fast_available: true,
+  verify_full_available: true,
+  review_bundle_available: true,
+  available_actions: mockOpsSummary.available_actions.map((item) => item.action_name),
+  safe_actions: mockOpsSummary.available_actions.filter((item) => !item.is_heavy),
+  heavy_actions: mockOpsSummary.available_actions.filter((item) => item.is_heavy),
+  latest_fast_verify: mockOpsSummary.latest_fast_verify,
+  latest_full_verify: mockOpsSummary.latest_full_verify,
+  latest_export: mockOpsSummary.latest_export,
+  latest_bundle: mockOpsSummary.latest_bundle,
+  latest_refresh_action: mockOpsSummary.latest_refresh,
+  latest_contract_snapshot: mockOpsSummary.latest_contract_snapshot,
+  action_history: mockOpsSummary.action_history,
+  notes: [
+    "Safe operator actions only. No raw shell execution is exposed.",
+    "Heavy actions require explicit confirmation in the UI before they run.",
+    "Pilot export and contract snapshots reuse local fixture-safe reporting paths.",
+  ],
+};
+
+export const mockPilotExportResponse: PilotExportResponse = {
+  generated_at: "2026-03-15T11:30:00Z",
+  report_path: "data/exports/pilot_report_20260315_113000",
+  source_mode: "sample",
+  pipeline_status: "completed",
+};
+
+export const mockSignalsSummary: SignalsSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  filter_metadata: {
+    symbols: ["BTC", "ETH"],
+    families: ["event_driven", "trend_breakout"],
+    directions: ["long", "neutral"],
+    freshness_states: ["fresh"],
+    realism_grades: ["B"],
+  },
+  grouped_counts: {
+    family: { trend_breakout: 1, event_driven: 1 },
+    direction: { long: 1, neutral: 1 },
+    freshness: { fresh: 2 },
+    realism: { B: 2 },
+  },
+  top_ranked_signals: mockSignals,
+  warning_counts: {
+    high_risk: 1,
+    stale_or_degraded: 0,
+    proxy_or_context_only: 0,
+    promotion_blocked: 1,
+  },
+};
+
+export const mockTicketSummary: TicketSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  counts_by_state: { ready_for_review: 1, shadow_active: 1, manually_executed: 1 },
+  checklist_blockers: {
+    "operator acknowledgement missing": 1,
+  },
+  shadow_active_count: 1,
+  reconciliation_needed_count: 1,
+  ready_for_review_count: 1,
+};
+
+export const mockReviewSummary: ReviewSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  overdue_reviews: 1,
+  adherence_summary: {
+    adherence_rate: 0.63,
+    invalidation_discipline_rate: 0.5,
+    review_completion_rate: 0.5,
+  },
+  failure_attribution_summary: {
+    realism_ignored: 1,
+    operator_timing: 1,
+  },
+  realism_warning_violations: 1,
+  review_completion_trend: {
+    review_backlog: 1,
+    poor_adherence_streak: 1,
+    reviewed_trade_count: 2,
+  },
+};
+
+export const mockPilotSummary: PilotSummaryView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  gate_state: mockExecutionGate.status,
+  blockers: mockExecutionGate.blockers,
+  ticket_funnel: mockPilotMetrics.ticket_conversion,
+  divergence_metrics: mockPilotMetrics.shadow_metrics,
+  adapter_health: mockAdapterHealth,
+  audit_anomalies: mockAuditLogs,
+  asset_class_trust_split: mockPilotDashboard.trust_by_asset_class,
 };
 
 export const mockStrategies: StrategyListView[] = [

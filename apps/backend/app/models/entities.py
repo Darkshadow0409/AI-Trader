@@ -279,6 +279,19 @@ class AuditLogRecord(SQLModel, table=True):
     details_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class OpsActionRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    action_id: str = Field(index=True, unique=True)
+    action_name: str = Field(index=True)
+    category: str = Field(default="safe_common", index=True)
+    status: str = Field(default="queued", index=True)
+    started_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    finished_at: datetime | None = Field(default=None, index=True)
+    summary: str = ""
+    log_path: str | None = None
+    details_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
 class AlertRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     alert_id: str = Field(index=True, unique=True)

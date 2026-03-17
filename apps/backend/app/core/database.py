@@ -172,6 +172,17 @@ def _ensure_contract_columns() -> None:
             "actor": "TEXT DEFAULT 'local_operator'",
             "details_json": "TEXT DEFAULT '{}'",
         },
+        "opsactionrecord": {
+            "action_id": "TEXT",
+            "action_name": "TEXT DEFAULT ''",
+            "category": "TEXT DEFAULT 'safe_common'",
+            "status": "TEXT DEFAULT 'queued'",
+            "started_at": "TIMESTAMP",
+            "finished_at": "TIMESTAMP",
+            "summary": "TEXT DEFAULT ''",
+            "log_path": "TEXT",
+            "details_json": "TEXT DEFAULT '{}'",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():
@@ -237,6 +248,15 @@ def _ensure_contract_columns() -> None:
             "CREATE INDEX IF NOT EXISTS ix_auditlogrecord_entity_id ON auditlogrecord (entity_id)"
         )
         connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_opsactionrecord_action_id_unique ON opsactionrecord (action_id)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_opsactionrecord_action_name ON opsactionrecord (action_name)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_opsactionrecord_started_at ON opsactionrecord (started_at)"
+        )
+        connection.exec_driver_sql(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_reviewtaskrecord_task_id_unique ON reviewtaskrecord (task_id)"
         )
         connection.exec_driver_sql(
@@ -248,7 +268,7 @@ def _ensure_contract_columns() -> None:
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, OpsActionRecord, PaperTradeRecord, PaperTradeReviewRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
 
     SQLModel.metadata.create_all(engine)
     _ensure_contract_columns()

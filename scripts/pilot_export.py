@@ -16,7 +16,7 @@ from sqlmodel import Session, select  # noqa: E402
 
 from app.core.clock import naive_utc_now  # noqa: E402
 from app.core.database import engine, init_db  # noqa: E402
-from app.models.entities import PaperTradeReviewRecord, SignalRecord  # noqa: E402
+from app.models.entities import PaperTradeRecord, PaperTradeReviewRecord, SignalRecord  # noqa: E402
 from app.services.paper_trading import paper_trade_analytics  # noqa: E402
 from app.services.pilot_ops import execution_gate_status, pilot_dashboard, pilot_metric_summary  # noqa: E402
 from app.services.pipeline import seed_and_refresh  # noqa: E402
@@ -87,11 +87,15 @@ def _adherence_payload(session: Session) -> dict[str, Any]:
 
 def _realism_warning_payload(session: Session) -> dict[str, Any]:
     rows = session.exec(select(PaperTradeReviewRecord)).all()
+    trades = {
+        row.trade_id: row
+        for row in session.exec(select(PaperTradeRecord).where(PaperTradeRecord.trade_id.in_([review.trade_id for review in rows]))).all()
+    }
     violations = [
         {
             "trade_id": row.trade_id,
-            "signal_id": row.signal_id,
-            "risk_report_id": row.risk_report_id,
+            "signal_id": trades.get(row.trade_id).signal_id if trades.get(row.trade_id) else None,
+            "risk_report_id": trades.get(row.trade_id).risk_report_id if trades.get(row.trade_id) else None,
             "realism_warning_ignored": row.realism_warning_ignored,
             "failure_categories": row.failure_categories_json,
             "operator_notes": row.operator_notes,

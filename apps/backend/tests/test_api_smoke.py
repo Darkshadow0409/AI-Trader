@@ -23,6 +23,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     strategies = client.get("/api/strategies")
     backtests = client.get("/api/backtests")
     overview = client.get("/api/dashboard/overview")
+    desk = client.get("/api/dashboard/desk")
     research = client.get("/api/research")
     high_risk = client.get("/api/signals/high-risk")
     signal_detail = client.get(f"/api/signals/{signals.json()[0]['signal_id']}") if signals.json() else None
@@ -54,6 +55,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     shadow_mode = client.get("/api/tickets/shadow-mode")
     broker_snapshot = client.get("/api/tickets/broker-snapshot")
     refresh = client.post("/api/system/refresh")
+    control_center = client.get("/api/system/control-center")
+    pilot_export = client.post("/api/system/pilot-export")
     assert news.status_code == 200
     assert watchlist.status_code == 200
     assert risk.status_code == 200
@@ -62,6 +65,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert strategies.status_code == 200
     assert backtests.status_code == 200
     assert overview.status_code == 200
+    assert desk.status_code == 200
     assert research.status_code == 200
     assert high_risk.status_code == 200
     assert signal_detail is not None and signal_detail.status_code == 200
@@ -93,10 +97,13 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert shadow_mode.status_code == 200
     assert broker_snapshot.status_code == 200
     assert refresh.status_code == 200
+    assert control_center.status_code == 200
+    assert pilot_export.status_code == 200
     assert len(bars.json()) > 0
     assert len(strategies.json()) >= 3
     assert len(backtests.json()) >= 1
     assert "macro_regime" in overview.json()
+    assert "execution_gate" in desk.json()
     assert isinstance(research.json(), list)
     assert isinstance(active_trades.json(), list)
     assert isinstance(wallet.json(), list)
@@ -126,6 +133,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "data_reality" in risk_detail.json()
     assert "data_reality" in asset_context.json()
     assert refresh.json()["source_mode"] == "sample"
+    assert "runtime_status" in control_center.json()
+    assert "report_path" in pilot_export.json()
 
     active_paper_detail = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}") if active_paper.json() else None
     assert active_paper_detail is not None and active_paper_detail.status_code == 200

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDashboardData } from "./api/hooks";
+import { CommandCenter } from "./components/CommandCenter";
 import { ContextSidebar } from "./components/ContextSidebar";
-import { LeftRail } from "./components/LeftRail";
+import { LeftRail, type NavItem } from "./components/LeftRail";
 import { Panel } from "./components/Panel";
 import { PriceChart } from "./components/PriceChart";
 import { SignalDetailsCard } from "./components/SignalDetailsCard";
@@ -10,6 +11,7 @@ import { StateBlock } from "./components/StateBlock";
 import { TopRibbon } from "./components/TopRibbon";
 import { ActiveTradesTab } from "./tabs/ActiveTradesTab";
 import { BacktestsTab } from "./tabs/BacktestsTab";
+import { DeskTab } from "./tabs/DeskTab";
 import { JournalTab } from "./tabs/JournalTab";
 import { NewsTab } from "./tabs/NewsTab";
 import { PilotDashboardTab } from "./tabs/PilotDashboardTab";
@@ -23,6 +25,7 @@ import { WalletBalanceTab } from "./tabs/WalletBalanceTab";
 import { WatchlistTab } from "./tabs/WatchlistTab";
 
 type TabKey =
+  | "desk"
   | "signals"
   | "high_risk"
   | "research"
@@ -40,21 +43,22 @@ type TabKey =
   | "pilot_ops";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: "desk", label: "Desk" },
   { key: "signals", label: "Signals" },
-  { key: "high_risk", label: "High-Risk Signals" },
+  { key: "high_risk", label: "High-Risk" },
+  { key: "watchlist", label: "Hunter" },
+  { key: "trade_tickets", label: "Tickets" },
+  { key: "active_trades", label: "Trades" },
+  { key: "journal", label: "Journal" },
+  { key: "session", label: "Reviews" },
+  { key: "strategy_lab", label: "Strategy" },
+  { key: "backtests", label: "Backtests" },
+  { key: "replay", label: "Replay" },
+  { key: "pilot_ops", label: "Pilot Ops" },
+  { key: "risk", label: "Risk" },
   { key: "research", label: "Research" },
   { key: "news", label: "News" },
-  { key: "active_trades", label: "Active Trades" },
-  { key: "wallet_balance", label: "Wallet Balance" },
-  { key: "watchlist", label: "Watchlist / Opportunity Hunter" },
-  { key: "strategy_lab", label: "Strategy Lab" },
-  { key: "backtests", label: "Backtests" },
-  { key: "risk", label: "Risk / Exposure" },
-  { key: "journal", label: "Journal / Trade Review" },
-  { key: "session", label: "Session / Review Queue" },
-  { key: "replay", label: "Replay / Stress" },
-  { key: "trade_tickets", label: "Trade Tickets / Shadow" },
-  { key: "pilot_ops", label: "Pilot Ops / Gate" },
+  { key: "wallet_balance", label: "Wallet" },
 ];
 
 function activeTabLabel(tab: TabKey): string {
@@ -62,12 +66,13 @@ function activeTabLabel(tab: TabKey): string {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>("signals");
+  const [activeTab, setActiveTab] = useState<TabKey>("desk");
   const [selectedSymbol, setSelectedSymbol] = useState("BTC");
   const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [selectedRiskReportId, setSelectedRiskReportId] = useState<string | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const resources = useDashboardData(selectedSymbol, selectedSignalId, selectedRiskReportId, selectedTradeId, selectedTicketId);
   const paperTradeRows = useMemo(
     () => [...resources.proposedPaperTrades.data, ...resources.activePaperTrades.data, ...resources.closedPaperTrades.data],
@@ -110,6 +115,85 @@ export default function App() {
       ?? null;
     setSelectedTicketId(nextTicketId);
   }, [resources.tradeTickets.data, selectedSymbol, selectedTicketId]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "/") {
+        event.preventDefault();
+        setCommandCenterOpen((current) => !current);
+        return;
+      }
+      if (event.altKey) {
+        const index = Number(event.key) - 1;
+        if (Number.isInteger(index) && tabs[index]) {
+          event.preventDefault();
+          setActiveTab(tabs[index].key);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  async function refreshDesk() {
+    await Promise.all([
+      resources.health.refresh(),
+      resources.overview.refresh(),
+      resources.controlCenter.refresh(),
+      resources.opsSummary.refresh(),
+      resources.deskSummary.refresh(),
+      resources.homeSummary.refresh(),
+      resources.sessionOverview.refresh(),
+      resources.reviewTasks.refresh(),
+      resources.dailyBriefing.refresh(),
+      resources.weeklyReview.refresh(),
+      resources.operationalBacklog.refresh(),
+      resources.reviewSummary.refresh(),
+      resources.pilotMetrics.refresh(),
+      resources.pilotSummary.refresh(),
+      resources.executionGate.refresh(),
+      resources.pilotDashboard.refresh(),
+      resources.adapterHealth.refresh(),
+      resources.auditLogs.refresh(),
+      resources.signals.refresh(),
+      resources.signalsSummary.refresh(),
+      resources.highRiskSignals.refresh(),
+      resources.news.refresh(),
+      resources.watchlist.refresh(),
+      resources.opportunities.refresh(),
+      resources.research.refresh(),
+      resources.risk.refresh(),
+      resources.riskExposure.refresh(),
+      resources.proposedPaperTrades.refresh(),
+      resources.activePaperTrades.refresh(),
+      resources.closedPaperTrades.refresh(),
+      resources.paperTradeAnalytics.refresh(),
+      resources.paperTradeReviews.refresh(),
+      resources.tradeTickets.refresh(),
+      resources.tradeTicketSummary.refresh(),
+      resources.shadowModeTickets.refresh(),
+      resources.brokerSnapshot.refresh(),
+      resources.alerts.refresh(),
+      resources.assetContext.refresh(),
+      resources.bars.refresh(),
+    ]);
+    if (selectedSignalId) {
+      await resources.signalDetail.refresh();
+    }
+    if (selectedRiskReportId) {
+      await resources.riskDetail.refresh();
+    }
+    if (selectedTradeId) {
+      await Promise.all([
+        resources.paperTradeDetail.refresh(),
+        resources.paperTradeTimeline.refresh(),
+        resources.paperTradeScenarioStress.refresh(),
+      ]);
+    }
+    if (selectedTicketId) {
+      await resources.tradeTicketDetail.refresh();
+    }
+  }
 
   function focusSymbol(symbol: string, signalId?: string | null, riskReportId?: string | null) {
     setSelectedSymbol(symbol);
@@ -168,8 +252,55 @@ export default function App() {
     [resources.assetContext.error, resources.bars.error, resources.health.error, resources.overview.error, resources.watchlist.error],
   );
 
+  const navItems: NavItem[] = useMemo(
+    () =>
+      tabs.map((tab, index) => ({
+        key: tab.key,
+        label: `${index < 9 ? `${index + 1}. ` : ""}${tab.label}`,
+        badge:
+          tab.key === "session"
+            ? `${resources.operationalBacklog.data.overdue_count}/${resources.operationalBacklog.data.high_priority_count}`
+            : tab.key === "pilot_ops"
+              ? resources.executionGate.data.status
+              : tab.key === "trade_tickets"
+                ? String(resources.tradeTickets.data.length)
+                : tab.key === "active_trades"
+                  ? String(resources.activePaperTrades.data.length)
+                  : undefined,
+        tone:
+          tab.key === activeTab
+            ? "active"
+            : tab.key === "pilot_ops" && resources.executionGate.data.status === "review_required"
+              ? "warning"
+              : tab.key === "session" && resources.operationalBacklog.data.overdue_count > 0
+                ? "critical"
+                : "default",
+      })),
+    [
+      activeTab,
+      resources.activePaperTrades.data.length,
+      resources.executionGate.data.status,
+      resources.operationalBacklog.data.high_priority_count,
+      resources.operationalBacklog.data.overdue_count,
+      resources.tradeTickets.data.length,
+    ],
+  );
+
   function renderTabContent() {
     switch (activeTab) {
+      case "desk":
+        return (
+          <DeskTab
+            desk={resources.deskSummary.data}
+            homeSummary={resources.homeSummary.data}
+            onOpenCommandCenter={() => setCommandCenterOpen(true)}
+            onOpenRisk={setSelectedRiskReportId}
+            onOpenSignal={setSelectedSignalId}
+            onSelectSymbol={setSelectedSymbol}
+            onSelectTicket={focusTicket}
+            onSelectTrade={focusTrade}
+          />
+        );
       case "signals":
         return (
           <SignalTable
@@ -198,21 +329,7 @@ export default function App() {
             activeRows={resources.activePaperTrades.data}
             closedRows={resources.closedPaperTrades.data}
             detail={resources.paperTradeDetail.data}
-            onChanged={async () => {
-              await Promise.all([
-                resources.proposedPaperTrades.refresh(),
-                resources.activePaperTrades.refresh(),
-                resources.closedPaperTrades.refresh(),
-                resources.paperTradeAnalytics.refresh(),
-                resources.paperTradeReviews.refresh(),
-                resources.alerts.refresh(),
-                resources.replay.refresh(),
-                resources.scenarioStress.refresh(),
-              ]);
-              if (selectedTradeId) {
-                await Promise.all([resources.paperTradeDetail.refresh(), resources.paperTradeTimeline.refresh(), resources.paperTradeScenarioStress.refresh()]);
-              }
-            }}
+            onChanged={refreshDesk}
             onOpenRisk={setSelectedRiskReportId}
             onOpenSignal={setSelectedSignalId}
             onSelectTrade={focusTrade}
@@ -257,18 +374,7 @@ export default function App() {
           <JournalTab
             analytics={resources.paperTradeAnalytics.data}
             detail={resources.paperTradeDetail.data}
-            onChanged={async () => {
-              await Promise.all([
-                resources.paperTradeReviews.refresh(),
-                resources.paperTradeAnalytics.refresh(),
-                resources.closedPaperTrades.refresh(),
-                resources.alerts.refresh(),
-                resources.scenarioStress.refresh(),
-              ]);
-              if (selectedTradeId) {
-                await Promise.all([resources.paperTradeDetail.refresh(), resources.paperTradeTimeline.refresh(), resources.paperTradeScenarioStress.refresh()]);
-              }
-            }}
+            onChanged={refreshDesk}
             onSelectTrade={focusTrade}
             reviews={resources.paperTradeReviews.data}
             rows={resources.journal.data}
@@ -284,16 +390,7 @@ export default function App() {
           <SessionDashboardTab
             backlog={resources.operationalBacklog.data}
             dailyBriefing={resources.dailyBriefing.data}
-            onChanged={async () => {
-              await Promise.all([
-                resources.sessionOverview.refresh(),
-                resources.reviewTasks.refresh(),
-                resources.dailyBriefing.refresh(),
-                resources.weeklyReview.refresh(),
-                resources.operationalBacklog.refresh(),
-                resources.alerts.refresh(),
-              ]);
-            }}
+            onChanged={refreshDesk}
             overview={resources.sessionOverview.data}
             reviewTasks={resources.reviewTasks.data}
             weeklyReview={resources.weeklyReview.data}
@@ -312,15 +409,7 @@ export default function App() {
           <TradeTicketsTab
             brokerSnapshot={resources.brokerSnapshot.data}
             detail={resources.tradeTicketDetail.data}
-            onChanged={async () => {
-              await Promise.all([
-                resources.tradeTickets.refresh(),
-                resources.tradeTicketDetail.refresh(),
-                resources.shadowModeTickets.refresh(),
-                resources.brokerSnapshot.refresh(),
-                resources.alerts.refresh(),
-              ]);
-            }}
+            onChanged={refreshDesk}
             onOpenRisk={setSelectedRiskReportId}
             onOpenSignal={setSelectedSignalId}
             onSelectTicket={focusTicket}
@@ -348,36 +437,41 @@ export default function App() {
   }
 
   return (
-    <div className="terminal-shell">
+    <div className="terminal-shell operator-shell">
       <TopRibbon
         backlog={resources.operationalBacklog.data}
+        executionGate={resources.executionGate.data}
         health={resources.health.data}
         ribbon={resources.overview.data}
       />
 
-      <div className="workspace">
+      <div className="workspace operator-workspace">
         <LeftRail
+          activeTab={activeTab}
+          backlog={resources.operationalBacklog.data}
+          executionGate={resources.executionGate.data}
+          navItems={navItems}
           onSelectSymbol={setSelectedSymbol}
+          onSelectTab={(key) => setActiveTab(key as TabKey)}
           research={resources.research.data}
           selectedSymbol={selectedSymbol}
           watchlist={resources.watchlist.data}
         />
 
-        <main className="main-pane">
-          <div className="tab-nav" aria-label="Dashboard tabs">
-            {tabs.map((tab) => (
-              <button
-                className={activeTab === tab.key ? "tab-button active" : "tab-button"}
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                type="button"
-              >
-                {tab.key === "session"
-                  ? `${tab.label} (${resources.operationalBacklog.data.overdue_count}/${resources.operationalBacklog.data.high_priority_count})`
-                  : tab.label}
+        <main className="main-pane operator-main">
+          <header className="workspace-header">
+            <div>
+              <p className="eyebrow">Workspace</p>
+              <h1>{activeTabLabel(activeTab)}</h1>
+            </div>
+            <div className="workspace-actions">
+              <span className="tag">asset {selectedSymbol}</span>
+              <span className="tag">signal {selectedSignalId ?? "n/a"}</span>
+              <button className="text-button" onClick={() => setCommandCenterOpen((current) => !current)} type="button">
+                {commandCenterOpen ? "Hide Command Center" : "Open Command Center"} (/)
               </button>
-            ))}
-          </div>
+            </div>
+          </header>
 
           <StateBlock
             error={shellError || null}
@@ -389,14 +483,17 @@ export default function App() {
             }
           />
 
-          <div className="focus-layout">
+          {commandCenterOpen ? <CommandCenter onRefreshAll={refreshDesk} status={resources.controlCenter.data} summary={resources.opsSummary.data} /> : null}
+
+          <div className="focus-layout operator-focus">
             <Panel
-              title={`${selectedSymbol} Chart`}
-              eyebrow="Main Pane"
+              title={`${selectedSymbol} Focus`}
+              eyebrow="Current Asset"
               extra={
                 <div className="inline-tags">
                   <span className="tag">{resources.assetContext.data.research?.trend_state ?? "n/a"}</span>
-                  <span className="tag">{resources.assetContext.data.research?.data_quality ?? resources.health.data.status}</span>
+                  <span className="tag">{resources.assetContext.data.data_reality?.freshness_state ?? "loading"}</span>
+                  <span className="tag">{resources.assetContext.data.data_reality?.provenance.realism_grade ?? "n/a"}</span>
                 </div>
               }
             >
@@ -410,7 +507,7 @@ export default function App() {
             />
           </div>
 
-          <Panel title={activeTabLabel(activeTab)} eyebrow="Workspace">
+          <Panel title={activeTabLabel(activeTab)} eyebrow="Operator Workspace">
             {renderTabContent()}
           </Panel>
         </main>

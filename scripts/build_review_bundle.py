@@ -53,6 +53,15 @@ CONTRACT_FILES = [
     ("/api/strategies", "GET", "contracts/strategies.json"),
     ("/api/backtests", "GET", "contracts/backtests.json"),
     ("/api/dashboard/overview", "GET", "contracts/dashboard_overview.json"),
+    ("/api/dashboard/desk", "GET", "contracts/dashboard_desk.json"),
+    ("/api/dashboard/home-summary", "GET", "contracts/dashboard_home_summary.json"),
+    ("/api/signals/summary", "GET", "contracts/signals_summary.json"),
+    ("/api/tickets/summary", "GET", "contracts/tickets_summary.json"),
+    ("/api/session/review-summary", "GET", "contracts/review_summary.json"),
+    ("/api/session/pilot-summary", "GET", "contracts/pilot_summary.json"),
+    ("/api/system/control-center", "GET", "contracts/system_control_center.json"),
+    ("/api/system/ops-summary", "GET", "contracts/system_ops_summary.json"),
+    ("/api/system/action-history", "GET", "contracts/system_action_history.json"),
 ]
 
 TEST_FILES = [
@@ -75,10 +84,12 @@ TEST_FILES = [
     "apps/frontend/src/App.test.tsx",
     "apps/frontend/src/api/client.test.ts",
     "apps/frontend/src/api/contracts.test.ts",
+    "apps/frontend/src/components/CommandCenter.test.tsx",
     "apps/frontend/src/components/SignalDetailsCard.test.tsx",
     "apps/frontend/src/components/TopRibbon.test.tsx",
     "apps/frontend/src/tabs/ActiveTradesTab.test.tsx",
     "apps/frontend/src/tabs/BacktestsTab.test.tsx",
+    "apps/frontend/src/tabs/DeskTab.test.tsx",
     "apps/frontend/src/tabs/JournalTab.test.tsx",
     "apps/frontend/src/tabs/PilotDashboardTab.test.tsx",
     "apps/frontend/src/tabs/ReplayTab.test.tsx",
@@ -149,6 +160,7 @@ CORE_FILES = [
     "apps/frontend/src/api/client.ts",
     "apps/frontend/src/api/hooks.ts",
     "apps/frontend/src/types/api.ts",
+    "apps/frontend/src/tabs/DeskTab.tsx",
     "apps/frontend/src/tabs/NewsTab.tsx",
     "apps/frontend/src/tabs/WatchlistTab.tsx",
     "apps/frontend/src/tabs/ActiveTradesTab.tsx",
@@ -159,6 +171,8 @@ CORE_FILES = [
     "apps/frontend/src/tabs/SessionDashboardTab.tsx",
     "apps/frontend/src/tabs/StrategyLabTab.tsx",
     "apps/frontend/src/tabs/TradeTicketsTab.tsx",
+    "apps/frontend/src/components/CommandCenter.tsx",
+    "apps/frontend/src/components/LeftRail.tsx",
     "apps/frontend/src/components/TopRibbon.tsx",
     "apps/frontend/src/components/ContextSidebar.tsx",
     "apps/frontend/src/components/SignalTable.tsx",
@@ -169,6 +183,10 @@ REPO_DOC_FILES = [
     "docs/ARCHITECTURE_OVERVIEW.md",
     "docs/SERVICE_OWNERSHIP_MAP.md",
     "docs/ENTITY_RELATIONSHIPS.md",
+    "docs/OPERATOR_CONSOLE_OVERVIEW.md",
+    "docs/UI_ROUTE_MAP.md",
+    "docs/UI_COMPONENT_MAP.md",
+    "docs/COMMAND_CENTER.md",
     "docs/SIGNAL_TO_PAPER_TRADE_FLOW.md",
     "docs/PROMOTION_VALIDATION_FLOW.md",
     "docs/VERIFICATION_TIERS.md",
@@ -811,8 +829,16 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
     pilot_metrics = contracts["/api/session/pilot-metrics"]
     execution_gate = contracts["/api/session/execution-gate"]
     pilot_dashboard = contracts["/api/session/pilot-dashboard"]
+    pilot_summary = contracts["/api/session/pilot-summary"]
     adapter_health = contracts["/api/session/adapter-health"]
     audit_logs = contracts["/api/session/audit-logs"]
+    desk_summary = contracts["/api/dashboard/desk"]
+    home_summary = contracts["/api/dashboard/home-summary"]
+    signals_summary = contracts["/api/signals/summary"]
+    tickets_summary = contracts["/api/tickets/summary"]
+    review_summary = contracts["/api/session/review-summary"]
+    control_center = contracts["/api/system/control-center"]
+    ops_summary = contracts["/api/system/ops-summary"]
     replay = contracts["/api/replay?symbol=BTC"]
     scenario_stress = contracts["/api/replay/scenario-stress?symbol=BTC"]
     tickets = contracts["/api/tickets"]
@@ -870,6 +896,21 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/operational_backlog_sample.json", operational_backlog)
     if isinstance(session_overview, dict):
         write_json(bundle_root / "samples/session_dashboard_sample.json", session_overview)
+    if isinstance(desk_summary, dict):
+        write_json(bundle_root / "samples/operator_desk_summary.json", desk_summary)
+    if isinstance(home_summary, dict):
+        write_json(bundle_root / "samples/home_operator_summary.json", home_summary)
+    if isinstance(control_center, dict):
+        write_json(bundle_root / "samples/command_center_status.json", control_center)
+    if isinstance(ops_summary, dict):
+        write_json(bundle_root / "samples/ops_summary.json", ops_summary)
+        write_json(bundle_root / "samples/action_history_sample.json", ops_summary.get("action_history", []))
+    if isinstance(signals_summary, dict):
+        write_json(bundle_root / "samples/signals_summary_sample.json", signals_summary)
+    if isinstance(tickets_summary, dict):
+        write_json(bundle_root / "samples/tickets_summary_sample.json", tickets_summary)
+    if isinstance(review_summary, dict):
+        write_json(bundle_root / "samples/review_summary_sample.json", review_summary)
     if isinstance(pilot_metrics, dict):
         write_json(bundle_root / "samples/pilot_metrics_summary.json", pilot_metrics)
         write_json(bundle_root / "samples/divergence_summary_sample.json", pilot_metrics.get("shadow_metrics", {}))
@@ -877,6 +918,8 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
         write_json(bundle_root / "samples/execution_gate_sample.json", execution_gate)
     if isinstance(pilot_dashboard, dict):
         write_json(bundle_root / "samples/pilot_dashboard_sample.json", pilot_dashboard)
+    if isinstance(pilot_summary, dict):
+        write_json(bundle_root / "samples/pilot_summary_sample.json", pilot_summary)
     if isinstance(adapter_health, list) and adapter_health:
         write_json(bundle_root / "samples/adapter_health_sample.json", adapter_health[0])
     if isinstance(audit_logs, list) and audit_logs:
@@ -995,6 +1038,43 @@ def write_samples(bundle_root: Path, contracts: dict[str, object]) -> None:
             "delayed": default_provenance("US10Y", source_mode="sample").model_dump(mode="json"),
             "end_of_day": default_provenance("WTI", source_mode="sample").model_dump(mode="json"),
             "fixture": default_provenance("BTC", source_mode="sample").model_dump(mode="json"),
+        },
+    )
+    write_json(
+        bundle_root / "samples/ui_route_map.json",
+        {
+            "shell": {
+                "home": "Desk",
+                "navigation": "Persistent left rail with keyboard-friendly tab access",
+                "focus": "Center workspace + right context rail",
+                "control_center": "/api/system/control-center",
+            },
+            "views": [
+                {"tab": "Desk", "primary_endpoints": ["/api/dashboard/desk", "/api/system/control-center"]},
+                {"tab": "Signals", "primary_endpoints": ["/api/signals", "/api/signals/{signal_id}", "/api/risk/{risk_report_id}"]},
+                {"tab": "Tickets", "primary_endpoints": ["/api/tickets", "/api/tickets/shadow-mode", "/api/tickets/broker-snapshot"]},
+                {"tab": "Trades", "primary_endpoints": ["/api/portfolio/paper-trades/active", "/api/portfolio/paper-trades/{trade_id}", "/api/portfolio/paper-trades/{trade_id}/timeline"]},
+                {"tab": "Journal", "primary_endpoints": ["/api/journal", "/api/journal/paper-trade-reviews", "/api/portfolio/paper-trades/analytics"]},
+                {"tab": "Session", "primary_endpoints": ["/api/session/overview", "/api/session/daily-briefing", "/api/session/operational-backlog"]},
+                {"tab": "Strategy", "primary_endpoints": ["/api/strategies", "/api/backtests"]},
+                {"tab": "Replay", "primary_endpoints": ["/api/replay", "/api/replay/scenario-stress"]},
+                {"tab": "Pilot Ops", "primary_endpoints": ["/api/session/pilot-dashboard", "/api/session/execution-gate", "/api/session/adapter-health"]},
+            ],
+        },
+    )
+    write_json(
+        bundle_root / "samples/ui_component_map.json",
+        {
+            "shell": ["App", "TopRibbon", "LeftRail", "ContextSidebar", "CommandCenter"],
+            "home": ["DeskTab"],
+            "signals": ["SignalTable", "SignalDetailsCard"],
+            "tickets": ["TradeTicketsTab"],
+            "trades": ["ActiveTradesTab"],
+            "journal": ["JournalTab"],
+            "reviews": ["SessionDashboardTab"],
+            "strategy": ["StrategyLabTab", "BacktestsTab"],
+            "replay": ["ReplayTab"],
+            "pilot_ops": ["PilotDashboardTab"],
         },
     )
     gold_reality = build_data_reality(

@@ -16,11 +16,11 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByTestId("top-ribbon")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Signals" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "High-Risk Signals" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Risk / Exposure" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Session \/ Review Queue/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "BTC Chart" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^1\.\sDesk$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^2\.\sSignals$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^5\.\sTickets(?:\s+\d+)?$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^8\.\sReviews(?:\s+\d+\/\d+)?$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "BTC Focus" })).toBeInTheDocument();
     expect(screen.getByTestId("price-chart")).toBeInTheDocument();
     expect((await screen.findAllByText("event-risk")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/mock/i)).length).toBeGreaterThan(0);

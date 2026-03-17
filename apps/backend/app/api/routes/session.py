@@ -12,6 +12,8 @@ from app.models.schemas import (
     OperationalBacklogView,
     PilotDashboardView,
     PilotMetricSummaryView,
+    PilotSummaryView,
+    ReviewSummaryView,
     ReviewTaskUpdateRequest,
     ReviewTaskView,
     SessionOverviewView,
@@ -26,6 +28,7 @@ from app.services.session_workflow import (
     weekly_review,
 )
 from app.services.pilot_ops import adapter_health_summary, execution_gate_status, pilot_dashboard, pilot_metric_summary, recent_audit_logs
+from app.services.ui_summaries import pilot_summary, review_summary
 
 
 router = APIRouter(prefix="/session", tags=["session"])
@@ -68,6 +71,11 @@ def get_operational_backlog(session: Session = Depends(get_session)) -> Operatio
     return operational_backlog(session)
 
 
+@router.get("/review-summary", response_model=ReviewSummaryView)
+def get_review_summary(session: Session = Depends(get_session)) -> ReviewSummaryView:
+    return review_summary(session)
+
+
 @router.get("/pilot-metrics", response_model=PilotMetricSummaryView)
 def get_pilot_metrics(session: Session = Depends(get_session)) -> PilotMetricSummaryView:
     return pilot_metric_summary(session)
@@ -81,6 +89,11 @@ def get_execution_gate(session: Session = Depends(get_session)) -> ExecutionGate
 @router.get("/pilot-dashboard", response_model=PilotDashboardView)
 def get_pilot_dashboard(session: Session = Depends(get_session)) -> PilotDashboardView:
     return pilot_dashboard(session)
+
+
+@router.get("/pilot-summary", response_model=PilotSummaryView)
+def get_pilot_summary(session: Session = Depends(get_session)) -> PilotSummaryView:
+    return pilot_summary(session)
 
 
 @router.get("/adapter-health", response_model=list[AdapterHealthView])

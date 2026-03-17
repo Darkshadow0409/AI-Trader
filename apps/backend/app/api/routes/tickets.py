@@ -9,12 +9,14 @@ from app.models.schemas import (
     ManualFillCreateRequest,
     ManualFillImportRequest,
     ManualFillView,
+    TicketSummaryView,
     TradeTicketApprovalRequest,
     TradeTicketCreateRequest,
     TradeTicketDetailView,
     TradeTicketUpdateRequest,
     TradeTicketView,
 )
+from app.services.ui_summaries import ticket_summary
 from app.services.trade_tickets import (
     approve_trade_ticket,
     broker_adapter_snapshot,
@@ -48,6 +50,11 @@ def shadow_mode(session: Session = Depends(get_session)) -> list[TradeTicketDeta
 @router.get("/broker-snapshot", response_model=BrokerAdapterSnapshotView)
 def broker_snapshot() -> BrokerAdapterSnapshotView:
     return broker_adapter_snapshot()
+
+
+@router.get("/summary", response_model=TicketSummaryView)
+def summary(session: Session = Depends(get_session)) -> TicketSummaryView:
+    return ticket_summary(session)
 
 
 @router.post("", response_model=TradeTicketDetailView, status_code=status.HTTP_201_CREATED)

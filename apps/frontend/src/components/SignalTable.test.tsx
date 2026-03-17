@@ -33,10 +33,11 @@ describe("SignalTable", () => {
       />,
     );
 
-    expect(screen.getByText("BTC")).toBeInTheDocument();
+    const btcCells = screen.getAllByText("BTC");
+    expect(btcCells.length).toBeGreaterThan(0);
     expect(screen.getByText("74.6")).toBeInTheDocument();
     expect(screen.getByText("79%")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("BTC"));
+    fireEvent.click(btcCells[btcCells.length - 1]);
     expect(onSelectSymbol).toHaveBeenCalledWith("BTC");
   });
 });

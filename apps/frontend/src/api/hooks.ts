@@ -7,10 +7,14 @@ import type {
   BacktestListView,
   BarView,
   BrokerAdapterSnapshotView,
+  CommandCenterStatusView,
   DailyBriefingView,
+  DeskSummaryView,
+  HomeOperatorSummaryView,
   HealthView,
   JournalReviewView,
   NewsView,
+  OpsSummaryView,
   OperationalBacklogView,
   PilotDashboardView,
   PilotMetricSummaryView,
@@ -20,7 +24,9 @@ import type {
   PaperTradeDetailView,
   PaperTradeReviewView,
   PaperTradeView,
+  PilotSummaryView,
   ResearchView,
+  ReviewSummaryView,
   ReviewTaskView,
   RibbonView,
   RiskDetailView,
@@ -33,9 +39,11 @@ import type {
   AdapterHealthView,
   AuditLogView,
   SignalDetailView,
+  SignalsSummaryView,
   SignalView,
   TradeTimelineView,
   TradeTicketDetailView,
+  TicketSummaryView,
   TradeTicketView,
   WalletBalanceView,
   WatchlistView,
@@ -208,6 +216,88 @@ export function useDashboardData(
     last_refresh: null,
     next_event: null,
   });
+  const deskSummary = usePollingResource<DeskSummaryView>(
+    () => apiClient.deskSummary(),
+    {
+      generated_at: "",
+      session_states: [],
+      execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
+      operational_backlog: { generated_at: "", overdue_count: 0, high_priority_count: 0, items: [] },
+      review_tasks: [],
+      degraded_sources: [],
+      high_priority_signals: [],
+      high_risk_signals: [],
+      focus_opportunities: [],
+      open_tickets: [],
+      active_paper_trades: [],
+      shadow_divergence: [],
+      adapter_health: [],
+      audit_log_tail: [],
+    },
+  );
+  const homeSummary = usePollingResource<HomeOperatorSummaryView>(
+    () => apiClient.homeSummary(),
+    {
+      generated_at: "",
+      session_states: [],
+      session_state: "pre_session",
+      pilot_gate_state: "not_ready",
+      degraded_source_count: 0,
+      review_backlog_counts: {},
+      top_signals_summary: [],
+      open_ticket_counts: {},
+      active_trade_counts: {},
+      shadow_divergence_summary: {},
+      adapter_health_summary: {},
+    },
+  );
+  const controlCenter = usePollingResource<CommandCenterStatusView>(
+    () => apiClient.controlCenter(),
+    {
+      generated_at: "",
+      runtime_status: "loading",
+      backend_health: "loading",
+      frontend_runtime_status: "loading",
+      source_mode: "loading",
+      pipeline_status: "loading",
+      pipeline_freshness_minutes: 0,
+      last_refresh: null,
+      latest_export_path: null,
+      latest_export_generated_at: null,
+      latest_review_bundle_path: null,
+      latest_review_bundle_generated_at: null,
+      frontend_build_generated_at: null,
+      diagnostics_updated_at: null,
+      verify_fast_available: true,
+      verify_full_available: true,
+      review_bundle_available: true,
+      available_actions: [],
+      safe_actions: [],
+      heavy_actions: [],
+      latest_fast_verify: null,
+      latest_full_verify: null,
+      latest_export: null,
+      latest_bundle: null,
+      latest_refresh_action: null,
+      latest_contract_snapshot: null,
+      action_history: [],
+      notes: [],
+    },
+  );
+  const opsSummary = usePollingResource<OpsSummaryView>(
+    () => apiClient.opsSummary(),
+    {
+      generated_at: "",
+      latest_fast_verify: null,
+      latest_full_verify: null,
+      latest_export: null,
+      latest_bundle: null,
+      latest_refresh: null,
+      latest_contract_snapshot: null,
+      action_history: [],
+      available_actions: [],
+    },
+  );
   const sessionOverview = usePollingResource<SessionOverviewView>(
     () => apiClient.sessionOverview(),
     {
@@ -302,6 +392,17 @@ export function useDashboardData(
       items: [],
     },
   );
+  const reviewSummary = usePollingResource<ReviewSummaryView>(
+    () => apiClient.reviewSummary(),
+    {
+      generated_at: "",
+      overdue_reviews: 0,
+      adherence_summary: {},
+      failure_attribution_summary: {},
+      realism_warning_violations: 0,
+      review_completion_trend: {},
+    },
+  );
   const pilotMetrics = usePollingResource<PilotMetricSummaryView>(
     () => apiClient.pilotMetrics(),
     {
@@ -314,6 +415,19 @@ export function useDashboardData(
       review_backlog_metrics: {},
       promoted_strategy_metrics: {},
       mismatch_causes: [],
+    },
+  );
+  const pilotSummary = usePollingResource<PilotSummaryView>(
+    () => apiClient.pilotSummary(),
+    {
+      generated_at: "",
+      gate_state: "not_ready",
+      blockers: [],
+      ticket_funnel: {},
+      divergence_metrics: {},
+      adapter_health: [],
+      audit_anomalies: [],
+      asset_class_trust_split: [],
     },
   );
   const executionGate = usePollingResource<ExecutionGateView>(
@@ -347,6 +461,10 @@ export function useDashboardData(
   const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), []);
   const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), []);
   const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), []);
+  const signalsSummary = usePollingResource<SignalsSummaryView>(
+    () => apiClient.signalsSummary(),
+    { generated_at: "", filter_metadata: {}, grouped_counts: {}, top_ranked_signals: [], warning_counts: {} },
+  );
   const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), []);
   const news = usePollingResource<NewsView[]>(() => apiClient.news(), []);
   const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), []);
@@ -439,6 +557,10 @@ export function useDashboardData(
     [selectedTradeId],
   );
   const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), []);
+  const tradeTicketSummary = usePollingResource<TicketSummaryView>(
+    () => apiClient.tradeTicketSummary(),
+    { generated_at: "", counts_by_state: {}, checklist_blockers: {}, shadow_active_count: 0, reconciliation_needed_count: 0, ready_for_review_count: 0 },
+  );
   const tradeTicketDetail = usePollingResource<TradeTicketDetailView | null>(
     () => (selectedTicketId ? apiClient.tradeTicketDetail(selectedTicketId) : Promise.resolve(null)),
     null,
@@ -475,17 +597,24 @@ export function useDashboardData(
   return {
     health,
     overview,
+    deskSummary,
+    homeSummary,
+    controlCenter,
+    opsSummary,
     sessionOverview,
     reviewTasks,
     dailyBriefing,
     weeklyReview,
     operationalBacklog,
+    reviewSummary,
     pilotMetrics,
+    pilotSummary,
     executionGate,
     pilotDashboard,
     adapterHealth,
     auditLogs,
     signals,
+    signalsSummary,
     signalDetail,
     highRiskSignals,
     news,
@@ -505,6 +634,7 @@ export function useDashboardData(
     paperTradeTimeline,
     paperTradeScenarioStress,
     tradeTickets,
+    tradeTicketSummary,
     tradeTicketDetail,
     shadowModeTickets,
     brokerSnapshot,

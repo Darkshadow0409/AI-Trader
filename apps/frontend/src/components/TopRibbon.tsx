@@ -1,16 +1,17 @@
-import type { HealthView, OperationalBacklogView, RibbonView } from "../types/api";
+import type { ExecutionGateView, HealthView, OperationalBacklogView, RibbonView } from "../types/api";
 
 interface TopRibbonProps {
   health: HealthView;
   ribbon: RibbonView;
   backlog?: OperationalBacklogView | null;
+  executionGate?: ExecutionGateView | null;
 }
 
 function formatTime(value: string | null): string {
   return value ? new Date(value).toLocaleTimeString() : "n/a";
 }
 
-export function TopRibbon({ health, ribbon, backlog }: TopRibbonProps) {
+export function TopRibbon({ health, ribbon, backlog, executionGate }: TopRibbonProps) {
   const nextEvent = ribbon.next_event as { title?: string; impact?: string } | null;
 
   return (
@@ -41,6 +42,12 @@ export function TopRibbon({ health, ribbon, backlog }: TopRibbonProps) {
         <span className="ribbon-label">Review Queue</span>
         <strong>
           {backlog?.overdue_count ?? 0} overdue / {backlog?.high_priority_count ?? 0} high
+        </strong>
+      </div>
+      <div className="ribbon-block">
+        <span className="ribbon-label">Gate</span>
+        <strong>
+          {executionGate?.status ?? "loading"} / {executionGate?.blockers.length ?? 0} blockers
         </strong>
       </div>
       <div className="ribbon-block">

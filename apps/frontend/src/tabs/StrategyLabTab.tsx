@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import { EquityCurveChart } from "../components/EquityCurveChart";
 import { HeatmapGrid } from "../components/HeatmapGrid";
+import { formatDateIST, formatDateTimeIST } from "../lib/time";
 import type {
   BacktestDetailView,
   BacktestListView,
@@ -117,6 +118,20 @@ export function StrategyLabTab() {
     };
   }, [selectedBacktestId]);
 
+  useEffect(() => {
+    if (!selectedStrategy || backtests.length === 0) {
+      return;
+    }
+    const currentRunMatches = backtests.some((run) => run.id === selectedBacktestId && run.strategy_name === selectedStrategy);
+    if (currentRunMatches) {
+      return;
+    }
+    const matchingRun = backtests.find((run) => run.strategy_name === selectedStrategy);
+    if (matchingRun) {
+      setSelectedBacktestId(matchingRun.id);
+    }
+  }, [backtests, selectedBacktestId, selectedStrategy]);
+
   async function handleRunBacktest() {
     if (!selectedStrategy) {
       return;
@@ -145,10 +160,54 @@ export function StrategyLabTab() {
   const validationFlags = asRecord(backtestDetail ? backtestDetail.validation["flags"] : undefined);
   const strategyReality = strategyDetail?.data_reality ?? null;
   const backtestReality = backtestDetail?.data_reality ?? null;
+  const latestCurveStart = backtestDetail?.equity_curve[0]?.timestamp ?? null;
+  const latestCurveEnd = backtestDetail?.equity_curve[backtestDetail.equity_curve.length - 1]?.timestamp ?? null;
 
   return (
     <section className="stack">
       {error ? <div className="panel error">{error}</div> : null}
+
+      {strategyDetail ? (
+        <article className="panel compact-panel hero-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Demo Snapshot</p>
+              <h2>{strategyDetail.name}</h2>
+            </div>
+            <div className="inline-tags">
+              <span className="tag">{titleize(strategyDetail.lifecycle_state)}</span>
+              <span className="tag">{strategyDetail.promoted ? "promoted" : "research"}</span>
+              <span className="tag">{strategyDetail.proxy_grade ? "proxy-grade" : "tradable"}</span>
+            </div>
+          </div>
+          <div className="metric-strip">
+            <div>
+              <span className="metric-label">Strategy / symbol</span>
+              <strong>{strategyDetail.underlying_symbol} {"->"} {strategyDetail.tradable_symbol}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Recommended state</span>
+              <strong>{titleize(strategyDetail.promotion_rationale.recommended_state)}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Forward sample</span>
+              <strong>{strategyDetail.forward_validation_summary.sample_size}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Reality / freshness</span>
+              <strong>{strategyReality ? `${strategyReality.provenance.realism_grade} / ${titleize(strategyReality.freshness_state)}` : "n/a"}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Latest run range</span>
+              <strong>{latestCurveStart ? formatDateIST(latestCurveStart) : "n/a"} {"->"} {latestCurveEnd ? formatDateIST(latestCurveEnd) : "n/a"}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Latest run return / DD</span>
+              <strong>{backtestDetail ? `${formatPct(backtestDetail.net_return_pct)} / ${formatPct(backtestDetail.max_drawdown_pct)}` : "n/a"}</strong>
+            </div>
+          </div>
+        </article>
+      ) : null}
 
       <div className="tab-grid strategy-grid">
         <article className="panel">
@@ -525,7 +584,7 @@ export function StrategyLabTab() {
                 <tbody>
                   {strategyDetail.transition_history.map((transition) => (
                     <tr key={`${transition.changed_at}-${transition.to_state}`}>
-                      <td>{new Date(transition.changed_at).toLocaleString()}</td>
+                      <td>{formatDateTimeIST(transition.changed_at)}</td>
                       <td>{titleize(transition.from_state)}</td>
                       <td>{titleize(transition.to_state)}</td>
                     </tr>
@@ -575,7 +634,7 @@ export function StrategyLabTab() {
                 <tbody>
                   {strategyDetail.forward_validation_records.map((record) => (
                     <tr key={record.validation_id}>
-                      <td>{new Date(record.opened_at).toLocaleDateString()}</td>
+                      <td>{formatDateIST(record.opened_at)}</td>
                       <td>{titleize(record.mode)}</td>
                       <td>{formatPct(record.pnl_pct)}</td>
                       <td>
@@ -611,7 +670,7 @@ export function StrategyLabTab() {
               >
                 <div className="card-topline">
                   <strong>{run.strategy_name}</strong>
-                  <span>{new Date(run.created_at).toLocaleString()}</span>
+                  <span>{formatDateTimeIST(run.created_at)}</span>
                 </div>
                 <div className="metric-row">
                   <span>{formatPct(run.net_return_pct)}</span>
@@ -852,8 +911,8 @@ export function StrategyLabTab() {
               <tbody>
                 {backtestDetail.trades.map((trade, index) => (
                   <tr key={`${trade.entry_time}-${trade.exit_time}-${index}`}>
-                    <td>{new Date(trade.entry_time).toLocaleDateString()}</td>
-                    <td>{new Date(trade.exit_time).toLocaleDateString()}</td>
+                    <td>{formatDateIST(trade.entry_time)}</td>
+                    <td>{formatDateIST(trade.exit_time)}</td>
                     <td>{trade.side}</td>
                     <td>{trade.entry_price.toFixed(2)}</td>
                     <td>{trade.exit_price.toFixed(2)}</td>

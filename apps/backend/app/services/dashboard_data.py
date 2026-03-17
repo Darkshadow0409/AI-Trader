@@ -24,6 +24,8 @@ from app.models.schemas import (
     WalletBalanceView,
 )
 from app.services.data_reality import asset_reality, freshness_minutes, freshness_state, latest_pipeline_run
+from app.services.market_identity import instrument_mapping_view, market_data_mode
+from app.services.polymarket import crowd_implied_narrative, related_polymarket_markets
 from app.services.feature_pipeline import build_feature_frame
 
 
@@ -59,17 +61,32 @@ def _infer_assets(text: str, tags: list[str]) -> list[str]:
 def _news_view(item: NewsItem) -> NewsView:
     affected_assets = _infer_assets(f"{item.title} {item.summary}", item.tags_json)
     entity_tags = sorted(set([*item.tags_json, *affected_assets]))
+    minutes = freshness_minutes(item.published_at)
+    primary_asset = affected_assets[0] if affected_assets else None
+    if minutes <= 180 and primary_asset in {"WTI", "BTC", "ETH"}:
+        event_relevance = "high"
+    elif minutes <= 1440 or primary_asset is not None:
+        event_relevance = "medium"
+    else:
+        event_relevance = "low"
+    primary_symbol = primary_asset or (affected_assets[0] if affected_assets else "")
+    related_markets = related_polymarket_markets(primary_symbol, item.title, item.summary, *item.tags_json) if primary_symbol else []
     return NewsView(
         source=item.source,
         published_at=item.published_at,
-        freshness_minutes=freshness_minutes(item.published_at),
+        freshness_minutes=minutes,
+        freshness_state=freshness_state(minutes, 240),
         title=item.title,
         summary=item.summary,
         url=item.url,
         tags=item.tags_json,
         entity_tags=entity_tags,
         affected_assets=affected_assets,
+        primary_asset=primary_asset,
+        event_relevance=event_relevance,
+        market_data_mode="fixture",
         data_quality=item.data_quality,
+        related_polymarket_markets=related_markets,
     )
 
 
@@ -165,7 +182,15 @@ def list_high_risk_signal_views(session: Session) -> list[SignalView]:
 
 def list_news_views(session: Session, symbol: str | None = None) -> list[NewsView]:
     rows = session.exec(select(NewsItem).order_by(desc(NewsItem.published_at))).all()
-    payload = [_news_view(row) for row in rows]
+    mode = market_data_mode(session)
+    payload = []
+    for row in rows:
+        view = _news_view(row)
+        view.market_data_mode = mode
+        if view.primary_asset:
+            mapping = instrument_mapping_view(view.primary_asset)
+            view.entity_tags = sorted(set([*view.entity_tags, mapping.broker_symbol, mapping.public_symbol]))
+        payload.append(view)
     if symbol is None:
         return payload
     return [row for row in payload if symbol in row.affected_assets or not row.affected_assets]
@@ -233,7 +258,7 @@ def list_research_views(session: Session) -> list[ResearchView]:
         next_event.event_time if next_event else None,
     )
     latest = frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
-    return [
+    payload = [
         ResearchView(
             symbol=str(item["symbol"]),
             label=str(item["symbol"]),
@@ -257,6 +282,10 @@ def list_research_views(session: Session) -> list[ResearchView]:
         )
         for item in latest
     ]
+    for row in payload:
+        row.related_polymarket_markets = related_polymarket_markets(row.symbol, row.label, row.trend_state)
+        row.crowd_implied_narrative = crowd_implied_narrative(row.symbol, row.label, row.trend_state)
+    return payload
 
 
 def dashboard_ribbon(session: Session) -> RibbonView:
@@ -268,6 +297,7 @@ def dashboard_ribbon(session: Session) -> RibbonView:
     btc_research = next((row for row in research_rows if row.symbol == "BTC"), None)
     freshness_age = freshness_minutes(latest_bar.timestamp) if latest_bar else 9999
     freshness_status = freshness_state(freshness_age, 240)
+    data_mode = market_data_mode(session)
     risk_budget_used = round(sum(report.max_portfolio_risk_pct for report in list_risk_views(session)), 3)
     macro_regime = "balanced"
     if next_event and next_event.impact == "high":
@@ -284,6 +314,7 @@ def dashboard_ribbon(session: Session) -> RibbonView:
         risk_budget_total_pct=RISK_BUDGET_TOTAL_PCT,
         pipeline_status=latest_run.status if latest_run else "unknown",
         source_mode=latest_run.source_mode if latest_run else "sample",
+        market_data_mode=data_mode,
         last_refresh=latest_run.completed_at if latest_run else None,
         next_event=(
             {
@@ -337,6 +368,12 @@ def asset_context(session: Session, symbol: str) -> AssetContextView:
         data_quality=signal.data_quality if signal else risk.data_quality if risk else research.data_quality if research else "fixture",
         features=signal.features if signal else None,
     )
+    related_markets = related_polymarket_markets(
+        symbol,
+        signal.thesis if signal else "",
+        research.label if research else "",
+        *(news.title for news in related_news[:3]),
+    )
     return AssetContextView(
         symbol=symbol,
         latest_signal=signal,
@@ -345,6 +382,8 @@ def asset_context(session: Session, symbol: str) -> AssetContextView:
         related_news=related_news,
         latest_backtest=latest_backtest,
         data_reality=context_reality,
+        related_polymarket_markets=related_markets,
+        crowd_implied_narrative=crowd_implied_narrative(symbol, signal.thesis if signal else "", *(news.title for news in related_news[:2])),
     )
 
 

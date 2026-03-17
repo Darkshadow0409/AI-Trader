@@ -19,6 +19,7 @@ import type {
   OperationalBacklogView,
   PilotDashboardView,
   PilotMetricSummaryView,
+  PolymarketHunterView,
   OpportunityHunterView,
   ReplayView,
   PaperTradeAnalyticsView,
@@ -58,15 +59,27 @@ export interface ResourceState<T> {
   refresh: () => Promise<void>;
 }
 
-function usePollingResource<T>(loader: () => Promise<T>, initialData: T, deps: unknown[] = [], intervalMs = 30000): ResourceState<T> {
+interface PollingOptions {
+  deps?: unknown[];
+  intervalMs?: number;
+  enabled?: boolean;
+}
+
+export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, options: PollingOptions = {}): ResourceState<T> {
+  const { deps = [], intervalMs = 30000, enabled = true } = options;
   const [data, setData] = useState<T>(initialData);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
 
     async function runLoad() {
+      if (inFlight) {
+        return;
+      }
+      inFlight = true;
       try {
         const nextData = await loader();
         if (!cancelled) {
@@ -81,9 +94,20 @@ function usePollingResource<T>(loader: () => Promise<T>, initialData: T, deps: u
         if (!cancelled) {
           setLoading(false);
         }
+        inFlight = false;
       }
     }
 
+    setData(initialData);
+    setError(null);
+    if (!enabled) {
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setLoading(true);
     void runLoad();
     const timer = window.setInterval(() => {
       void runLoad();
@@ -93,16 +117,23 @@ function usePollingResource<T>(loader: () => Promise<T>, initialData: T, deps: u
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, intervalMs, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     data,
     loading,
     error,
     refresh: async () => {
-      const nextData = await loader();
-      setData(nextData);
-      setError(null);
+      setLoading(true);
+      try {
+        const nextData = await loader();
+        setData(nextData);
+        setError(null);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Request failed");
+      } finally {
+        setLoading(false);
+      }
     },
   };
 }
@@ -185,6 +216,7 @@ function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
     execution_quality: null,
     adherence: null,
     review_due: false,
+    paper_account: null,
     data_reality: null,
     linked_signal: null,
     linked_risk: null,
@@ -195,6 +227,8 @@ function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
 }
 
 export function useDashboardData(
+  activeTab: string,
+  commandCenterOpen: boolean,
   selectedSymbol: string,
   selectedTimeframe: string,
   selectedSignalId: string | null,
@@ -202,6 +236,23 @@ export function useDashboardData(
   selectedTradeId: string | null,
   selectedTicketId: string | null,
 ) {
+  const showDesk = activeTab === "desk";
+  const showSignals = activeTab === "signals";
+  const showHighRiskSignals = activeTab === "high_risk";
+  const showWatchlist = activeTab === "watchlist";
+  const showRisk = activeTab === "risk";
+  const showTrades = activeTab === "active_trades";
+  const showJournal = activeTab === "journal";
+  const showSession = activeTab === "session";
+  const showReplay = activeTab === "replay";
+  const showTickets = activeTab === "trade_tickets";
+  const showPilot = activeTab === "pilot_ops";
+  const showNews = activeTab === "news";
+  const showPolymarket = activeTab === "polymarket";
+  const showResearch = activeTab === "research";
+  const showWallet = activeTab === "wallet_balance";
+  const showBacktests = activeTab === "backtests";
+
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
     status: "loading",
     sqlite_path: "",
@@ -216,6 +267,7 @@ export function useDashboardData(
     risk_budget_total_pct: 0,
     pipeline_status: "loading",
     source_mode: "loading",
+    market_data_mode: "fixture",
     last_refresh: null,
     next_event: null,
   });
@@ -237,6 +289,7 @@ export function useDashboardData(
       adapter_health: [],
       audit_log_tail: [],
     },
+    { enabled: showDesk, intervalMs: 60000 },
   );
   const homeSummary = usePollingResource<HomeOperatorSummaryView>(
     () => apiClient.homeSummary(),
@@ -253,6 +306,7 @@ export function useDashboardData(
       shadow_divergence_summary: {},
       adapter_health_summary: {},
     },
+    { enabled: showDesk, intervalMs: 60000 },
   );
   const controlCenter = usePollingResource<CommandCenterStatusView>(
     () => apiClient.controlCenter(),
@@ -286,6 +340,7 @@ export function useDashboardData(
       action_history: [],
       notes: [],
     },
+    { enabled: commandCenterOpen, intervalMs: 60000 },
   );
   const opsSummary = usePollingResource<OpsSummaryView>(
     () => apiClient.opsSummary(),
@@ -300,6 +355,7 @@ export function useDashboardData(
       action_history: [],
       available_actions: [],
     },
+    { enabled: commandCenterOpen, intervalMs: 60000 },
   );
   const sessionOverview = usePollingResource<SessionOverviewView>(
     () => apiClient.sessionOverview(),
@@ -346,8 +402,9 @@ export function useDashboardData(
         items: [],
       },
     },
+    { enabled: showSession },
   );
-  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), []);
+  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), [], { enabled: showSession || showDesk, intervalMs: 60000 });
   const dailyBriefing = usePollingResource<DailyBriefingView>(
     () => apiClient.dailyBriefing(),
     {
@@ -360,6 +417,7 @@ export function useDashboardData(
       scout_to_focus_promotions: [],
       promoted_strategy_drift_warnings: [],
     },
+    { enabled: showSession },
   );
   const weeklyReview = usePollingResource(
     () => apiClient.weeklyReview(),
@@ -385,6 +443,7 @@ export function useDashboardData(
       strategy_promotion_health: [],
       paper_trade_outcome_distribution: {},
     },
+    { enabled: showSession },
   );
   const operationalBacklog = usePollingResource<OperationalBacklogView>(
     () => apiClient.operationalBacklog(),
@@ -394,6 +453,7 @@ export function useDashboardData(
       high_priority_count: 0,
       items: [],
     },
+    { enabled: showDesk || showSession || showPilot, intervalMs: 60000 },
   );
   const reviewSummary = usePollingResource<ReviewSummaryView>(
     () => apiClient.reviewSummary(),
@@ -405,6 +465,7 @@ export function useDashboardData(
       realism_warning_violations: 0,
       review_completion_trend: {},
     },
+    { enabled: showSession },
   );
   const pilotMetrics = usePollingResource<PilotMetricSummaryView>(
     () => apiClient.pilotMetrics(),
@@ -419,6 +480,7 @@ export function useDashboardData(
       promoted_strategy_metrics: {},
       mismatch_causes: [],
     },
+    { enabled: showPilot },
   );
   const pilotSummary = usePollingResource<PilotSummaryView>(
     () => apiClient.pilotSummary(),
@@ -432,10 +494,12 @@ export function useDashboardData(
       audit_anomalies: [],
       asset_class_trust_split: [],
     },
+    { enabled: showPilot },
   );
   const executionGate = usePollingResource<ExecutionGateView>(
     () => apiClient.executionGate(),
     { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
+    { enabled: showDesk || showPilot || commandCenterOpen, intervalMs: 60000 },
   );
   const pilotDashboard = usePollingResource<PilotDashboardView>(
     () => apiClient.pilotDashboard(),
@@ -460,29 +524,40 @@ export function useDashboardData(
       adapter_health: [],
       recent_audit_logs: [],
     },
+    { enabled: showPilot },
   );
-  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), []);
-  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), []);
-  const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), []);
+  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), [], { enabled: showPilot || showDesk, intervalMs: 60000 });
+  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), [], { enabled: showPilot || showDesk, intervalMs: 60000 });
+  const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), [], { enabled: showSignals || showHighRiskSignals });
   const signalsSummary = usePollingResource<SignalsSummaryView>(
     () => apiClient.signalsSummary(),
     { generated_at: "", filter_metadata: {}, grouped_counts: {}, top_ranked_signals: [], warning_counts: {} },
+    { enabled: showSignals || showHighRiskSignals || showDesk, intervalMs: 60000 },
   );
-  const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), []);
-  const news = usePollingResource<NewsView[]>(() => apiClient.news(), []);
-  const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), []);
-  const watchlistSummary = usePollingResource<WatchlistSummaryView[]>(() => apiClient.watchlistSummary(), []);
+  const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), [], { enabled: showHighRiskSignals });
+  const news = usePollingResource<NewsView[]>(() => apiClient.news(), [], { enabled: showNews });
+  const polymarketHunter = usePollingResource<PolymarketHunterView>(
+    () => apiClient.polymarketHunter(),
+    { generated_at: "", source_status: "loading", source_note: "", query: "", tag: "", sort: "volume", available_tags: [], events: [], markets: [] },
+    { enabled: showPolymarket || showNews || showResearch || showDesk, intervalMs: 120000 },
+  );
+  const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), [], { enabled: showWatchlist });
+  const watchlistSummary = usePollingResource<WatchlistSummaryView[]>(() => apiClient.watchlistSummary(), [], {
+    enabled: showWatchlist || showDesk || Boolean(selectedSymbol),
+    intervalMs: 60000,
+  });
   const opportunities = usePollingResource<OpportunityHunterView>(
     () => apiClient.opportunities(),
     { generated_at: "", focus_queue: [], scout_queue: [] },
+    { enabled: showWatchlist || showDesk },
   );
-  const research = usePollingResource<ResearchView[]>(() => apiClient.research(), []);
-  const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), []);
-  const riskExposure = usePollingResource<RiskExposureView[]>(() => apiClient.riskExposure(), []);
-  const activeTrades = usePollingResource<ActiveTradeView[]>(() => apiClient.activeTrades(), []);
-  const proposedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.proposedPaperTrades(), []);
-  const activePaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.activePaperTrades(), []);
-  const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), []);
+  const research = usePollingResource<ResearchView[]>(() => apiClient.research(), [], { enabled: showResearch });
+  const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), [], { enabled: showRisk });
+  const riskExposure = usePollingResource<RiskExposureView[]>(() => apiClient.riskExposure(), [], { enabled: showRisk });
+  const activeTrades = usePollingResource<ActiveTradeView[]>(() => apiClient.activeTrades(), [], { enabled: showTrades });
+  const proposedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.proposedPaperTrades(), [], { enabled: showTrades || showJournal || showReplay || Boolean(selectedTradeId) });
+  const activePaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.activePaperTrades(), [], { enabled: showTrades || showJournal || showReplay || Boolean(selectedTradeId) });
+  const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), [], { enabled: showTrades || showJournal || Boolean(selectedTradeId) });
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
     () => apiClient.paperTradeAnalytics(),
     {
@@ -515,13 +590,17 @@ export function useDashboardData(
       },
       failure_categories: [],
     },
+    { enabled: showJournal },
   );
-  const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(() => apiClient.paperTradeReviews(), []);
-  const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), []);
-  const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), []);
-  const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), []);
-  const backtests = usePollingResource<BacktestListView[]>(() => apiClient.backtests(), []);
-  const bars = usePollingResource<BarView[]>(() => apiClient.bars(selectedSymbol), [], [selectedSymbol]);
+  const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(() => apiClient.paperTradeReviews(), [], { enabled: showJournal });
+  const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), [], { enabled: showWallet });
+  const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal });
+  const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), [], { intervalMs: 60000 });
+  const backtests = usePollingResource<BacktestListView[]>(() => apiClient.backtests(), [], { enabled: showBacktests });
+  const bars = usePollingResource<BarView[]>(() => apiClient.bars(selectedSymbol), [], {
+    deps: [selectedSymbol],
+    enabled: false,
+  });
   const marketChart = usePollingResource<MarketChartView>(
     () => apiClient.marketChart(selectedSymbol, selectedTimeframe),
     {
@@ -531,6 +610,7 @@ export function useDashboardData(
       status: "loading",
       status_note: "Loading chart data…",
       source_mode: "loading",
+      market_data_mode: "fixture",
       freshness_minutes: 0,
       freshness_state: "loading",
       data_quality: "loading",
@@ -538,9 +618,20 @@ export function useDashboardData(
       bars: [],
       indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
       overlays: { markers: [], price_lines: [] },
+      instrument_mapping: {
+        requested_symbol: selectedSymbol,
+        canonical_symbol: selectedSymbol,
+        display_symbol: selectedSymbol,
+        underlying_asset: selectedSymbol,
+        research_symbol: selectedSymbol,
+        public_symbol: selectedSymbol,
+        broker_symbol: selectedSymbol,
+        broker_truth: true,
+        mapping_notes: "Loading symbol mapping…",
+      },
       data_reality: null,
     },
-    [selectedSymbol, selectedTimeframe],
+    { deps: [selectedSymbol, selectedTimeframe], enabled: Boolean(selectedSymbol), intervalMs: 60000 },
   );
   const assetContext = usePollingResource<AssetContextView>(
     () => apiClient.assetContext(selectedSymbol),
@@ -552,48 +643,52 @@ export function useDashboardData(
       related_news: [],
       latest_backtest: null,
       data_reality: null,
+      related_polymarket_markets: [],
+      crowd_implied_narrative: "",
     },
-    [selectedSymbol],
+    { deps: [selectedSymbol], enabled: Boolean(selectedSymbol), intervalMs: 60000 },
   );
   const signalDetail = usePollingResource<SignalDetailView | null>(
     () => (selectedSignalId ? apiClient.signalDetail(selectedSignalId) : Promise.resolve(null)),
     selectedSignalId ? emptySignalDetail(selectedSignalId) : null,
-    [selectedSignalId],
+    { deps: [selectedSignalId], enabled: Boolean(selectedSignalId) },
   );
   const riskDetail = usePollingResource<RiskDetailView | null>(
     () => (selectedRiskReportId ? apiClient.riskDetail(selectedRiskReportId) : Promise.resolve(null)),
     selectedRiskReportId ? emptyRiskDetail(selectedRiskReportId) : null,
-    [selectedRiskReportId],
+    { deps: [selectedRiskReportId], enabled: Boolean(selectedRiskReportId) },
   );
   const paperTradeDetail = usePollingResource<PaperTradeDetailView | null>(
     () => (selectedTradeId ? apiClient.paperTradeDetail(selectedTradeId) : Promise.resolve(null)),
     selectedTradeId ? emptyPaperTradeDetail(selectedTradeId) : null,
-    [selectedTradeId],
+    { deps: [selectedTradeId], enabled: Boolean(selectedTradeId) },
   );
   const paperTradeTimeline = usePollingResource<TradeTimelineView | null>(
     () => (selectedTradeId ? apiClient.paperTradeTimeline(selectedTradeId) : Promise.resolve(null)),
     null,
-    [selectedTradeId],
+    { deps: [selectedTradeId], enabled: showReplay && Boolean(selectedTradeId) },
   );
   const paperTradeScenarioStress = usePollingResource<ScenarioStressItemView[]>(
     () => (selectedTradeId ? apiClient.paperTradeScenarioStress(selectedTradeId) : Promise.resolve([])),
     [],
-    [selectedTradeId],
+    { deps: [selectedTradeId], enabled: showReplay && Boolean(selectedTradeId) },
   );
-  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), []);
+  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), [], { enabled: showTickets || showDesk || Boolean(selectedTicketId) });
   const tradeTicketSummary = usePollingResource<TicketSummaryView>(
     () => apiClient.tradeTicketSummary(),
     { generated_at: "", counts_by_state: {}, checklist_blockers: {}, shadow_active_count: 0, reconciliation_needed_count: 0, ready_for_review_count: 0 },
+    { enabled: showTickets },
   );
   const tradeTicketDetail = usePollingResource<TradeTicketDetailView | null>(
     () => (selectedTicketId ? apiClient.tradeTicketDetail(selectedTicketId) : Promise.resolve(null)),
     null,
-    [selectedTicketId],
+    { deps: [selectedTicketId], enabled: Boolean(selectedTicketId) },
   );
-  const shadowModeTickets = usePollingResource<TradeTicketDetailView[]>(() => apiClient.shadowModeTickets(), []);
+  const shadowModeTickets = usePollingResource<TradeTicketDetailView[]>(() => apiClient.shadowModeTickets(), [], { enabled: showTickets });
   const brokerSnapshot = usePollingResource<BrokerAdapterSnapshotView>(
     () => apiClient.brokerSnapshot(),
     { generated_at: "", balances: [], positions: [], fill_imports: [] },
+    { enabled: showTickets },
   );
   const replay = usePollingResource<ReplayView>(
     () => apiClient.replay(selectedSymbol, selectedSignalId, selectedTradeId),
@@ -605,7 +700,7 @@ export function useDashboardData(
       event_window_minutes: 180,
       frames: [],
     },
-    [selectedSymbol, selectedSignalId, selectedTradeId],
+    { deps: [selectedSymbol, selectedSignalId, selectedTradeId], enabled: showReplay && Boolean(selectedSymbol) },
   );
   const scenarioStress = usePollingResource<ScenarioStressSummaryView>(
     () => apiClient.scenarioStress(selectedSymbol, selectedSignalId, selectedTradeId),
@@ -615,7 +710,7 @@ export function useDashboardData(
       active_trade_impacts: [],
       promoted_strategy_impacts: [],
     },
-    [selectedSymbol, selectedSignalId, selectedTradeId],
+    { deps: [selectedSymbol, selectedSignalId, selectedTradeId], enabled: showReplay && Boolean(selectedSymbol) },
   );
 
   return {
@@ -642,6 +737,7 @@ export function useDashboardData(
     signalDetail,
     highRiskSignals,
     news,
+    polymarketHunter,
     watchlist,
     watchlistSummary,
     opportunities,

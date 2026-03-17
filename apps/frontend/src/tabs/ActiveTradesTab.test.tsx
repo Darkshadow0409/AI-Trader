@@ -42,6 +42,7 @@ describe("ActiveTradesTab", () => {
     expect(screen.getAllByText("closed_win").length).toBeGreaterThan(0);
     expect(screen.getAllByText("BTCUSD -> BTCUSD").length).toBeGreaterThan(0);
     expect(screen.getAllByText("research_only").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "10k Paper Account" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Execution Realism" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Trade Timeline" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Scenario Stress" })).toBeInTheDocument();

@@ -1,6 +1,7 @@
-import { ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
+import { CandlestickSeries, ColorType, HistogramSeries, LineSeries, createChart, type UTCTimestamp } from "lightweight-charts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MarketChartView, PaperTradeDetailView, RiskDetailView, SignalDetailView, TradeTicketDetailView } from "../types/api";
+import { formatDateTimeIST, parseTimestampMs } from "../lib/time";
 import { StateBlock } from "./StateBlock";
 
 interface PriceChartProps {
@@ -8,6 +9,7 @@ interface PriceChartProps {
   timeframe: string;
   loading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
   onTimeframeChange: (timeframe: string) => void;
   selectedSignal?: SignalDetailView | null;
   selectedRisk?: RiskDetailView | null;
@@ -18,7 +20,11 @@ interface PriceChartProps {
 const TIMEFRAMES = ["15m", "1h", "4h", "1d"];
 
 function toChartTime(timestamp: string): UTCTimestamp {
-  return Math.floor(new Date(timestamp).getTime() / 1000) as UTCTimestamp;
+  return Math.floor((parseTimestampMs(timestamp) ?? 0) / 1000) as UTCTimestamp;
+}
+
+function validIndicatorPoints(points: Array<{ timestamp: string; value: number }>) {
+  return points.filter((point) => parseTimestampMs(point.timestamp) !== null && Number.isFinite(point.value));
 }
 
 function midpoint(zone: Record<string, unknown> | undefined | null): number | null {
@@ -35,6 +41,7 @@ export function PriceChart({
   timeframe,
   loading,
   error,
+  onRetry,
   onTimeframeChange,
   selectedSignal,
   selectedRisk,
@@ -51,6 +58,22 @@ export function PriceChart({
   const [showEma50, setShowEma50] = useState(true);
   const [showEma200, setShowEma200] = useState(true);
   const [hoverBar, setHoverBar] = useState<MarketChartView["bars"][number] | null>(chart.bars[chart.bars.length - 1] ?? null);
+  const validBars = useMemo(
+    () =>
+      chart.bars.filter(
+        (bar) =>
+          parseTimestampMs(bar.timestamp) !== null &&
+          [bar.open, bar.high, bar.low, bar.close, bar.volume].every((value) => Number.isFinite(value)),
+      ),
+    [chart.bars],
+  );
+  const malformedBarCount = chart.bars.length - validBars.length;
+  const latestBar = validBars[validBars.length - 1] ?? null;
+  const ema20Points = useMemo(() => validIndicatorPoints(chart.indicators.ema_20), [chart.indicators.ema_20]);
+  const ema50Points = useMemo(() => validIndicatorPoints(chart.indicators.ema_50), [chart.indicators.ema_50]);
+  const ema200Points = useMemo(() => validIndicatorPoints(chart.indicators.ema_200), [chart.indicators.ema_200]);
+  const rsiPoints = useMemo(() => validIndicatorPoints(chart.indicators.rsi_14), [chart.indicators.rsi_14]);
+  const atrPoints = useMemo(() => validIndicatorPoints(chart.indicators.atr_14), [chart.indicators.atr_14]);
 
   const effectiveLines = useMemo(() => {
     const lines = [...chart.overlays.price_lines];
@@ -89,7 +112,7 @@ export function PriceChart({
         lines.push({ line_id: `trade-target-${selectedTrade.trade_id}-${key}`, label: `trade ${key}`, value, kind: "target", tone: "positive" });
       });
     }
-    return lines;
+    return lines.filter((line) => Number.isFinite(line.value));
   }, [chart.overlays.price_lines, selectedRisk, selectedSignal, selectedTicket, selectedTrade]);
 
   const effectiveMarkers = useMemo(() => {
@@ -103,15 +126,15 @@ export function PriceChart({
     if (selectedTrade?.opened_at) {
       markers.push({ marker_id: `selected-trade-${selectedTrade.trade_id}`, timestamp: selectedTrade.opened_at, label: `trade ${selectedTrade.status}`, kind: "trade", tone: "positive" });
     }
-    return markers;
+    return markers.filter((marker) => parseTimestampMs(marker.timestamp) !== null);
   }, [chart.overlays.markers, selectedSignal, selectedTicket, selectedTrade]);
 
   useEffect(() => {
-    setHoverBar(chart.bars[chart.bars.length - 1] ?? null);
-  }, [chart.bars]);
+    setHoverBar(validBars[validBars.length - 1] ?? null);
+  }, [validBars]);
 
   useEffect(() => {
-    if (!mainRef.current || chart.bars.length === 0 || loading || error) {
+    if (!mainRef.current || validBars.length === 0 || loading || error) {
       return;
     }
 
@@ -137,7 +160,7 @@ export function PriceChart({
       autoSize: true,
       height: 360,
     });
-    const candleSeries: any = mainChart.addCandlestickSeries({
+    const candleSeries: any = mainChart.addSeries(CandlestickSeries, {
       upColor: "#21c77a",
       downColor: "#ff6f61",
       borderVisible: false,
@@ -145,7 +168,7 @@ export function PriceChart({
       wickDownColor: "#ff6f61",
     });
     candleSeries.setData(
-      chart.bars.map((bar) => ({
+      validBars.map((bar) => ({
         time: toChartTime(bar.timestamp),
         open: bar.open,
         high: bar.high,
@@ -155,13 +178,13 @@ export function PriceChart({
     );
 
     if (showVolume) {
-      const volumeSeries: any = mainChart.addHistogramSeries({
+      const volumeSeries: any = mainChart.addSeries(HistogramSeries, {
         priceScaleId: "",
         priceFormat: { type: "volume" },
         scaleMargins: { top: 0.78, bottom: 0 },
       });
       volumeSeries.setData(
-        chart.bars.map((bar) => ({
+        validBars.map((bar) => ({
           time: toChartTime(bar.timestamp),
           value: bar.volume,
           color: bar.close >= bar.open ? "rgba(33, 199, 122, 0.45)" : "rgba(255, 111, 97, 0.45)",
@@ -170,15 +193,15 @@ export function PriceChart({
     }
 
     const emaSeriesConfigs = [
-      { enabled: showEma20, data: chart.indicators.ema_20, color: "#f7d774" },
-      { enabled: showEma50, data: chart.indicators.ema_50, color: "#7ad7ff" },
-      { enabled: showEma200, data: chart.indicators.ema_200, color: "#b28cff" },
+      { enabled: showEma20, data: ema20Points, color: "#f7d774" },
+      { enabled: showEma50, data: ema50Points, color: "#7ad7ff" },
+      { enabled: showEma200, data: ema200Points, color: "#b28cff" },
     ];
     emaSeriesConfigs.forEach((config) => {
       if (!config.enabled || config.data.length === 0) {
         return;
       }
-      const lineSeries: any = mainChart.addLineSeries({ color: config.color, lineWidth: 2, crosshairMarkerVisible: false });
+      const lineSeries: any = mainChart.addSeries(LineSeries, { color: config.color, lineWidth: 2, crosshairMarkerVisible: false });
       lineSeries.setData(config.data.map((point) => ({ time: toChartTime(point.timestamp), value: point.value })));
     });
 
@@ -208,29 +231,29 @@ export function PriceChart({
     mainChart.subscribeCrosshairMove((param: any) => {
       const point = param?.seriesData?.get?.(candleSeries);
       if (!point) {
-        setHoverBar(chart.bars[chart.bars.length - 1] ?? null);
+        setHoverBar(validBars[validBars.length - 1] ?? null);
         return;
       }
-      const matched = chart.bars.find((bar) => toChartTime(bar.timestamp) === point.time) ?? null;
+      const matched = validBars.find((bar) => toChartTime(bar.timestamp) === point.time) ?? null;
       setHoverBar(matched);
     });
     mainChart.timeScale().fitContent();
 
     let rsiChart: any = null;
-    if (showRsi && rsiRef.current && chart.indicators.rsi_14.length > 0) {
+    if (showRsi && rsiRef.current && rsiPoints.length > 0) {
       rsiChart = createChart(rsiRef.current, { ...commonLayout, autoSize: true, height: 120 });
-      const rsiSeries: any = rsiChart.addLineSeries({ color: "#f7d774", lineWidth: 2, crosshairMarkerVisible: false });
-      rsiSeries.setData(chart.indicators.rsi_14.map((point) => ({ time: toChartTime(point.timestamp), value: point.value })));
+      const rsiSeries: any = rsiChart.addSeries(LineSeries, { color: "#f7d774", lineWidth: 2, crosshairMarkerVisible: false });
+      rsiSeries.setData(rsiPoints.map((point) => ({ time: toChartTime(point.timestamp), value: point.value })));
       rsiSeries.createPriceLine({ price: 70, color: "#704f2e", lineWidth: 1, lineStyle: 2, title: "70" });
       rsiSeries.createPriceLine({ price: 30, color: "#24565a", lineWidth: 1, lineStyle: 2, title: "30" });
       rsiChart.timeScale().fitContent();
     }
 
     let atrChart: any = null;
-    if (showAtr && atrRef.current && chart.indicators.atr_14.length > 0) {
+    if (showAtr && atrRef.current && atrPoints.length > 0) {
       atrChart = createChart(atrRef.current, { ...commonLayout, autoSize: true, height: 120 });
-      const atrSeries: any = atrChart.addLineSeries({ color: "#ff9f6e", lineWidth: 2, crosshairMarkerVisible: false });
-      atrSeries.setData(chart.indicators.atr_14.map((point) => ({ time: toChartTime(point.timestamp), value: point.value })));
+      const atrSeries: any = atrChart.addSeries(LineSeries, { color: "#ff9f6e", lineWidth: 2, crosshairMarkerVisible: false });
+      atrSeries.setData(atrPoints.map((point) => ({ time: toChartTime(point.timestamp), value: point.value })));
       atrChart.timeScale().fitContent();
     }
 
@@ -239,12 +262,18 @@ export function PriceChart({
       rsiChart?.remove();
       atrChart?.remove();
     };
-  }, [chart, effectiveLines, effectiveMarkers, error, loading, showAtr, showEma20, showEma50, showEma200, showRsi, showVolume]);
+  }, [atrPoints, effectiveLines, effectiveMarkers, ema20Points, ema50Points, ema200Points, error, loading, rsiPoints, showAtr, showEma20, showEma50, showEma200, showRsi, showVolume, validBars]);
 
-  const unavailable = chart.status === "no_data";
+  const malformed = chart.bars.length > 0 && validBars.length === 0;
+  const unavailable = chart.status === "no_data" || malformed;
+  const canRenderChart = !loading && !unavailable && validBars.length > 0;
+  const fallbackTimeframe = chart.available_timeframes.includes("1d") ? "1d" : chart.available_timeframes[0] ?? null;
+  const shouldOfferFallbackTimeframe = unavailable && fallbackTimeframe !== null && fallbackTimeframe !== timeframe;
   const stateLabel = error
     ? "Backend disconnected or chart data request failed."
-    : unavailable
+    : malformed
+      ? "Chart data loaded with malformed timestamps or invalid OHLC values. The panel is keeping the rest of the workspace alive."
+      : unavailable
       ? chart.status_note
       : null;
 
@@ -254,8 +283,10 @@ export function PriceChart({
         <div>
           <p className="eyebrow">Chart Surface</p>
           <h3>{chart.symbol} / {timeframe}</h3>
+          <small className="compact-copy">latest visible bar {latestBar ? formatDateTimeIST(latestBar.timestamp) : "n/a"}</small>
         </div>
         <div className="inline-tags">
+          <span className="tag">{chart.market_data_mode}</span>
           <span className="tag">{chart.source_mode}</span>
           <span className="tag">{chart.freshness_state}</span>
           <span className="tag">{chart.data_quality}</span>
@@ -286,7 +317,34 @@ export function PriceChart({
         </div>
       </div>
 
+      <div className="workflow-strip">
+        <div className={selectedSignal ? "workflow-step active" : "workflow-step"}>
+          <span className="metric-label">Signal</span>
+          <strong>{selectedSignal ? selectedSignal.signal_type : "not selected"}</strong>
+        </div>
+        <div className={selectedRisk ? "workflow-step active" : "workflow-step"}>
+          <span className="metric-label">Risk</span>
+          <strong>{selectedRisk ? selectedRisk.size_band : "awaiting"}</strong>
+        </div>
+        <div className={selectedTicket ? "workflow-step active" : "workflow-step"}>
+          <span className="metric-label">Ticket</span>
+          <strong>{selectedTicket ? selectedTicket.status : "not created"}</strong>
+        </div>
+        <div className={selectedTrade ? "workflow-step active" : "workflow-step"}>
+          <span className="metric-label">Trade</span>
+          <strong>{selectedTrade ? selectedTrade.status : "shadow/paper"}</strong>
+        </div>
+        <div className={selectedTrade?.review_due ? "workflow-step warning" : "workflow-step"}>
+          <span className="metric-label">Review</span>
+          <strong>{selectedTrade ? (selectedTrade.review_due ? "due" : "tracked") : "pending"}</strong>
+        </div>
+      </div>
+
       <div className="metric-strip compact-metrics">
+        <div>
+          <span className="metric-label">Cursor</span>
+          <strong>{hoverBar ? formatDateTimeIST(hoverBar.timestamp) : "n/a"}</strong>
+        </div>
         <div>
           <span className="metric-label">OHLC</span>
           <strong>
@@ -305,15 +363,85 @@ export function PriceChart({
           <span className="metric-label">Available TF</span>
           <strong>{chart.available_timeframes.join(", ") || "none"}</strong>
         </div>
+        <div>
+          <span className="metric-label">Malformed Bars</span>
+          <strong>{malformedBarCount}</strong>
+        </div>
       </div>
+      <div className="metric-strip compact-metrics">
+        <div>
+          <span className="metric-label">Display</span>
+          <strong>{chart.instrument_mapping.display_symbol}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Research</span>
+          <strong>{chart.instrument_mapping.research_symbol}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Broker</span>
+          <strong>{chart.instrument_mapping.broker_symbol}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Public</span>
+          <strong>{chart.instrument_mapping.public_symbol}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Alignment</span>
+          <strong>{chart.instrument_mapping.broker_truth ? "broker-truth" : "proxy/public"}</strong>
+        </div>
+      </div>
+      {chart.data_reality ? (
+        <div className="reality-grid">
+          <div>
+            <span className="metric-label">Reality</span>
+            <strong>{chart.data_reality.provenance.realism_grade} / {chart.data_reality.realism_score.toFixed(1)}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Source</span>
+            <strong>{chart.data_reality.provenance.source_type} / {chart.data_reality.provenance.source_timing}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Execution</span>
+            <strong>{chart.data_reality.execution_suitability}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Alignment</span>
+            <strong>{chart.data_reality.tradable_alignment_note}</strong>
+          </div>
+        </div>
+      ) : null}
 
-      <StateBlock loading={loading} error={stateLabel ? (error ? stateLabel : null) : null} empty={unavailable} emptyLabel={stateLabel ?? "No chart data."} />
+      <StateBlock
+        actionLabel={!canRenderChart && error ? "Retry chart" : shouldOfferFallbackTimeframe ? `Switch to ${fallbackTimeframe}` : undefined}
+        empty={!canRenderChart && unavailable}
+        emptyLabel={stateLabel ?? "No chart data."}
+        error={!canRenderChart && error ? stateLabel : null}
+        loading={loading}
+        onAction={
+          !canRenderChart && error
+            ? onRetry
+            : shouldOfferFallbackTimeframe && fallbackTimeframe
+              ? () => onTimeframeChange(fallbackTimeframe)
+              : undefined
+        }
+      />
 
-      {!loading && !error && !unavailable ? (
+      {canRenderChart ? (
         <>
           <div className="chart-banners">
             {chart.is_fixture_mode ? <div className="state-block">Fixture mode active. This chart is suitable for research, review, and paper workflow, not live execution claims.</div> : null}
             {chart.status_note ? <div className={`state-block ${chart.status === "stale" ? "state-error" : ""}`}>{chart.status_note}</div> : null}
+            {!chart.instrument_mapping.broker_truth ? <div className="state-block">{chart.instrument_mapping.mapping_notes}</div> : null}
+            {error ? (
+              <div className="state-block state-error">
+                <div>{stateLabel}</div>
+                {onRetry ? (
+                  <button className="text-button state-action" onClick={onRetry} type="button">
+                    Retry chart
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="chart-shell chart-shell-lg" ref={mainRef} />
           {showRsi ? <div className="chart-shell chart-shell-sm" data-testid="rsi-panel" ref={rsiRef} /> : null}

@@ -29,6 +29,8 @@ def test_paper_trade_seeded_lists_and_detail(client) -> None:
     assert payload["trade_id"].startswith("paper_trade_")
     assert "entry_quality_label" in payload["outcome"]
     assert isinstance(payload["lifecycle_events"], list)
+    assert payload["paper_account"]["account_size"] == 10000
+    assert payload["paper_account"]["projected_stop_loss"] >= 0
 
 
 def test_paper_trade_lifecycle_and_review_routes(client) -> None:
@@ -82,6 +84,7 @@ def test_paper_trade_lifecycle_and_review_routes(client) -> None:
     assert closed.status_code == 200
     assert closed.json()["status"] == "closed_win"
     assert closed.json()["outcome"]["realized_pnl_pct"] > 0
+    assert closed.json()["paper_account"]["account_size"] == 10000
 
     reviewed = client.put(
         f"/api/journal/paper-trades/{trade_id}/review",
@@ -107,6 +110,44 @@ def test_paper_trade_lifecycle_and_review_routes(client) -> None:
     assert analytics.status_code == 200
     assert any(item["trade_id"] == trade_id for item in reviews.json())
     assert any(bucket["key"] == "BTC" for bucket in analytics.json()["by_asset"])
+
+
+def test_paper_trade_aliases_are_canonicalized_and_equity_is_portfolio_wide(client) -> None:
+    seed_and_refresh()
+    signals = client.get("/api/signals").json()
+    risks = client.get("/api/risk/latest").json()
+    btc_signal = next(item for item in signals if item["symbol"] == "BTC")
+    btc_risk = next(item for item in risks if item["symbol"] == "BTC")
+    btc_active_before = client.get("/api/portfolio/paper-trades/active").json()
+
+    created = client.post(
+        "/api/portfolio/paper-trades/proposed",
+        json={
+            "signal_id": btc_signal["signal_id"],
+            "risk_report_id": btc_risk["risk_report_id"],
+            "strategy_id": "event_continuation_v1",
+            "symbol": "USOUSD",
+            "side": "long",
+            "notes": "Alias canonicalization regression.",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["symbol"] == "WTI"
+
+    opened = client.post(
+        f"/api/portfolio/paper-trades/{created.json()['trade_id']}/open",
+        json={"actual_entry": 79.5, "actual_size": 0.4, "notes": "opened for alias regression"},
+    )
+    assert opened.status_code == 200
+    assert opened.json()["symbol"] == "WTI"
+
+    active_after = client.get("/api/portfolio/paper-trades/active")
+    assert active_after.status_code == 200
+    payload = active_after.json()
+    assert len(payload) >= len(btc_active_before) + 1
+    current_equities = {row["paper_account"]["current_equity"] for row in payload}
+    assert len(current_equities) == 1
+    assert next(iter(current_equities)) != payload[0]["paper_account"]["account_size"]
 
 
 def test_paper_trade_alert_generation_handles_target_and_invalidation(seeded_summary) -> None:

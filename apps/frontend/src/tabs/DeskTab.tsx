@@ -1,15 +1,28 @@
 import { useState } from "react";
+import { formatDateTimeIST } from "../lib/time";
 import type { DeskSummaryView, HomeOperatorSummaryView } from "../types/api";
 
 interface DeskTabProps {
   desk: DeskSummaryView;
   homeSummary: HomeOperatorSummaryView;
+  onNavigate: (tab: string) => void;
   onOpenSignal: (signalId: string) => void;
   onOpenRisk: (riskReportId: string) => void;
   onOpenCommandCenter: () => void;
   onSelectSymbol: (symbol: string) => void;
   onSelectTicket: (ticketId: string | null) => void;
   onSelectTrade: (tradeId: string | null) => void;
+  paperCapitalSummary: {
+    accountSize: number;
+    equity: number;
+    allocated: number;
+    openRisk: number;
+    targetPnl: number;
+    stretchPnl: number;
+    stopLoss: number;
+    riskPct: number;
+    openExposureCount: number;
+  };
 }
 
 function compact(value: number | null | undefined): string {
@@ -19,7 +32,18 @@ function compact(value: number | null | undefined): string {
   return value.toFixed(2);
 }
 
-export function DeskTab({ desk, homeSummary, onOpenSignal, onOpenRisk, onOpenCommandCenter, onSelectSymbol, onSelectTicket, onSelectTrade }: DeskTabProps) {
+export function DeskTab({
+  desk,
+  homeSummary,
+  onNavigate,
+  onOpenSignal,
+  onOpenRisk,
+  onOpenCommandCenter,
+  onSelectSymbol,
+  onSelectTicket,
+  onSelectTrade,
+  paperCapitalSummary,
+}: DeskTabProps) {
   const [showOnboarding, setShowOnboarding] = useState(true);
 
   return (
@@ -42,6 +66,40 @@ export function DeskTab({ desk, homeSummary, onOpenSignal, onOpenRisk, onOpenCom
           </div>
         </article>
       ) : null}
+
+      <article className="panel compact-panel hero-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Demo Path</p>
+            <h3>Signal {"->"} Ticket {"->"} Shadow {"->"} Review</h3>
+          </div>
+          <span className="tag">showcase-safe</span>
+        </div>
+        <div className="command-grid">
+          <button className="action-button" onClick={() => onNavigate("signals")} type="button">
+            1. Signals
+          </button>
+          <button className="action-button" onClick={() => onNavigate("trade_tickets")} type="button">
+            2. Tickets
+          </button>
+          <button className="action-button" onClick={() => onNavigate("active_trades")} type="button">
+            3. Trades
+          </button>
+          <button className="action-button" onClick={() => onNavigate("journal")} type="button">
+            4. Review
+          </button>
+          <button className="action-button" onClick={() => onNavigate("strategy_lab")} type="button">
+            5. Strategy
+          </button>
+          <button className="action-button" onClick={() => onNavigate("pilot_ops")} type="button">
+            6. Pilot Gate
+          </button>
+        </div>
+        <div className="stack">
+          <small>Use the chart as the main narrative surface, then pivot to Ticket, Shadow, Review, and Pilot Gate to show the workflow discipline.</small>
+          <small>Data Reality, tradable alignment, realism penalties, and 10k paper-account framing are first-class demo points, not hidden metadata.</small>
+        </div>
+      </article>
 
       <article className="panel compact-panel">
         <h3>What Matters Now</h3>
@@ -71,6 +129,40 @@ export function DeskTab({ desk, homeSummary, onOpenSignal, onOpenRisk, onOpenCom
           {(desk.execution_gate.blockers.length ? desk.execution_gate.blockers : ["No active execution-gate blockers."]).map((item) => (
             <small key={item}>{item}</small>
           ))}
+        </div>
+      </article>
+
+      <article className="panel compact-panel">
+        <h3>10k Paper Capital</h3>
+        <div className="metric-grid">
+          <div>
+            <span className="metric-label">Paper Equity</span>
+            <strong>{compact(paperCapitalSummary.equity)}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Allocated</span>
+            <strong>{compact(paperCapitalSummary.allocated)}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Open Risk</span>
+            <strong>{compact(paperCapitalSummary.openRisk)}</strong>
+          </div>
+          <div>
+            <span className="metric-label">% at Risk</span>
+            <strong>{compact(paperCapitalSummary.riskPct)}%</strong>
+          </div>
+          <div>
+            <span className="metric-label">Base Target</span>
+            <strong>{compact(paperCapitalSummary.targetPnl)}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Stretch / Stop</span>
+            <strong>{compact(paperCapitalSummary.stretchPnl)} / {compact(paperCapitalSummary.stopLoss)}</strong>
+          </div>
+        </div>
+        <div className="stack">
+          <small>Account context: {paperCapitalSummary.accountSize.toFixed(0)} demo account / {paperCapitalSummary.openExposureCount} active exposures</small>
+          <small>Use this panel to explain risk per trade and portfolio-level open exposure in paper mode.</small>
         </div>
       </article>
 
@@ -131,7 +223,7 @@ export function DeskTab({ desk, homeSummary, onOpenSignal, onOpenRisk, onOpenCom
                   <td>{task.title}</td>
                   <td>{task.priority}</td>
                   <td>{task.linked_symbol || "-"}</td>
-                  <td>{new Date(task.due_at).toLocaleString()}</td>
+                  <td>{formatDateTimeIST(task.due_at)}</td>
                 </tr>
               ))}
             </tbody>

@@ -29,6 +29,7 @@ from app.models.schemas import (
     SignalView,
 )
 from app.services.data_reality import asset_reality
+from app.services.polymarket import crowd_implied_narrative, related_polymarket_markets
 from app.services.paper_trading import refresh_paper_trade_alerts
 
 
@@ -541,12 +542,15 @@ def get_signal_detail(session: Session, signal_id: str) -> SignalDetailView | No
             note="Volatility context used in breakout scoring.",
         ),
     ]
+    related_markets = related_polymarket_markets(signal.symbol, signal.thesis, *(item.title for item in catalyst_news[:2]))
     return SignalDetailView(
         **signal.model_dump(),
         evidence=evidence,
         catalyst_news=catalyst_news,
         related_risk=related_risk,
         freshness_status=signal.data_reality.freshness_state if signal.data_reality else "fresh",
+        related_polymarket_markets=related_markets,
+        crowd_implied_narrative=crowd_implied_narrative(signal.symbol, signal.thesis, *(item.title for item in catalyst_news[:2])),
     )
 
 

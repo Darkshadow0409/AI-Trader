@@ -43,6 +43,7 @@ import {
   mockPaperTradesActive,
   mockPaperTradesClosed,
   mockPaperTradesProposed,
+  mockPolymarketHunter,
   mockBrokerSnapshot,
   mockReplay,
   mockScenarioStressSummary,
@@ -98,6 +99,8 @@ import type {
   PaperTradeScaleRequest,
   PaperTradeView,
   PilotSummaryView,
+  PolymarketHunterView,
+  PolymarketMarketView,
   ResearchView,
   ReviewSummaryView,
   ReviewTaskUpdateRequest,
@@ -131,25 +134,41 @@ import type {
 } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 30000);
+const USE_MOCK_FALLBACK = import.meta.env.MODE === "test" || import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true";
 
 async function requestJson<T>(path: string, fallback: T, init?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(new Error(`Timed out loading ${path}`)), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       headers: {
         "Content-Type": "application/json",
         ...(init?.headers ?? {}),
       },
+      signal: controller.signal,
       ...init,
     });
     if (!response.ok) {
-      return fallback;
+      if (USE_MOCK_FALLBACK) {
+        return fallback;
+      }
+      throw new Error(`${path} returned ${response.status}`);
     }
     if (response.status === 204) {
       return fallback;
     }
     return (await response.json()) as T;
-  } catch {
-    return fallback;
+  } catch (error) {
+    if (USE_MOCK_FALLBACK) {
+      return fallback;
+    }
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`${path} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
+    }
+    throw error instanceof Error ? error : new Error(`${path} request failed`);
+  } finally {
+    globalThis.clearTimeout(timeout);
   }
 }
 
@@ -194,6 +213,13 @@ export const apiClient = {
   watchlistSummary: () => requestJson<WatchlistSummaryView[]>("/watchlist/summary", mockWatchlistSummary),
   opportunities: () => requestJson<OpportunityHunterView>("/watchlist/opportunity-hunter", mockOpportunities),
   research: () => requestJson<ResearchView[]>("/research", mockResearch),
+  polymarketHunter: (query = "", tag = "", sort = "volume") =>
+    requestJson<PolymarketHunterView>(
+      `/polymarket/hunter?q=${encodeURIComponent(query)}&tag=${encodeURIComponent(tag)}&sort=${encodeURIComponent(sort)}`,
+      mockPolymarketHunter,
+    ),
+  polymarketMarketDetail: (marketId: string) =>
+    requestJson<PolymarketMarketView>(`/polymarket/markets/${marketId}`, mockPolymarketHunter.markets[0]),
   risk: () => requestJson<RiskView[]>("/risk/latest", mockRisk),
   riskDetail: (riskReportId: string) => requestJson<RiskDetailView>(`/risk/${riskReportId}`, mockRiskDetail),
   riskExposure: () => requestJson<RiskExposureView[]>("/risk/exposure", mockRiskExposure),

@@ -11,11 +11,12 @@ vi.mock("lightweight-charts", () => {
     setMarkers: vi.fn(),
   });
   return {
+    CandlestickSeries: {},
     ColorType: { Solid: "solid" },
+    HistogramSeries: {},
+    LineSeries: {},
     createChart: vi.fn(() => ({
-      addCandlestickSeries: vi.fn(series),
-      addHistogramSeries: vi.fn(series),
-      addLineSeries: vi.fn(series),
+      addSeries: vi.fn(series),
       subscribeCrosshairMove: vi.fn(),
       timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
       remove: vi.fn(),
@@ -58,9 +59,29 @@ describe("PriceChart", () => {
     expect(screen.getByText(/No 15m bars are available for BTC/i)).toBeInTheDocument();
   });
 
-  it("shows a disconnected backend message on request failure", () => {
-    render(<PriceChart chart={mockMarketCharts["BTC:1d"]} error="offline" loading={false} onTimeframeChange={vi.fn()} timeframe="1d" />);
+  it("keeps the last valid chart visible and shows a disconnected warning on refresh failure", () => {
+    const onRetry = vi.fn();
+    render(<PriceChart chart={mockMarketCharts["BTC:1d"]} error="offline" loading={false} onRetry={onRetry} onTimeframeChange={vi.fn()} timeframe="1d" />);
 
     expect(screen.getByText(/Backend disconnected or chart data request failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fixture mode is active/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry chart" })).toBeInTheDocument();
+    expect(screen.queryByText(/No chart data/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a malformed-data state instead of crashing on invalid timestamps", () => {
+    render(
+      <PriceChart
+        chart={{
+          ...mockMarketCharts["BTC:1d"],
+          bars: [{ ...mockMarketCharts["BTC:1d"].bars[0], timestamp: "not-a-timestamp" }],
+        }}
+        loading={false}
+        onTimeframeChange={vi.fn()}
+        timeframe="1d"
+      />,
+    );
+
+    expect(screen.getByText(/malformed timestamps or invalid OHLC values/i)).toBeInTheDocument();
   });
 });

@@ -10,12 +10,14 @@ from sqlmodel import Session, desc, select
 
 from app.alerting import choose_channel_targets, dispatch_alert, stable_alert_id
 from app.core.clock import naive_utc_now
+from app.core.settings import get_settings
 from app.core.telemetry import record_paper_trade_event
 from app.models.entities import AlertRecord, MarketBar, NewsItem, PaperTradeRecord, PaperTradeReviewRecord, StrategyRegistryEntry
 from app.models.schemas import (
     AlertEnvelope,
     ExecutionQualityView,
     ExecutionRealismView,
+    PaperAccountSummaryView,
     PaperTradeAdherenceView,
     PaperTradeAnalyticsBucketView,
     PaperTradeFailureCategoryView,
@@ -39,6 +41,7 @@ from app.models.schemas import (
 )
 from app.services.dashboard_data import list_risk_views, list_signal_views
 from app.services.data_reality import asset_reality, freshness_minutes
+from app.services.market_identity import resolve_symbol
 from app.strategy_lab.service import _promotion_rationale
 
 
@@ -57,6 +60,7 @@ SCENARIO_SHOCKS = {
     "yield_shock": {"BTC": -3.9, "ETH": -4.3, "WTI": -1.0, "GOLD": -2.8, "SILVER": -2.2},
     "vol_spike": {"BTC": -6.2, "ETH": -7.0, "WTI": -3.1, "GOLD": 0.7, "SILVER": -1.4},
 }
+settings = get_settings()
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -164,6 +168,72 @@ def _pnl_pct(side: str, entry: float | None, exit_price: float | None) -> float:
     if side == "short":
         return round(((entry - exit_price) / entry) * 100, 2)
     return round(((exit_price - entry) / entry) * 100, 2)
+
+
+def _effective_units(trade: PaperTradeRecord) -> float:
+    if trade.actual_size and trade.actual_size > 0:
+        return float(trade.actual_size)
+    lifecycle_units = [
+        float(item.get("actual_size", 0.0))
+        for item in trade.lifecycle_events_json
+        if isinstance(item, dict) and item.get("actual_size") is not None
+    ]
+    if lifecycle_units:
+        return lifecycle_units[-1]
+    target_units = trade.size_plan_json.get("target_units")
+    return float(target_units) if target_units is not None else 0.0
+
+
+def _realized_pnl_amount(trade: PaperTradeRecord) -> float:
+    units = _effective_units(trade)
+    if units <= 0 or trade.actual_entry is None or trade.close_price is None:
+        return 0.0
+    direction = -1 if trade.side == "short" else 1
+    return round((trade.close_price - trade.actual_entry) * units * direction, 2)
+
+
+def _unrealized_pnl_amount(session: Session, trade: PaperTradeRecord) -> float:
+    units = _effective_units(trade)
+    if units <= 0 or trade.actual_entry is None or trade.status not in ACTIVE_PAPER_STATUSES:
+        return 0.0
+    latest_close = _unrealized_close(session, trade)
+    if latest_close is None:
+        return 0.0
+    direction = -1 if trade.side == "short" else 1
+    return round((latest_close - trade.actual_entry) * units * direction, 2)
+
+
+def _paper_account_summary(session: Session, trade: PaperTradeRecord) -> PaperAccountSummaryView:
+    account_size = round(float(settings.paper_account_size), 2)
+    all_trades = session.exec(select(PaperTradeRecord)).all()
+    realized = sum(_realized_pnl_amount(row) for row in all_trades if row.status in CLOSED_PAPER_STATUSES)
+    unrealized = sum(_unrealized_pnl_amount(session, row) for row in all_trades if row.status in ACTIVE_PAPER_STATUSES)
+    units = _effective_units(trade)
+    entry_reference = trade.actual_entry
+    if entry_reference is None:
+        low = float(trade.proposed_entry_zone_json.get("low") or 0.0)
+        high = float(trade.proposed_entry_zone_json.get("high") or low)
+        entry_reference = round((low + high) / 2, 4) if low and high else low or high or None
+    allocated_capital = round((entry_reference or 0.0) * units, 2)
+    open_risk_amount = round(abs((entry_reference or 0.0) - trade.stop_price) * units, 2)
+    base_target = float(trade.targets_json.get("base") or 0.0)
+    stretch_target = float(trade.targets_json.get("stretch") or 0.0)
+    projected_base_pnl = round(abs(base_target - (entry_reference or 0.0)) * units, 2) if entry_reference and base_target else 0.0
+    projected_stretch_pnl = round(abs(stretch_target - (entry_reference or 0.0)) * units, 2) if entry_reference and stretch_target else 0.0
+    projected_stop_loss = round(open_risk_amount, 2)
+    current_equity = round(account_size + realized + unrealized, 2)
+    reward_to_risk = round(projected_base_pnl / projected_stop_loss, 2) if projected_stop_loss > 0 else 0.0
+    return PaperAccountSummaryView(
+        account_size=account_size,
+        current_equity=round(current_equity, 2),
+        allocated_capital=allocated_capital,
+        open_risk_amount=open_risk_amount,
+        projected_base_pnl=projected_base_pnl,
+        projected_stretch_pnl=projected_stretch_pnl,
+        projected_stop_loss=projected_stop_loss,
+        risk_pct_of_account=round((open_risk_amount / account_size) * 100, 2) if account_size > 0 else 0.0,
+        projected_reward_to_risk=reward_to_risk,
+    )
 
 
 def _target_attainment(side: str, targets: dict[str, Any], bars: list[MarketBar], close_price: float | None) -> str:
@@ -671,6 +741,7 @@ def _trade_view(
         execution_quality=execution_quality,
         adherence=adherence,
         review_due=row.status in CLOSED_PAPER_STATUSES and review is None,
+        paper_account=_paper_account_summary(session, row),
         data_reality=reality,
     )
 
@@ -815,6 +886,7 @@ def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalReq
         stale_warning = (
             f" Freshness warning: signal was {signal.data_reality.freshness_state} at proposal time."
         )
+    canonical_symbol = resolve_symbol(payload.symbol or signal.symbol)
     entry_reference = float(signal.features.get("close") or 0.0)
     atr_14 = float(signal.features.get("atr_14") or max(entry_reference * 0.03, 1.0))
     trade = PaperTradeRecord(
@@ -822,7 +894,7 @@ def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalReq
         signal_id=signal.signal_id,
         risk_report_id=risk.risk_report_id if risk else payload.risk_report_id,
         strategy_id=payload.strategy_id,
-        symbol=(payload.symbol or signal.symbol).upper(),
+        symbol=canonical_symbol,
         side=payload.side or signal.direction,
         proposed_entry_zone_json={
             "low": round(entry_reference - atr_14 * 0.15, 2),

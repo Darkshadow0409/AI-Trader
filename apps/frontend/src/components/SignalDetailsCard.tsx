@@ -112,6 +112,7 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
               <span className="tag">risk {risk.max_portfolio_risk_pct.toFixed(3)}%</span>
               <span className="tag">{risk.size_band}</span>
               <span className="tag">{risk.exposure_cluster}</span>
+              <span className="tag">{context.data_reality?.provenance.tradable_symbol ?? signal.symbol}</span>
             </div>
           ) : null}
           {reality && reality.penalties.length > 0 ? (
@@ -129,6 +130,20 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
                 <div className="metric-row compact-row" key={`${item.source}-${item.title}`}>
                   <span>{item.title}</span>
                   <span>{item.freshness_minutes}m</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {signalDetail?.crowd_implied_narrative ? <small>{signalDetail.crowd_implied_narrative}</small> : null}
+          {signalDetail && (signalDetail.related_polymarket_markets?.length ?? 0) > 0 ? (
+            <div className="stack">
+              {signalDetail.related_polymarket_markets!.slice(0, 3).map((item) => (
+                <div className="stack" key={item.market_id}>
+                  <div className="metric-row compact-row">
+                    <span>{item.question}</span>
+                    <span>{item.outcomes[0] ? `${item.outcomes[0].label} ${(item.outcomes[0].probability * 100).toFixed(0)}%` : item.primary_tag}</span>
+                  </div>
+                  <small>{item.relevance_reason}</small>
                 </div>
               ))}
             </div>

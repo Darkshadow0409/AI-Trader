@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { apiClient } from "../api/client";
 import { StateBlock } from "../components/StateBlock";
+import { formatDateTimeIST } from "../lib/time";
 import type {
   DailyBriefingView,
   OperationalBacklogView,
@@ -19,7 +20,7 @@ interface SessionDashboardTabProps {
 }
 
 function fmtDue(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : "n/a";
+  return formatDateTimeIST(value);
 }
 
 export function SessionDashboardTab({

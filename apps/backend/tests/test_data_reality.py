@@ -25,9 +25,9 @@ def test_seeded_assets_have_explicit_provenance_fields(seeded_summary) -> None:
     assert btc.realism_grade == "B"
     assert wti.underlying_asset == "WTI"
     assert wti.research_symbol == "WTI_CTX"
-    assert wti.tradable_symbol == "USO"
-    assert wti.intended_venue == "nyse_arca"
-    assert wti.intended_instrument == "etf_proxy"
+    assert wti.tradable_symbol == "USOUSD"
+    assert wti.intended_venue == "pu_prime_mt5"
+    assert wti.intended_instrument == "spot_cfd_proxy"
     assert wti.source_type == "proxy"
     assert wti.source_timing == "end_of_day"
     assert "contextual proxy bars" in wti.proxy_mapping_notes

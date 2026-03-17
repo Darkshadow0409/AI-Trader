@@ -20,6 +20,7 @@ export function ResearchTab({ rows, selectedSymbol, onSelectSymbol }: ResearchTa
           <th>ATR%</th>
           <th>Breakout%</th>
           <th>Structure</th>
+          <th>Crowd</th>
         </tr>
       </thead>
       <tbody>
@@ -34,6 +35,7 @@ export function ResearchTab({ rows, selectedSymbol, onSelectSymbol }: ResearchTa
             <td>{row.atr_pct.toFixed(2)}%</td>
             <td>{row.breakout_distance.toFixed(2)}%</td>
             <td>{row.structure_score.toFixed(2)}</td>
+            <td>{row.related_polymarket_markets?.[0]?.outcomes?.[0] ? `${row.related_polymarket_markets[0].outcomes[0].label} ${(row.related_polymarket_markets[0].outcomes[0].probability * 100).toFixed(0)}%` : "n/a"}</td>
           </tr>
         ))}
       </tbody>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { apiClient } from "../api/client";
+import { formatDateTimeIST } from "../lib/time";
 import type { CommandCenterStatusView, OpsActionSpecView, OpsActionView, OpsSummaryView } from "../types/api";
 
 interface CommandCenterProps {
@@ -9,7 +10,7 @@ interface CommandCenterProps {
 }
 
 function formatTimestamp(value: string | null | undefined): string {
-  return value ? new Date(value).toLocaleString() : "n/a";
+  return formatDateTimeIST(value);
 }
 
 function renderActionStatus(action: OpsActionView | null | undefined): string {

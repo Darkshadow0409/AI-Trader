@@ -1,5 +1,6 @@
-import { ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { AreaSeries, ColorType, createChart, type UTCTimestamp } from "lightweight-charts";
+import { useEffect, useMemo, useRef } from "react";
+import { parseTimestampMs } from "../lib/time";
 import type { EquityCurvePoint } from "../types/api";
 
 interface EquityCurveChartProps {
@@ -8,9 +9,13 @@ interface EquityCurveChartProps {
 
 export function EquityCurveChart({ points }: EquityCurveChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const validPoints = useMemo(
+    () => points.filter((point) => parseTimestampMs(point.timestamp) !== null && Number.isFinite(point.equity)),
+    [points],
+  );
 
   useEffect(() => {
-    if (!containerRef.current || points.length === 0) {
+    if (!containerRef.current || validPoints.length === 0) {
       return;
     }
 
@@ -32,10 +37,8 @@ export function EquityCurveChart({ points }: EquityCurveChartProps) {
       },
     });
 
-    const chartApi = chart as typeof chart & {
-      addAreaSeries: (options: Record<string, unknown>) => { setData: (data: unknown[]) => void };
-    };
-    const series = chartApi.addAreaSeries({
+    const chartApi = chart as typeof chart;
+    const series = chartApi.addSeries(AreaSeries, {
       lineColor: "#6ee4a7",
       topColor: "rgba(110, 228, 167, 0.28)",
       bottomColor: "rgba(110, 228, 167, 0.02)",
@@ -43,14 +46,14 @@ export function EquityCurveChart({ points }: EquityCurveChartProps) {
     });
 
     series.setData(
-      points.map((point) => ({
-        time: Math.floor(new Date(point.timestamp).getTime() / 1000) as UTCTimestamp,
+      validPoints.map((point) => ({
+        time: Math.floor((parseTimestampMs(point.timestamp) ?? 0) / 1000) as UTCTimestamp,
         value: point.equity,
       })),
     );
     chartApi.timeScale().fitContent();
     return () => chartApi.remove();
-  }, [points]);
+  }, [validPoints]);
 
   return <div className="chart-shell" ref={containerRef} />;
 }

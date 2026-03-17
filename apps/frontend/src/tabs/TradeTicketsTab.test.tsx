@@ -37,6 +37,7 @@ describe("TradeTicketsTab", () => {
 
     expect(screen.getByRole("heading", { name: "Trade Tickets" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ticket Detail" })).toBeInTheDocument();
+    expect(screen.getByText("Paper Equity")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Shadow Mode" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Manual Fill Reconciliation" })).toBeInTheDocument();
     expect(screen.getByText("Read-only mock adapter surface only. No order routing is enabled.")).toBeInTheDocument();

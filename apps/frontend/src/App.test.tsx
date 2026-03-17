@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./components/PriceChart", () => ({
@@ -13,6 +15,7 @@ describe("App", () => {
   });
 
   it("renders the dense dashboard shell with fallback data", async () => {
+    const user = userEvent.setup();
     render(<App />);
 
     expect(await screen.findByTestId("top-ribbon")).toBeInTheDocument();
@@ -24,5 +27,13 @@ describe("App", () => {
     expect(screen.getByTestId("price-chart")).toBeInTheDocument();
     expect((await screen.findAllByText("event-risk")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/mock/i)).length).toBeGreaterThan(0);
+    const wtiLabels = await screen.findAllByText("WTI");
+    const watchlistButton = wtiLabels.map((label) => label.closest("button")).find(Boolean);
+    expect(watchlistButton).not.toBeNull();
+    await user.click(watchlistButton as HTMLButtonElement);
+    expect(await screen.findByRole("heading", { name: "WTI Focus" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/system/refresh"), expect.any(Object));
+    });
   });
 });

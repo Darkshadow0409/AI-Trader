@@ -57,6 +57,18 @@ class ChartOverlayView(BaseModel):
     price_lines: list[ChartOverlayLineView] = Field(default_factory=list)
 
 
+class InstrumentMappingView(BaseModel):
+    requested_symbol: str
+    canonical_symbol: str
+    display_symbol: str
+    underlying_asset: str
+    research_symbol: str
+    public_symbol: str
+    broker_symbol: str
+    broker_truth: bool
+    mapping_notes: str
+
+
 class MarketChartView(BaseModel):
     symbol: str
     timeframe: str
@@ -64,6 +76,7 @@ class MarketChartView(BaseModel):
     status: str
     status_note: str
     source_mode: str
+    market_data_mode: str
     freshness_minutes: int
     freshness_state: str
     data_quality: str
@@ -71,6 +84,7 @@ class MarketChartView(BaseModel):
     bars: list[BarView] = Field(default_factory=list)
     indicators: ChartIndicatorSetView = Field(default_factory=ChartIndicatorSetView)
     overlays: ChartOverlayView = Field(default_factory=ChartOverlayView)
+    instrument_mapping: InstrumentMappingView
     data_reality: DataRealityView | None = None
 
 
@@ -142,17 +156,86 @@ class SignalEvidenceView(BaseModel):
     note: str
 
 
+class PolymarketOutcomeView(BaseModel):
+    label: str
+    probability: float
+
+
+class PolymarketMarketView(BaseModel):
+    market_id: str
+    event_id: str | None = None
+    event_title: str = ""
+    question: str
+    slug: str
+    status: str
+    active: bool
+    closed: bool
+    end_date: datetime | None = None
+    volume: float
+    liquidity: float
+    recent_activity: float
+    open_interest: float = 0.0
+    primary_tag: str = ""
+    tags: list[str] = Field(default_factory=list)
+    category: str = "broad_market_narrative"
+    outcomes: list[PolymarketOutcomeView] = Field(default_factory=list)
+    source_status: str
+    source_note: str = ""
+    related_assets: list[str] = Field(default_factory=list)
+    relevance_score: float = 0.0
+    relevance_reason: str = ""
+    url: str = ""
+
+
+class PolymarketEventView(BaseModel):
+    event_id: str
+    title: str
+    slug: str
+    status: str
+    active: bool
+    closed: bool
+    end_date: datetime | None = None
+    volume: float
+    liquidity: float
+    recent_activity: float
+    category: str = "broad_market_narrative"
+    primary_tag: str = ""
+    tags: list[str] = Field(default_factory=list)
+    market_count: int = 0
+    markets: list[PolymarketMarketView] = Field(default_factory=list)
+    source_status: str
+    source_note: str = ""
+    related_assets: list[str] = Field(default_factory=list)
+
+
+class PolymarketHunterView(BaseModel):
+    generated_at: datetime
+    source_status: str
+    source_note: str = ""
+    query: str = ""
+    tag: str = ""
+    sort: str = "volume"
+    available_tags: list[str] = Field(default_factory=list)
+    events: list[PolymarketEventView] = Field(default_factory=list)
+    markets: list[PolymarketMarketView] = Field(default_factory=list)
+
+
 class NewsView(BaseModel):
     source: str
     published_at: datetime
     freshness_minutes: int
+    freshness_state: str
     title: str
     summary: str
     url: str
     tags: list[str]
     entity_tags: list[str]
     affected_assets: list[str]
+    primary_asset: str | None = None
+    event_relevance: str
+    market_data_mode: str
     data_quality: str
+    related_polymarket_markets: list[PolymarketMarketView] = Field(default_factory=list)
 
 
 class WatchlistView(BaseModel):
@@ -175,8 +258,11 @@ class WatchlistSummaryView(BaseModel):
     freshness_minutes: int
     freshness_state: str
     realism_grade: str
+    market_data_mode: str
+    source_label: str
     top_setup_tag: str
     sparkline: list[float] = Field(default_factory=list)
+    instrument_mapping: InstrumentMappingView
 
 
 class OpportunityView(BaseModel):
@@ -232,6 +318,7 @@ class RibbonView(BaseModel):
     risk_budget_total_pct: float
     pipeline_status: str
     source_mode: str
+    market_data_mode: str
     last_refresh: datetime | None
     next_event: dict[str, Any] | None
 
@@ -250,6 +337,8 @@ class ResearchView(BaseModel):
     structure_score: float
     data_quality: str
     data_reality: DataRealityView | None = None
+    related_polymarket_markets: list[PolymarketMarketView] = Field(default_factory=list)
+    crowd_implied_narrative: str = ""
 
 
 class AssetContextView(BaseModel):
@@ -260,6 +349,8 @@ class AssetContextView(BaseModel):
     related_news: list[NewsView]
     latest_backtest: BacktestListView | None
     data_reality: DataRealityView | None = None
+    related_polymarket_markets: list[PolymarketMarketView] = Field(default_factory=list)
+    crowd_implied_narrative: str = ""
 
 
 class SignalDetailView(SignalView):
@@ -267,6 +358,8 @@ class SignalDetailView(SignalView):
     catalyst_news: list[NewsView]
     related_risk: RiskView | None
     freshness_status: str
+    related_polymarket_markets: list[PolymarketMarketView] = Field(default_factory=list)
+    crowd_implied_narrative: str = ""
 
 
 class RiskDetailView(RiskView):
@@ -432,6 +525,18 @@ class PaperTradeAdherenceView(BaseModel):
     breached_rules: list[str] = Field(default_factory=list)
 
 
+class PaperAccountSummaryView(BaseModel):
+    account_size: float
+    current_equity: float
+    allocated_capital: float
+    open_risk_amount: float
+    projected_base_pnl: float
+    projected_stretch_pnl: float
+    projected_stop_loss: float
+    risk_pct_of_account: float
+    projected_reward_to_risk: float
+
+
 class PaperTradeReviewView(BaseModel):
     review_id: str
     trade_id: str
@@ -480,6 +585,7 @@ class PaperTradeView(BaseModel):
     execution_quality: ExecutionQualityView | None = None
     adherence: PaperTradeAdherenceView | None = None
     review_due: bool = False
+    paper_account: PaperAccountSummaryView | None = None
     data_reality: DataRealityView | None = None
 
 
@@ -602,6 +708,7 @@ class TradeTicketView(BaseModel):
     notes: str = ""
     freshness_minutes: int
     linked_signal_family: str = ""
+    paper_account: PaperAccountSummaryView | None = None
     data_reality: DataRealityView | None = None
 
 

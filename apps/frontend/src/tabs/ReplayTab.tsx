@@ -1,4 +1,5 @@
 import type { ReplayView, ScenarioStressSummaryView, TradeTimelineView } from "../types/api";
+import { compareTimestamps, formatDateTimeIST } from "../lib/time";
 
 interface ReplayTabProps {
   replay: ReplayView;
@@ -36,7 +37,7 @@ export function ReplayTab({ replay, timeline, scenarioStress }: ReplayTabProps) 
               <tbody>
                 {replay.frames.map((frame) => (
                   <tr key={frame.cursor}>
-                    <td>{new Date(frame.cursor).toLocaleString()}</td>
+                    <td>{formatDateTimeIST(frame.cursor)}</td>
                     <td>{frame.bars.length}</td>
                     <td>{frame.signals.length}</td>
                     <td>{frame.risks.length}</td>
@@ -87,11 +88,12 @@ export function ReplayTab({ replay, timeline, scenarioStress }: ReplayTabProps) 
           {timeline ? (
             <div className="stack">
               {[...timeline.pre_event, ...timeline.event_trigger, ...timeline.trade_actions, ...timeline.progression, ...timeline.post_event]
-                .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime())
+                .sort((left, right) => compareTimestamps(left.timestamp, right.timestamp))
                 .map((event) => (
                   <div className="metric-row compact-row" key={`${event.phase}-${event.event_type}-${event.timestamp}`}>
                     <span>{event.phase}</span>
                     <span>{event.title}</span>
+                    <span>{formatDateTimeIST(event.timestamp)}</span>
                     <span>{event.price !== null ? compact(event.price) : "n/a"}</span>
                   </div>
                 ))}

@@ -8,6 +8,7 @@ from sqlmodel import Session, desc, select
 
 from app.alerting import choose_channel_targets, dispatch_alert, stable_alert_id
 from app.core.clock import naive_utc_now
+from app.core.settings import get_settings
 from app.core.telemetry import append_event
 from app.models.entities import ManualFillRecord, MarketBar, PaperTradeRecord, TradeTicketRecord
 from app.models.schemas import (
@@ -17,6 +18,7 @@ from app.models.schemas import (
     ManualFillImportRequest,
     ManualFillReconciliationView,
     ManualFillView,
+    PaperAccountSummaryView,
     ShadowObservationView,
     TradeTicketApprovalRequest,
     TradeTicketChecklistView,
@@ -27,6 +29,7 @@ from app.models.schemas import (
 )
 from app.services.broker_adapters import default_broker_adapter
 from app.services.dashboard_data import list_risk_views, list_signal_views
+from app.services.market_identity import resolve_symbol
 from app.services.operator_console import get_risk_detail, get_signal_detail
 from app.services.paper_trading import get_paper_trade_detail
 
@@ -41,6 +44,7 @@ CHECKLIST_KEYS = (
     "review_complete",
     "operator_acknowledged",
 )
+settings = get_settings()
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -142,6 +146,33 @@ def _planned_size(risk: Any | None) -> dict[str, Any]:
         "target_units": units,
         "max_risk_pct": round(float(getattr(risk, "max_portfolio_risk_pct", 0.25)), 2),
     }
+
+
+def _ticket_paper_account(row: TradeTicketRecord) -> PaperAccountSummaryView:
+    account_size = round(float(settings.paper_account_size), 2)
+    low = float(row.proposed_entry_zone_json.get("low") or 0.0)
+    high = float(row.proposed_entry_zone_json.get("high") or low)
+    entry_reference = round((low + high) / 2, 4) if low and high else low or high
+    units = float(row.planned_size_json.get("target_units") or 0.0)
+    allocated_capital = round(entry_reference * units, 2)
+    open_risk_amount = round(abs(entry_reference - row.planned_stop) * units, 2)
+    base_target = float(row.planned_targets_json.get("base") or 0.0)
+    stretch_target = float(row.planned_targets_json.get("stretch") or 0.0)
+    projected_base_pnl = round(abs(base_target - entry_reference) * units, 2) if base_target else 0.0
+    projected_stretch_pnl = round(abs(stretch_target - entry_reference) * units, 2) if stretch_target else 0.0
+    projected_stop_loss = round(open_risk_amount, 2)
+    reward_to_risk = round(projected_base_pnl / projected_stop_loss, 2) if projected_stop_loss > 0 else 0.0
+    return PaperAccountSummaryView(
+        account_size=account_size,
+        current_equity=account_size,
+        allocated_capital=allocated_capital,
+        open_risk_amount=open_risk_amount,
+        projected_base_pnl=projected_base_pnl,
+        projected_stretch_pnl=projected_stretch_pnl,
+        projected_stop_loss=projected_stop_loss,
+        risk_pct_of_account=round((open_risk_amount / account_size) * 100, 2) if account_size > 0 else 0.0,
+        projected_reward_to_risk=reward_to_risk,
+    )
 
 
 def _shadow_summary(session: Session, row: TradeTicketRecord, signal: Any | None) -> ShadowObservationView:
@@ -270,6 +301,7 @@ def _ticket_view(session: Session, row: TradeTicketRecord) -> TradeTicketView:
         notes=row.notes,
         freshness_minutes=freshness_minutes,
         linked_signal_family=detail.signal_type if detail is not None else "",
+        paper_account=_ticket_paper_account(row),
         data_reality=detail.data_reality if detail is not None else None,
     )
 
@@ -455,7 +487,8 @@ def create_trade_ticket(session: Session, payload: TradeTicketCreateRequest) -> 
     if signal is None:
         raise ValueError("Signal not found.")
     risk = get_risk_detail(session, payload.risk_report_id) if payload.risk_report_id else None
-    base_ticket_id = _stable_id("ticket", payload.signal_id, payload.symbol or signal.symbol, payload.strategy_id or "manual")
+    canonical_symbol = resolve_symbol(payload.symbol or signal.symbol)
+    base_ticket_id = _stable_id("ticket", payload.signal_id, canonical_symbol, payload.strategy_id or "manual")
     ticket_id = base_ticket_id
     suffix = 1
     while session.exec(select(TradeTicketRecord).where(TradeTicketRecord.ticket_id == ticket_id)).first() is not None:
@@ -467,7 +500,7 @@ def create_trade_ticket(session: Session, payload: TradeTicketCreateRequest) -> 
         risk_report_id=payload.risk_report_id or (risk.risk_report_id if risk else None),
         trade_id=payload.trade_id,
         strategy_id=payload.strategy_id,
-        symbol=payload.symbol or signal.symbol,
+        symbol=canonical_symbol,
         side=payload.side or (signal.direction if signal.direction in {"long", "short"} else "long"),
         proposed_entry_zone_json={
             "low": round(float(signal.features.get("close", 0.0)) * 0.997, 4),
@@ -512,7 +545,7 @@ def update_trade_ticket(session: Session, ticket_id: str, payload: TradeTicketUp
         prior = TradeTicketChecklistView(**row.checklist_status_json)
         merged = dict(row.checklist_status_json)
         merged.update(payload.checklist_status)
-        checklist = TradeTicketChecklistView(**{**TradeTicketChecklistView().model_dump(), **merged})
+        checklist = TradeTicketChecklistView(**merged)
         checklist.completed = all(bool(getattr(checklist, key)) for key in CHECKLIST_KEYS)
         checklist.blocked_reasons = [
             reason

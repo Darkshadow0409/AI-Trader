@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import threading
 import time
 from typing import Any
 
@@ -11,23 +13,58 @@ from app.models.entities import BacktestResult, StrategyRegistryEntry
 
 
 settings = get_settings()
+_DUCKDB_WRITE_LOCK = threading.Lock()
+_LAST_STRATEGY_REGISTRY_SIGNATURE: str | None = None
 
 
-def _with_duckdb_retry(operation: Any) -> None:
+def _with_duckdb_retry(operation: Any) -> bool:
     last_error: Exception | None = None
-    for _ in range(6):
-        try:
-            with duckdb.connect(str(settings.duckdb_file)) as connection:
-                operation(connection)
-            return
-        except duckdb.IOException as error:
-            last_error = error
-            time.sleep(0.2)
+    with _DUCKDB_WRITE_LOCK:
+        for _ in range(6):
+            try:
+                with duckdb.connect(str(settings.duckdb_file)) as connection:
+                    operation(connection)
+                return True
+            except (duckdb.IOException, duckdb.TransactionException) as error:
+                last_error = error
+                time.sleep(0.2)
     if last_error is not None:
-        return
+        return False
+    return False
+
+
+def _strategy_registry_signature(entries: list[StrategyRegistryEntry]) -> str:
+    payload = [
+        {
+            "name": entry.name,
+            "version": entry.version,
+            "template": entry.template,
+            "description": entry.description,
+            "underlying_symbol": entry.underlying_symbol,
+            "tradable_symbol": entry.tradable_symbol,
+            "timeframe": entry.timeframe,
+            "warmup_bars": entry.warmup_bars,
+            "fees_bps": entry.fees_bps,
+            "slippage_bps": entry.slippage_bps,
+            "proxy_grade": entry.proxy_grade,
+            "promoted": entry.promoted,
+            "tags_json": entry.tags_json,
+            "validation_json": entry.validation_json,
+            "search_space_json": entry.search_space_json,
+            "spec_json": entry.spec_json,
+        }
+        for entry in entries
+    ]
+    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def sync_strategy_registry_duckdb(entries: list[StrategyRegistryEntry]) -> None:
+    global _LAST_STRATEGY_REGISTRY_SIGNATURE
+
+    signature = _strategy_registry_signature(entries)
+    if signature == _LAST_STRATEGY_REGISTRY_SIGNATURE:
+        return
+
     def operation(connection: duckdb.DuckDBPyConnection) -> None:
         connection.execute(
             """
@@ -76,7 +113,8 @@ def sync_strategy_registry_duckdb(entries: list[StrategyRegistryEntry]) -> None:
                     json.dumps(entry.spec_json),
                 ],
             )
-    _with_duckdb_retry(operation)
+    if _with_duckdb_retry(operation):
+        _LAST_STRATEGY_REGISTRY_SIGNATURE = signature
 
 
 def persist_backtest_duckdb(result: BacktestResult) -> None:

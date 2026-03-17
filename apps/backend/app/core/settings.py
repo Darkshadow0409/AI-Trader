@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     pipeline_refresh_minutes: int = 15
     enable_scheduler: bool = True
     fixture_now_iso: str = "2026-03-15T11:30:00+00:00"
+    paper_account_size: float = 10000.0
+    broker_market_data_enabled: bool = False
+    symbol_mapping_json: str = ""
+    polymarket_enabled: bool = True
+    polymarket_base_url: str = "https://gamma-api.polymarket.com"
+    polymarket_timeout_seconds: int = 8
+    polymarket_cache_seconds: int = 120
     fred_api_key: str = ""
     openai_api_key: str = ""
     ollama_url: str = "http://127.0.0.1:11434"

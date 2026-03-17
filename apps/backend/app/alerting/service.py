@@ -5,6 +5,7 @@ from time import perf_counter
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, desc, select
 
 from app.alerting.sinks import DiscordAlertSink, InAppAlertSink, TelegramAlertSink, severity_allowed
@@ -102,9 +103,29 @@ def _build_record(alert: AlertEnvelope, status: str, delivery_metadata: dict[str
     )
 
 
-def _suppressed_alert_id(session: Session, alert: AlertEnvelope, reason: str) -> str:
-    sequence = len(session.exec(select(AlertRecord)).all()) + 1
-    return stable_alert_id(alert.alert_id, reason, sequence)
+def _suppressed_alert_id(_session: Session, alert: AlertEnvelope, reason: str) -> str:
+    return stable_alert_id(alert.alert_id, reason)
+
+
+def _commit_record(session: Session, record: AlertRecord) -> AlertRecord:
+    session.add(record)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        existing = session.exec(select(AlertRecord).where(AlertRecord.alert_id == record.alert_id)).first()
+        if existing is not None:
+            return existing
+        existing = session.exec(
+            select(AlertRecord)
+            .where(AlertRecord.dedupe_key == record.dedupe_key)
+            .order_by(desc(AlertRecord.created_at))
+        ).first()
+        if existing is not None:
+            return existing
+        raise
+    session.refresh(record)
+    return record
 
 
 def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
@@ -123,9 +144,7 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
             delivery_metadata={"suppressed_by": duplicate.alert_id, "reason": "dedupe_window"},
             suppressed_reason="dedupe_window",
         )
-        session.add(record)
-        session.commit()
-        session.refresh(record)
+        record = _commit_record(session, record)
         record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
         return record
 
@@ -138,9 +157,7 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
             delivery_metadata={"suppressed_by": cooldown.alert_id, "reason": "cooldown_window"},
             suppressed_reason="cooldown_window",
         )
-        session.add(record)
-        session.commit()
-        session.refresh(record)
+        record = _commit_record(session, record)
         record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
         return record
 
@@ -153,9 +170,7 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
             delivery_metadata={"reason": "no_channel_targets"},
             suppressed_reason="no_channel_targets",
         )
-        session.add(record)
-        session.commit()
-        session.refresh(record)
+        record = _commit_record(session, record)
         record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
         return record
     deliveries: dict[str, Any] = {}
@@ -179,8 +194,6 @@ def dispatch_alert(session: Session, alert: AlertEnvelope) -> AlertRecord:
             "failed_channels": failed_channels,
         },
     )
-    session.add(record)
-    session.commit()
-    session.refresh(record)
+    record = _commit_record(session, record)
     record_alert_metric(alert.category, alert.channel_targets, record.status, (perf_counter() - started) * 1000)
     return record

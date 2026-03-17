@@ -12,5 +12,6 @@ describe("SignalDetailsCard", () => {
     expect(screen.getAllByText("research_only").length).toBeGreaterThan(0);
     expect(screen.getByText("Fixture timing semantics support deterministic local testing only.")).toBeInTheDocument();
     expect(screen.getByText("fixture_source")).toBeInTheDocument();
+    expect(screen.getByText("Direct btc linkage, asset-specific wording. High volume. Active recent trading.")).toBeInTheDocument();
   });
 });

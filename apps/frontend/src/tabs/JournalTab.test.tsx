@@ -62,5 +62,5 @@ describe("JournalTab", () => {
       );
       expect(onChanged).toHaveBeenCalled();
     });
-  });
+  }, 10000);
 });

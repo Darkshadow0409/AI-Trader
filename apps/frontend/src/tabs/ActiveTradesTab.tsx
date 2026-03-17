@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/client";
+import { formatDateTimeIST, compareTimestamps } from "../lib/time";
 import { StateBlock } from "../components/StateBlock";
 import type {
   DataRealityView,
@@ -365,6 +366,37 @@ export function ActiveTradesTab({
                   {selectedReality.event_context_note ? <small>{selectedReality.event_context_note}</small> : null}
                 </div>
               ) : null}
+              {selectedTrade.paper_account ? (
+                <article className="panel compact-panel">
+                  <h4>10k Paper Account</h4>
+                  <div className="metric-grid">
+                    <div>
+                      <span className="metric-label">Equity</span>
+                      <strong>{compactNumber(selectedTrade.paper_account.current_equity)}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Allocated</span>
+                      <strong>{compactNumber(selectedTrade.paper_account.allocated_capital)}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Open Risk</span>
+                      <strong>{compactNumber(selectedTrade.paper_account.open_risk_amount)}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">% at Risk</span>
+                      <strong>{compactNumber(selectedTrade.paper_account.risk_pct_of_account)}%</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Target P/L</span>
+                      <strong>{compactNumber(selectedTrade.paper_account.projected_base_pnl)}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Stop Loss</span>
+                      <strong>{compactNumber(selectedTrade.paper_account.projected_stop_loss)}</strong>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
               {selectedTrade.execution_realism ? (
                 <article className="panel compact-panel">
                   <h4>Execution Realism</h4>
@@ -597,11 +629,12 @@ export function ActiveTradesTab({
                 {detail?.timeline ? (
                   <div className="stack">
                     {[...detail.timeline.pre_event, ...detail.timeline.event_trigger, ...detail.timeline.trade_actions, ...detail.timeline.progression, ...detail.timeline.post_event]
-                      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime())
+                      .sort((left, right) => compareTimestamps(left.timestamp, right.timestamp))
                       .map((event) => (
                         <div className="metric-row compact-row" key={`${event.phase}-${event.event_type}-${event.timestamp}`}>
                           <span>{event.phase}</span>
                           <span>{event.title}</span>
+                          <span>{formatDateTimeIST(event.timestamp)}</span>
                           <span>{event.price !== null ? compactNumber(event.price) : "n/a"}</span>
                         </div>
                       ))}

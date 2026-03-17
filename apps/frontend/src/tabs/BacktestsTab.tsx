@@ -15,6 +15,7 @@ export function BacktestsTab({ rows }: BacktestsTabProps) {
   const [detail, setDetail] = useState<BacktestDetailView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastEquityPoint = detail ? detail.equity_curve[detail.equity_curve.length - 1] : null;
 
   useEffect(() => {
     setSelectedRunId((current) => current ?? rows[0]?.id ?? null);
@@ -80,8 +81,63 @@ export function BacktestsTab({ rows }: BacktestsTabProps) {
         <StateBlock loading={loading} error={error} empty={!detail} emptyLabel="Select a backtest run." />
         {detail ? (
           <>
+            <Panel title="Backtest Summary" eyebrow={detail.strategy_name}>
+              <div className="metric-grid">
+                <div>
+                  <span className="metric-label">Strategy</span>
+                  <strong>{detail.strategy_name}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Lifecycle</span>
+                  <strong>{detail.lifecycle_state}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Date Range</span>
+                  <strong>{detail.equity_curve[0]?.timestamp?.slice(0, 10) ?? "n/a"} {"->"} {lastEquityPoint?.timestamp?.slice(0, 10) ?? "n/a"}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Return / DD</span>
+                  <strong>{detail.net_return_pct.toFixed(2)}% / {detail.max_drawdown_pct.toFixed(2)}%</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Trades</span>
+                  <strong>{detail.trade_count}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Realism</span>
+                  <strong>{detail.data_reality?.provenance.realism_grade ?? "n/a"}</strong>
+                </div>
+              </div>
+              {detail.promotion_rationale ? <small>{detail.promotion_rationale.notes.join(" ")}</small> : null}
+            </Panel>
             <Panel title="Equity Curve" eyebrow={detail.strategy_name}>
               <EquityCurveChart points={detail.equity_curve} />
+            </Panel>
+            <Panel title="Trade List" eyebrow="Executed Trades">
+              {detail.trades.length === 0 ? (
+                <p className="muted-copy">No trades recorded for this run.</p>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Entry</th>
+                      <th>Exit</th>
+                      <th>Side</th>
+                      <th>P/L</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.trades.slice(0, 8).map((trade) => (
+                      <tr key={`${trade.entry_time}-${trade.exit_time}-${trade.entry_price}`}>
+                        <td>{trade.entry_time.slice(0, 10)}</td>
+                        <td>{trade.exit_time.slice(0, 10)}</td>
+                        <td>{trade.side}</td>
+                        <td>{trade.pnl_pct.toFixed(2)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </Panel>
             <Panel title="Parameter Stability" eyebrow="Heatmap">
               <HeatmapGrid heatmap={detail.stability_heatmap[0] ?? null} />

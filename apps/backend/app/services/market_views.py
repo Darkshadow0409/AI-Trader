@@ -17,6 +17,7 @@ from app.models.schemas import (
     WatchlistSummaryView,
 )
 from app.services.data_reality import asset_reality, freshness_minutes, freshness_state, latest_pipeline_run
+from app.services.market_identity import instrument_mapping_view, market_data_mode, resolve_symbol
 
 
 SUPPORTED_TIMEFRAMES = ["15m", "1h", "4h", "1d"]
@@ -259,7 +260,8 @@ def _build_overlays(session: Session, symbol: str) -> ChartOverlayView:
 
 
 def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketChartView:
-    normalized_symbol = symbol.upper()
+    requested_symbol = symbol.upper()
+    normalized_symbol = resolve_symbol(requested_symbol)
     normalized_timeframe = timeframe.lower()
     all_rows = session.exec(
         select(MarketBar).where(MarketBar.symbol == normalized_symbol).order_by(MarketBar.timestamp.asc())
@@ -268,6 +270,8 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
     rows = [row for row in all_rows if row.timeframe == normalized_timeframe]
     latest_run = latest_pipeline_run(session)
     source_mode = latest_run.source_mode if latest_run else "sample"
+    data_mode = market_data_mode(session)
+    mapping = instrument_mapping_view(normalized_symbol, requested_symbol=requested_symbol)
 
     if not rows:
         reality = asset_reality(session, normalized_symbol, as_of=None, data_quality="missing")
@@ -279,6 +283,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
             status="no_data",
             status_note=f"No {normalized_timeframe} bars are available for {normalized_symbol}. Available timeframes: {available_label}.",
             source_mode=source_mode,
+            market_data_mode=data_mode,
             freshness_minutes=9999,
             freshness_state="unusable",
             data_quality="missing",
@@ -286,6 +291,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
             bars=[],
             indicators=ChartIndicatorSetView(),
             overlays=ChartOverlayView(),
+            instrument_mapping=mapping,
             data_reality=reality,
         )
 
@@ -295,10 +301,16 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
     note_parts = []
     if source_mode == "sample" or latest_bar.data_quality == "fixture":
         note_parts.append("Fixture mode is active. Use this chart for research, paper workflow, and review, not live execution claims.")
+    elif data_mode == "public_live":
+        note_parts.append("Live public data is active where available. Broker-truth symbols remain labeled explicitly when the current source is public or proxy-grade.")
+    elif data_mode == "broker_live":
+        note_parts.append("Broker-aligned live mode is active for available instruments.")
     if state in {"stale", "degraded", "unusable"}:
         note_parts.append(f"Data freshness is {state}. Review the latest refresh before acting.")
     if normalized_timeframe != "1d":
         note_parts.append("Current fixture data is strongest on 1d bars. Intraday availability depends on what has been seeded locally.")
+    if not mapping.broker_truth:
+        note_parts.append(mapping.mapping_notes)
     return MarketChartView(
         symbol=normalized_symbol,
         timeframe=normalized_timeframe,
@@ -306,6 +318,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
         status="stale" if state in {"stale", "degraded", "unusable"} else "ok",
         status_note=" ".join(note_parts) or "Chart data loaded from the local-first store.",
         source_mode=source_mode,
+        market_data_mode=data_mode,
         freshness_minutes=age_minutes,
         freshness_state=state,
         data_quality=latest_bar.data_quality,
@@ -313,6 +326,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
         bars=[BarView.model_validate(row.model_dump()) for row in rows],
         indicators=_build_indicator_set(rows),
         overlays=_build_overlays(session, normalized_symbol),
+        instrument_mapping=mapping,
         data_reality=asset_reality(
             session,
             normalized_symbol,
@@ -325,6 +339,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
 def list_watchlist_summaries(session: Session) -> list[WatchlistSummaryView]:
     rows = session.exec(select(WatchlistItem).order_by(desc(WatchlistItem.last_signal_score))).all()
     payload: list[WatchlistSummaryView] = []
+    data_mode = market_data_mode(session)
     for row in rows:
         bars = session.exec(
             select(MarketBar)
@@ -352,8 +367,11 @@ def list_watchlist_summaries(session: Session) -> list[WatchlistSummaryView]:
                 freshness_minutes=freshness_minutes(latest_bar.timestamp) if latest_bar else 9999,
                 freshness_state=freshness_state(freshness_minutes(latest_bar.timestamp), 240) if latest_bar else "unusable",
                 realism_grade=reality.provenance.realism_grade if reality else "n/a",
+                market_data_mode=data_mode,
+                source_label=(reality.provenance.source_type if reality else "missing"),
                 top_setup_tag="watch" if row.last_signal_score <= 0 else f"score {row.last_signal_score:.0f}",
                 sparkline=[round(item.close, 2) for item in ordered],
+                instrument_mapping=instrument_mapping_view(row.symbol),
             )
         )
     return payload

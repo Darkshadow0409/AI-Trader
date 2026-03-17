@@ -119,6 +119,12 @@ export function LeftRail({
               <small>
                 {item.freshness_state} / {item.top_setup_tag}
               </small>
+              <small>
+                {item.market_data_mode} / {item.source_label}
+              </small>
+              <small>
+                {item.instrument_mapping.display_symbol} {"->"} {item.instrument_mapping.broker_symbol}
+              </small>
             </div>
             <Sparkline points={item.sparkline} />
             <small>{item.freshness_minutes}m</small>

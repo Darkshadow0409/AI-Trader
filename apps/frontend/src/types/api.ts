@@ -49,6 +49,18 @@ export interface ChartOverlayView {
   price_lines: ChartOverlayLineView[];
 }
 
+export interface InstrumentMappingView {
+  requested_symbol: string;
+  canonical_symbol: string;
+  display_symbol: string;
+  underlying_asset: string;
+  research_symbol: string;
+  public_symbol: string;
+  broker_symbol: string;
+  broker_truth: boolean;
+  mapping_notes: string;
+}
+
 export interface MarketChartView {
   symbol: string;
   timeframe: string;
@@ -56,6 +68,7 @@ export interface MarketChartView {
   status: string;
   status_note: string;
   source_mode: string;
+  market_data_mode: string;
   freshness_minutes: number;
   freshness_state: string;
   data_quality: string;
@@ -63,6 +76,7 @@ export interface MarketChartView {
   bars: BarView[];
   indicators: ChartIndicatorSetView;
   overlays: ChartOverlayView;
+  instrument_mapping: InstrumentMappingView;
   data_reality: DataRealityView | null;
 }
 
@@ -134,17 +148,86 @@ export interface SignalEvidenceView {
   note: string;
 }
 
+export interface PolymarketOutcomeView {
+  label: string;
+  probability: number;
+}
+
+export interface PolymarketMarketView {
+  market_id: string;
+  event_id: string | null;
+  event_title: string;
+  question: string;
+  slug: string;
+  status: string;
+  active: boolean;
+  closed: boolean;
+  end_date: string | null;
+  volume: number;
+  liquidity: number;
+  recent_activity: number;
+  open_interest: number;
+  primary_tag: string;
+  tags: string[];
+  category: string;
+  outcomes: PolymarketOutcomeView[];
+  source_status: string;
+  source_note: string;
+  related_assets: string[];
+  relevance_score: number;
+  relevance_reason: string;
+  url: string;
+}
+
+export interface PolymarketEventView {
+  event_id: string;
+  title: string;
+  slug: string;
+  status: string;
+  active: boolean;
+  closed: boolean;
+  end_date: string | null;
+  volume: number;
+  liquidity: number;
+  recent_activity: number;
+  category: string;
+  primary_tag: string;
+  tags: string[];
+  market_count: number;
+  markets: PolymarketMarketView[];
+  source_status: string;
+  source_note: string;
+  related_assets: string[];
+}
+
+export interface PolymarketHunterView {
+  generated_at: string;
+  source_status: string;
+  source_note: string;
+  query: string;
+  tag: string;
+  sort: string;
+  available_tags: string[];
+  events: PolymarketEventView[];
+  markets: PolymarketMarketView[];
+}
+
 export interface NewsView {
   source: string;
   published_at: string;
   freshness_minutes: number;
+  freshness_state: string;
   title: string;
   summary: string;
   url: string;
   tags: string[];
   entity_tags: string[];
   affected_assets: string[];
+  primary_asset: string | null;
+  event_relevance: string;
+  market_data_mode: string;
   data_quality: string;
+  related_polymarket_markets?: PolymarketMarketView[];
 }
 
 export interface WatchlistView {
@@ -167,8 +250,11 @@ export interface WatchlistSummaryView {
   freshness_minutes: number;
   freshness_state: string;
   realism_grade: string;
+  market_data_mode: string;
+  source_label: string;
   top_setup_tag: string;
   sparkline: number[];
+  instrument_mapping: InstrumentMappingView;
 }
 
 export interface OpportunityView {
@@ -221,6 +307,8 @@ export interface SignalDetailView extends SignalView {
   catalyst_news: NewsView[];
   related_risk: RiskView | null;
   freshness_status: string;
+  related_polymarket_markets?: PolymarketMarketView[];
+  crowd_implied_narrative?: string;
 }
 
 export interface RiskDetailView extends RiskView {
@@ -239,6 +327,7 @@ export interface RibbonView {
   risk_budget_total_pct: number;
   pipeline_status: string;
   source_mode: string;
+  market_data_mode: string;
   last_refresh: string | null;
   next_event: Record<string, unknown> | null;
 }
@@ -257,6 +346,8 @@ export interface ResearchView {
   structure_score: number;
   data_quality: string;
   data_reality: DataRealityView | null;
+  related_polymarket_markets?: PolymarketMarketView[];
+  crowd_implied_narrative?: string;
 }
 
 export interface StrategyListView {
@@ -453,6 +544,8 @@ export interface AssetContextView {
   related_news: NewsView[];
   latest_backtest: BacktestListView | null;
   data_reality: DataRealityView | null;
+  related_polymarket_markets?: PolymarketMarketView[];
+  crowd_implied_narrative?: string;
 }
 
 export interface ActiveTradeView {
@@ -610,6 +703,18 @@ export interface PaperTradeAdherenceView {
   breached_rules: string[];
 }
 
+export interface PaperAccountSummaryView {
+  account_size: number;
+  current_equity: number;
+  allocated_capital: number;
+  open_risk_amount: number;
+  projected_base_pnl: number;
+  projected_stretch_pnl: number;
+  projected_stop_loss: number;
+  risk_pct_of_account: number;
+  projected_reward_to_risk: number;
+}
+
 export interface PaperTradeReviewView {
   review_id: string;
   trade_id: string;
@@ -658,6 +763,7 @@ export interface PaperTradeView {
   execution_quality: ExecutionQualityView | null;
   adherence: PaperTradeAdherenceView | null;
   review_due: boolean;
+  paper_account: PaperAccountSummaryView | null;
   data_reality: DataRealityView | null;
 }
 
@@ -780,6 +886,7 @@ export interface TradeTicketView {
   notes: string;
   freshness_minutes: number;
   linked_signal_family: string;
+  paper_account: PaperAccountSummaryView | null;
   data_reality: DataRealityView | null;
 }
 

@@ -1,4 +1,5 @@
 import type { AlertEnvelope, AssetContextView, RibbonView, RiskDetailView } from "../types/api";
+import { formatDateTimeIST } from "../lib/time";
 import { Panel } from "./Panel";
 import { StateBlock } from "./StateBlock";
 
@@ -41,7 +42,7 @@ export function ContextSidebar({
           <div className="context-event">
             <strong>{event.title}</strong>
             <small>
-              {event.impact} / {event.event_time ? new Date(event.event_time).toLocaleString() : "n/a"}
+              {event.impact} / {formatDateTimeIST(event.event_time)}
             </small>
           </div>
         ) : (
@@ -107,6 +108,21 @@ export function ContextSidebar({
             <button className="news-item" key={`${item.source}-${item.title}`} onClick={() => onSelectSymbol(item.affected_assets[0] ?? context.symbol)} type="button">
               <strong>{item.title}</strong>
               <small>{item.entity_tags.join(" / ")}</small>
+            </button>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Crowd-Implied Narrative" eyebrow="Polymarket">
+        {context.crowd_implied_narrative ? <p className="compact-copy">{context.crowd_implied_narrative}</p> : <p className="muted-copy">No related Polymarket market is currently matched to this asset.</p>}
+        <div className="news-stack">
+          {(context.related_polymarket_markets ?? []).slice(0, 3).map((item) => (
+            <button className="news-item" key={item.market_id} onClick={() => onSelectSymbol(item.related_assets[0] ?? context.symbol)} type="button">
+              <strong>{item.question}</strong>
+              <small>
+                {item.category.replace(/_/g, " ")} / vol {item.volume.toLocaleString()} / liq {item.liquidity.toLocaleString()}
+              </small>
+              <small>{item.relevance_reason}</small>
             </button>
           ))}
         </div>

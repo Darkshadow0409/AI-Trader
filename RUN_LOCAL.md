@@ -2,6 +2,32 @@
 
 Browser-first local usage guide for Windows / PowerShell.
 
+## Fastest start
+
+Command Prompt or double-click:
+
+```cmd
+start_local.cmd
+```
+
+PowerShell:
+
+```powershell
+.\start_local.ps1
+```
+
+Stop the running local stack:
+
+```cmd
+stop_local.cmd
+```
+
+or
+
+```powershell
+.\stop_local.ps1
+```
+
 ## One-time setup
 
 ```powershell
@@ -38,6 +64,12 @@ Optional browser auto-open:
 python scripts/dev.py --open
 ```
 
+Optional no-open mode:
+
+```powershell
+python scripts/dev.py --no-open
+```
+
 This starts:
 
 - backend API on the first usable local backend port
@@ -45,11 +77,21 @@ This starts:
 
 The script now:
 
-- checks backend ports in this order: `8000`, `8001`, `8010`
-- checks frontend ports in this order: `5173`, `5174`, `5175`, `5180`
+- checks backend ports in this order: `8000`, `8001`, `8010`, then `8011-8015`
+- checks frontend ports in this order: `5173`, `5174`, `5175`, `5180`, then `5181-5184`
+- normalizes Windows subprocess working directories to plain paths without the `\\?\` prefix
+- launches the frontend with `npm --prefix <frontend_path>` so `npm.cmd` never falls back to `C:\Windows`
+- waits for backend health before declaring startup ready
+- waits for the frontend URL before opening the browser
 - prints the final usable frontend URL, backend URL, health URL, and frontend API base
+- prints source mode and market-data mode once backend is healthy
 - injects the actual backend API URL into the frontend so the browser app stays aligned with the chosen backend port
 - opens the actual frontend URL when `--open` is used
+- writes launcher logs to:
+  - `data/local_runtime/backend.log`
+  - `data/local_runtime/frontend.log`
+- stores running stack metadata in:
+  - `data/local_runtime/local_stack.json`
 
 ## Start backend only
 
@@ -103,7 +145,7 @@ Optional API checks:
 
 ## What to click first
 
-1. Open the app at the exact `Frontend UI:` URL printed by `python scripts/dev.py`
+1. Open the app at the exact `Frontend UI:` URL printed by the launcher
 2. Start on `Desk`
 3. Check the top ribbon:
    - source mode
@@ -120,6 +162,16 @@ Optional API checks:
 6. Return to `Desk` and use `Next Actions`
 
 The `Desk` view also shows a compact onboarding card on first load. It points you to the main tabs and makes it explicit that the platform is paper-trading / pilot mode only.
+
+The fastest demo-safe path is:
+
+1. `Desk`
+2. `Command Center`
+3. `Signals`
+4. `Trade Tickets`
+5. `Active Trades`
+6. `Journal`
+7. `Pilot Ops`
 
 ## Browser-first day-to-day flow
 
@@ -186,4 +238,24 @@ If you set explicit ports in `.env`, `dev.py` will try those exact ports rather 
 
 ## Stopping the stack
 
-Press `Ctrl+C` in the terminal running `python scripts/dev.py`.
+If `python scripts/dev.py` is running in a terminal, `Ctrl+C` stops both processes.
+
+If you started the app through the one-click launcher, use:
+
+```cmd
+stop_local.cmd
+```
+
+or
+
+```powershell
+.\stop_local.ps1
+```
+
+## Troubleshooting
+
+- If startup fails before the browser opens, check:
+  - `data/local_runtime/backend.log`
+  - `data/local_runtime/frontend.log`
+- If backend health never comes up, the launcher exits with a clear failure message and leaves the log paths printed.
+- If your preferred ports are busy, the launcher prints the exact fallback ports it used.

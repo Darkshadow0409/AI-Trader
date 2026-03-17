@@ -21,6 +21,8 @@ def test_api_starts_and_loads_sample_data() -> None:
     exposure = client.get("/api/risk/exposure")
     bars = client.get("/api/market/bars/BTC")
     market_chart = client.get("/api/market/chart/BTC?timeframe=1d")
+    market_chart_alias = client.get("/api/market/chart/USOUSD?timeframe=1d")
+    market_chart_unknown = client.get("/api/market/chart/SPY?timeframe=1d")
     market_chart_empty = client.get("/api/market/chart/BTC?timeframe=15m")
     strategies = client.get("/api/strategies")
     backtests = client.get("/api/backtests")
@@ -60,12 +62,15 @@ def test_api_starts_and_loads_sample_data() -> None:
     refresh = client.post("/api/system/refresh")
     control_center = client.get("/api/system/control-center")
     pilot_export = client.post("/api/system/pilot-export")
+    polymarket = client.get("/api/polymarket/hunter")
     assert news.status_code == 200
     assert watchlist.status_code == 200
     assert risk.status_code == 200
     assert exposure.status_code == 200
     assert bars.status_code == 200
     assert market_chart.status_code == 200
+    assert market_chart_alias.status_code == 200
+    assert market_chart_unknown.status_code == 200
     assert market_chart_empty.status_code == 200
     assert strategies.status_code == 200
     assert backtests.status_code == 200
@@ -105,10 +110,17 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert refresh.status_code == 200
     assert control_center.status_code == 200
     assert pilot_export.status_code == 200
+    assert polymarket.status_code == 200
     assert len(bars.json()) > 0
     assert market_chart.json()["status"] in {"ok", "stale"}
     assert market_chart.json()["bars"]
     assert market_chart.json()["indicators"]["ema_20"] is not None
+    assert market_chart.json()["market_data_mode"] in {"fixture", "public_live", "broker_live"}
+    assert market_chart.json()["instrument_mapping"]["broker_symbol"]
+    assert market_chart_alias.json()["symbol"] == "WTI"
+    assert market_chart_alias.json()["instrument_mapping"]["broker_symbol"] == "USOUSD"
+    assert market_chart_unknown.json()["instrument_mapping"]["canonical_symbol"] == "SPY"
+    assert market_chart_unknown.json()["instrument_mapping"]["broker_symbol"] == "SPY"
     assert market_chart_empty.json()["status"] == "no_data"
     assert "available_timeframes" in market_chart_empty.json()
     assert len(strategies.json()) >= 3
@@ -122,6 +134,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "focus_queue" in opportunities.json()
     assert isinstance(watchlist_summary.json(), list)
     assert "sparkline" in watchlist_summary.json()[0]
+    assert "instrument_mapping" in watchlist_summary.json()[0]
     assert isinstance(alerts.json(), list)
     assert isinstance(proposed_paper.json(), list)
     assert isinstance(active_paper.json(), list)
@@ -142,12 +155,16 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "status" in alerts.json()[0]
     assert "evidence" in signal_detail.json()
     assert "data_reality" in signal_detail.json()
+    assert "event_relevance" in news.json()[0]
+    assert "market_data_mode" in news.json()[0]
     assert "stop_logic" in risk_detail.json()
     assert "data_reality" in risk_detail.json()
     assert "data_reality" in asset_context.json()
     assert refresh.json()["source_mode"] == "sample"
     assert "runtime_status" in control_center.json()
     assert "report_path" in pilot_export.json()
+    assert "markets" in polymarket.json()
+    assert "available_tags" in polymarket.json()
 
     active_paper_detail = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}") if active_paper.json() else None
     assert active_paper_detail is not None and active_paper_detail.status_code == 200
@@ -155,6 +172,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "lifecycle_events" in active_paper_detail.json()
     assert "execution_realism" in active_paper_detail.json()
     assert "execution_quality" in active_paper_detail.json()
+    assert active_paper_detail.json()["paper_account"]["account_size"] == 10000
     assert "timeline" in active_paper_detail.json()
     assert "scenario_stress" in active_paper_detail.json()
     active_paper_timeline = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}/timeline") if active_paper.json() else None
@@ -171,6 +189,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert ticket_detail is not None and ticket_detail.status_code == 200
     assert "checklist_status" in ticket_detail.json()
     assert "manual_fills" in ticket_detail.json()
+    assert ticket_detail.json()["paper_account"]["account_size"] == 10000
     assert "shadow_summary" in ticket_detail.json()
 
     if review_tasks.json():

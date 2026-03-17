@@ -216,6 +216,26 @@ export function TradeTicketsTab({
                   <strong>{selectedTicket.shadow_status}</strong>
                 </div>
               </div>
+              {selectedTicket.paper_account ? (
+                <div className="metric-grid">
+                  <div>
+                    <span className="metric-label">Paper Equity</span>
+                    <strong>{compactNumber(selectedTicket.paper_account.current_equity)}</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Allocated</span>
+                    <strong>{compactNumber(selectedTicket.paper_account.allocated_capital)}</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Open Risk</span>
+                    <strong>{compactNumber(selectedTicket.paper_account.open_risk_amount)}</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Target / Stop</span>
+                    <strong>{compactNumber(selectedTicket.paper_account.projected_base_pnl)} / {compactNumber(selectedTicket.paper_account.projected_stop_loss)}</strong>
+                  </div>
+                </div>
+              ) : null}
               <div className="metric-row">
                 {selectedTicket.signal_id ? (
                   <button className="text-button" onClick={() => onOpenSignal(selectedTicket.signal_id!)} type="button">

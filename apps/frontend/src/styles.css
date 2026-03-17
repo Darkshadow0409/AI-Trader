@@ -114,6 +114,14 @@ a {
   gap: 12px;
 }
 
+.right-pane {
+  align-self: start;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+}
+
 .rail-panel {
   padding: 10px;
   display: grid;
@@ -267,8 +275,9 @@ a {
 
 .focus-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 0.95fr);
+  grid-template-columns: minmax(0, 2.15fr) minmax(320px, 0.85fr);
   gap: 12px;
+  align-items: start;
 }
 
 .chart-shell {
@@ -277,7 +286,7 @@ a {
 }
 
 .chart-shell-lg {
-  height: 420px;
+  height: 500px;
 }
 
 .chart-shell-sm {
@@ -334,18 +343,24 @@ a {
 .metric-grid,
 .field-grid,
 .command-grid,
-.desk-grid {
+.desk-grid,
+.workflow-strip,
+.reality-grid {
   display: grid;
   gap: 10px;
 }
 
 .metric-strip,
-.metric-grid {
+.metric-grid,
+.workflow-strip,
+.reality-grid {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .metric-strip > div,
-.metric-grid > div {
+.metric-grid > div,
+.workflow-strip > div,
+.reality-grid > div {
   border: 1px solid var(--line);
   background: var(--panel-2);
   padding: 8px;
@@ -363,6 +378,13 @@ a {
 
 .desk-grid {
   align-items: start;
+}
+
+.hero-panel {
+  border-color: var(--line-strong);
+  box-shadow:
+    inset 0 0 0 1px rgba(143, 213, 200, 0.08),
+    0 0 0 1px rgba(12, 19, 22, 0.8);
 }
 
 .field {
@@ -424,6 +446,16 @@ a {
   gap: 10px;
 }
 
+.workflow-step.active {
+  border-color: rgba(121, 212, 166, 0.45);
+  box-shadow: inset 3px 0 0 0 var(--good);
+}
+
+.workflow-step.warning {
+  border-color: rgba(231, 201, 121, 0.45);
+  box-shadow: inset 3px 0 0 0 var(--warn);
+}
+
 .chart-toolbar {
   display: flex;
   justify-content: space-between;
@@ -441,6 +473,10 @@ a {
 .pill {
   padding: 8px 10px;
   cursor: pointer;
+}
+
+.state-action {
+  justify-self: start;
 }
 
 .action-button {
@@ -528,6 +564,29 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+.control-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.text-input,
+.select-input {
+  background: rgba(8, 12, 18, 0.92);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 0.55rem 0.7rem;
+  min-height: 2.4rem;
+}
+
+.text-input {
+  min-width: 18rem;
+}
+
+.polymarket-hunter-layout {
+  align-items: start;
 }
 
 @media (max-width: 1400px) {

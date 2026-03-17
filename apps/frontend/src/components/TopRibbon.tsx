@@ -1,4 +1,5 @@
 import type { ExecutionGateView, HealthView, OperationalBacklogView, RibbonView } from "../types/api";
+import { formatTimeIST } from "../lib/time";
 
 interface TopRibbonProps {
   health: HealthView;
@@ -7,14 +8,11 @@ interface TopRibbonProps {
   executionGate?: ExecutionGateView | null;
 }
 
-function formatTime(value: string | null): string {
-  return value ? new Date(value).toLocaleTimeString() : "n/a";
-}
-
 export function TopRibbon({ health, ribbon, backlog, executionGate }: TopRibbonProps) {
   const nextEvent = ribbon.next_event as { title?: string; impact?: string } | null;
   const backendBadge = health.status === "ok" ? "backend connected" : `backend ${health.status}`;
-  const sourceBadge = `source ${ribbon.source_mode}`;
+  const sourceBadge = `mode ${ribbon.market_data_mode}`;
+  const provenanceBadge = `source ${ribbon.source_mode}`;
   const pipelineBadge = `pipeline ${ribbon.pipeline_status}`;
   const freshnessBadge = `freshness ${ribbon.freshness_status}`;
 
@@ -22,10 +20,11 @@ export function TopRibbon({ health, ribbon, backlog, executionGate }: TopRibbonP
     <header className="top-ribbon" data-testid="top-ribbon">
       <div className="ribbon-block">
         <span className="ribbon-label">Status</span>
-        <strong>{formatTime(ribbon.last_refresh)}</strong>
+        <strong>{formatTimeIST(ribbon.last_refresh)}</strong>
         <div className="inline-tags" data-testid="top-ribbon-status-badges">
           <span className="status-pill active" data-testid="backend-connection-badge">{backendBadge}</span>
           <span className="status-pill" data-testid="source-mode-badge">{sourceBadge}</span>
+          <span className="status-pill">{provenanceBadge}</span>
           <span className="status-pill" data-testid="pipeline-status-badge">{pipelineBadge}</span>
           <span className="status-pill" data-testid="freshness-status-badge">{freshnessBadge}</span>
         </div>
@@ -49,7 +48,7 @@ export function TopRibbon({ health, ribbon, backlog, executionGate }: TopRibbonP
       <div className="ribbon-block">
         <span className="ribbon-label">Pipeline</span>
         <strong>
-          {ribbon.pipeline_status} / {ribbon.source_mode}
+          {ribbon.pipeline_status} / {ribbon.market_data_mode}
         </strong>
       </div>
       <div className="ribbon-block">
@@ -71,7 +70,7 @@ export function TopRibbon({ health, ribbon, backlog, executionGate }: TopRibbonP
       <div className="ribbon-block">
         <span className="ribbon-label">Mode</span>
         <strong>
-          {health.status} / {formatTime(ribbon.last_refresh)}
+          {ribbon.source_mode} / {formatTimeIST(ribbon.last_refresh)}
         </strong>
       </div>
     </header>

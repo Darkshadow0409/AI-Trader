@@ -15,6 +15,7 @@ describe("TopRibbon", () => {
           risk_budget_total_pct: 2.5,
           pipeline_status: "completed",
           source_mode: "sample",
+          market_data_mode: "fixture",
           last_refresh: "2026-03-15T11:00:00Z",
           next_event: { title: "US CPI", impact: "high", event_time: "2026-03-15T12:30:00Z" },
         }}
@@ -24,11 +25,12 @@ describe("TopRibbon", () => {
     expect(screen.getByText("risk-on")).toBeInTheDocument();
     expect(screen.getByText("18m / fresh")).toBeInTheDocument();
     expect(screen.getByText("1.10 / 2.50%")).toBeInTheDocument();
-    expect(screen.getByText("completed / sample")).toBeInTheDocument();
+    expect(screen.getByText("completed / fixture")).toBeInTheDocument();
     expect(screen.getByTestId("backend-connection-badge")).toHaveTextContent("backend connected");
-    expect(screen.getByTestId("source-mode-badge")).toHaveTextContent("source sample");
+    expect(screen.getByTestId("source-mode-badge")).toHaveTextContent("mode fixture");
     expect(screen.getByTestId("pipeline-status-badge")).toHaveTextContent("pipeline completed");
     expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("freshness fresh");
+    expect(screen.getAllByText(/IST/i).length).toBeGreaterThan(0);
   });
 
   it("handles stale or missing ribbon details without crashing", () => {
@@ -43,6 +45,7 @@ describe("TopRibbon", () => {
           risk_budget_total_pct: 2.5,
           pipeline_status: "completed",
           source_mode: "sample",
+          market_data_mode: "fixture",
           last_refresh: null,
           next_event: null,
         }}
@@ -51,7 +54,7 @@ describe("TopRibbon", () => {
 
     expect(screen.getByText("1600m / stale")).toBeInTheDocument();
     expect(screen.getByText("none")).toBeInTheDocument();
-    expect(screen.getByText(/mock \/ n\/a/i)).toBeInTheDocument();
+    expect(screen.getByText(/sample \/ n\/a/i)).toBeInTheDocument();
     expect(screen.getByTestId("backend-connection-badge")).toHaveTextContent("backend mock");
     expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("freshness stale");
   });

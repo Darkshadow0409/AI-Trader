@@ -1,0 +1,152 @@
+[
+  {
+    "id": "pm_event_btc",
+    "slug": "bitcoin-above-95000-march-2026",
+    "title": "Bitcoin above $95k by March 31?",
+    "description": "Read-only fixture event for BTC market discovery.",
+    "endDate": "2026-03-31T23:59:00Z",
+    "active": true,
+    "closed": false,
+    "archived": false,
+    "liquidity": "185000",
+    "liquidityClob": 185000,
+    "volume": "920000",
+    "volume24hr": 142000,
+    "openInterest": "310000",
+    "tags": [
+      {"label": "Crypto", "slug": "crypto"},
+      {"label": "Finance", "slug": "finance"}
+    ],
+    "markets": [
+      {
+        "id": "pm_market_btc_95k",
+        "question": "Will Bitcoin trade above $95,000 on March 31, 2026?",
+        "slug": "btc-above-95k-mar-31-2026",
+        "endDate": "2026-03-31T23:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "volume": "920000",
+        "volumeNum": 920000,
+        "volume24hr": 142000,
+        "liquidity": "185000",
+        "liquidityNum": 185000,
+        "outcomes": "[\"Yes\", \"No\"]",
+        "outcomePrices": "[\"0.57\", \"0.43\"]"
+      }
+    ]
+  },
+  {
+    "id": "pm_event_eth",
+    "slug": "ethereum-above-5000-june-2026",
+    "title": "Ethereum above $5k by June 30?",
+    "description": "Read-only fixture event for ETH market discovery.",
+    "endDate": "2026-06-30T23:59:00Z",
+    "active": true,
+    "closed": false,
+    "archived": false,
+    "liquidity": "94000",
+    "liquidityClob": 94000,
+    "volume": "410000",
+    "volume24hr": 58000,
+    "openInterest": "120000",
+    "tags": [
+      {"label": "Crypto", "slug": "crypto"},
+      {"label": "Macro", "slug": "macro"}
+    ],
+    "markets": [
+      {
+        "id": "pm_market_eth_5k",
+        "question": "Will ETH trade above $5,000 by June 30, 2026?",
+        "slug": "eth-above-5000-jun-30-2026",
+        "endDate": "2026-06-30T23:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "volume": "410000",
+        "volumeNum": 410000,
+        "volume24hr": 58000,
+        "liquidity": "94000",
+        "liquidityNum": 94000,
+        "outcomes": "[\"Yes\", \"No\"]",
+        "outcomePrices": "[\"0.41\", \"0.59\"]"
+      }
+    ]
+  },
+  {
+    "id": "pm_event_oil",
+    "slug": "wti-above-85-after-eia",
+    "title": "WTI above $85 after next EIA print?",
+    "description": "Oil-sensitive event tied to EIA inventory release timing.",
+    "endDate": "2026-04-10T20:00:00Z",
+    "active": true,
+    "closed": false,
+    "archived": false,
+    "liquidity": "73000",
+    "liquidityClob": 73000,
+    "volume": "265000",
+    "volume24hr": 91000,
+    "openInterest": "88000",
+    "tags": [
+      {"label": "Commodities", "slug": "commodities"},
+      {"label": "Energy", "slug": "energy"},
+      {"label": "Macro", "slug": "macro"}
+    ],
+    "markets": [
+      {
+        "id": "pm_market_wti_85",
+        "question": "Will WTI crude settle above $85 after the next EIA inventory report?",
+        "slug": "wti-above-85-after-eia",
+        "endDate": "2026-04-10T20:00:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "volume": "265000",
+        "volumeNum": 265000,
+        "volume24hr": 91000,
+        "liquidity": "73000",
+        "liquidityNum": 73000,
+        "outcomes": "[\"Yes\", \"No\"]",
+        "outcomePrices": "[\"0.34\", \"0.66\"]"
+      }
+    ]
+  },
+  {
+    "id": "pm_event_gold",
+    "slug": "gold-above-2400-fomc",
+    "title": "Gold above $2,400 after next FOMC?",
+    "description": "Precious metals event tied to Fed and rates sensitivity.",
+    "endDate": "2026-04-01T23:59:00Z",
+    "active": true,
+    "closed": false,
+    "archived": false,
+    "liquidity": "56000",
+    "liquidityClob": 56000,
+    "volume": "198000",
+    "volume24hr": 44000,
+    "openInterest": "62000",
+    "tags": [
+      {"label": "Commodities", "slug": "commodities"},
+      {"label": "Macro", "slug": "macro"},
+      {"label": "Finance", "slug": "finance"}
+    ],
+    "markets": [
+      {
+        "id": "pm_market_gold_2400",
+        "question": "Will gold trade above $2,400 after the next FOMC meeting?",
+        "slug": "gold-above-2400-after-fomc",
+        "endDate": "2026-04-01T23:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "volume": "198000",
+        "volumeNum": 198000,
+        "volume24hr": 44000,
+        "liquidity": "56000",
+        "liquidityNum": 56000,
+        "outcomes": "[\"Yes\", \"No\"]",
+        "outcomePrices": "[\"0.48\", \"0.52\"]"
+      }
+    ]
+  }
+]

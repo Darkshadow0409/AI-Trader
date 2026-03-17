@@ -13,6 +13,7 @@ describe("apiClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/dashboard/overview", {
       headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
     });
     expect(payload.macro_regime).toBe("risk-on");
   });
@@ -38,6 +39,7 @@ describe("apiClient", () => {
       method: "POST",
       body: JSON.stringify({ strategy_name: "trend_breakout_v1", search_method: "grid", max_trials: 4 }),
       headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
     });
     expect(payload.id).toBe(11);
   });
@@ -53,6 +55,7 @@ describe("apiClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/signals/sig_test", {
       headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
     });
     expect(payload.signal_id).toBe("sig_test");
   });
@@ -94,6 +97,7 @@ describe("apiClient", () => {
         thesis: "Regression coverage",
       }),
       headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
     });
     expect(payload.trade_id).toBe("trade_test");
   });
@@ -109,6 +113,7 @@ describe("apiClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/portfolio/paper-trades/paper_trade_test", {
       headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
     });
     expect(payload.trade_id).toBe("paper_trade_test");
   });

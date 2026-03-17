@@ -28,6 +28,8 @@ def test_ticket_seed_and_shadow_monitoring() -> None:
         detail = get_trade_ticket_detail(session, "ticket_eth_shadow")
         assert detail is not None
         assert detail.shadow_summary is not None
+        assert detail.paper_account is not None
+        assert detail.paper_account.account_size == 10000
         assert isinstance(detail.shadow_summary.ticket_valid, bool)
         assert detail.shadow_summary.freshness_state in {"fresh", "aging", "stale", "degraded", "unusable"}
         assert "ETH" in detail.shadow_summary.market_path_note
@@ -51,6 +53,8 @@ def test_ticket_approval_requires_complete_checklist() -> None:
             ),
         )
         assert created.status == "draft"
+        assert created.paper_account is not None
+        assert created.paper_account.account_size == 10000
         try:
             approve_trade_ticket(session, created.ticket_id, TradeTicketApprovalRequest(approval_status="approved", approval_notes="should fail"))
         except ValueError as exc:
@@ -125,3 +129,25 @@ def test_ticket_records_persist() -> None:
         rows = session.exec(select(TradeTicketRecord)).all()
         assert rows
         assert any(row.ticket_id == "ticket_btc_manual" for row in rows)
+
+
+def test_trade_ticket_aliases_are_canonicalized() -> None:
+    seed_and_refresh()
+    with Session(engine) as session:
+        signals = list_signal_views(session)
+        risks = list_risk_views(session)
+        btc_signal = next(row for row in signals if row.symbol == "BTC")
+        btc_risk = next(row for row in risks if row.symbol == "BTC")
+        created = create_trade_ticket(
+            session,
+            TradeTicketCreateRequest(
+                signal_id=btc_signal.signal_id,
+                risk_report_id=btc_risk.risk_report_id,
+                symbol="USOUSD",
+                side="long",
+                notes="alias mapping regression",
+            ),
+        )
+        assert created.symbol == "WTI"
+        assert created.shadow_summary is not None
+        assert created.shadow_summary.observed_price > 0

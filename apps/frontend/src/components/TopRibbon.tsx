@@ -13,9 +13,23 @@ function formatTime(value: string | null): string {
 
 export function TopRibbon({ health, ribbon, backlog, executionGate }: TopRibbonProps) {
   const nextEvent = ribbon.next_event as { title?: string; impact?: string } | null;
+  const backendBadge = health.status === "ok" ? "backend connected" : `backend ${health.status}`;
+  const sourceBadge = `source ${ribbon.source_mode}`;
+  const pipelineBadge = `pipeline ${ribbon.pipeline_status}`;
+  const freshnessBadge = `freshness ${ribbon.freshness_status}`;
 
   return (
     <header className="top-ribbon" data-testid="top-ribbon">
+      <div className="ribbon-block">
+        <span className="ribbon-label">Status</span>
+        <strong>{formatTime(ribbon.last_refresh)}</strong>
+        <div className="inline-tags" data-testid="top-ribbon-status-badges">
+          <span className="status-pill active" data-testid="backend-connection-badge">{backendBadge}</span>
+          <span className="status-pill" data-testid="source-mode-badge">{sourceBadge}</span>
+          <span className="status-pill" data-testid="pipeline-status-badge">{pipelineBadge}</span>
+          <span className="status-pill" data-testid="freshness-status-badge">{freshnessBadge}</span>
+        </div>
+      </div>
       <div className="ribbon-block">
         <span className="ribbon-label">Regime</span>
         <strong>{ribbon.macro_regime}</strong>

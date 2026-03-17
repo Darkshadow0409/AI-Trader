@@ -6,7 +6,7 @@ describe("TopRibbon", () => {
   it("renders macro, freshness, risk budget, and pipeline blocks", () => {
     render(
       <TopRibbon
-        health={{ status: "mock", sqlite_path: "db", duckdb_path: "duck", parquet_dir: "parquet" }}
+        health={{ status: "ok", sqlite_path: "db", duckdb_path: "duck", parquet_dir: "parquet" }}
         ribbon={{
           macro_regime: "risk-on",
           data_freshness_minutes: 18,
@@ -25,6 +25,10 @@ describe("TopRibbon", () => {
     expect(screen.getByText("18m / fresh")).toBeInTheDocument();
     expect(screen.getByText("1.10 / 2.50%")).toBeInTheDocument();
     expect(screen.getByText("completed / sample")).toBeInTheDocument();
+    expect(screen.getByTestId("backend-connection-badge")).toHaveTextContent("backend connected");
+    expect(screen.getByTestId("source-mode-badge")).toHaveTextContent("source sample");
+    expect(screen.getByTestId("pipeline-status-badge")).toHaveTextContent("pipeline completed");
+    expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("freshness fresh");
   });
 
   it("handles stale or missing ribbon details without crashing", () => {
@@ -48,5 +52,7 @@ describe("TopRibbon", () => {
     expect(screen.getByText("1600m / stale")).toBeInTheDocument();
     expect(screen.getByText("none")).toBeInTheDocument();
     expect(screen.getByText(/mock \/ n\/a/i)).toBeInTheDocument();
+    expect(screen.getByTestId("backend-connection-badge")).toHaveTextContent("backend mock");
+    expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("freshness stale");
   });
 });

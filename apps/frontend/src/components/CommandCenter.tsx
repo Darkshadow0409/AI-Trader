@@ -23,9 +23,24 @@ export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterPr
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  function displayLabel(action: OpsActionSpecView): string {
+    if (action.action_name === "fixture_refresh") {
+      return "Reset Fixture Data";
+    }
+    return action.label;
+  }
+
+  function needsConfirmation(action: OpsActionSpecView): boolean {
+    return action.is_heavy || action.action_name === "fixture_refresh";
+  }
+
   async function handleAction(action: OpsActionSpecView) {
-    if (action.is_heavy) {
-      const confirmed = window.confirm(`${action.label} is a heavier maintenance action.\n\n${action.warning}\n\nContinue?`);
+    if (needsConfirmation(action)) {
+      const prompt =
+        action.action_name === "fixture_refresh"
+          ? "Reset Fixture Data will reseed deterministic local sample data and refresh derived views.\n\nThis is safe for fixture mode, but it will overwrite the current local fixture-backed state.\n\nContinue?"
+          : `${action.label} is a heavier maintenance action.\n\n${action.warning}\n\nContinue?`;
+      const confirmed = window.confirm(prompt);
       if (!confirmed) {
         return;
       }
@@ -33,11 +48,11 @@ export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterPr
     setBusy(action.action_name);
     setMessage(null);
     try {
-      const result = await apiClient.runSystemAction(action.action_name, { confirm_heavy: action.is_heavy });
+      const result = await apiClient.runSystemAction(action.action_name, { confirm_heavy: needsConfirmation(action) });
       await onRefreshAll();
-      setMessage(`${action.label}: ${result.status} - ${result.summary}`);
+      setMessage(`${displayLabel(action)}: ${result.status} - ${result.summary}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : `${action.label} failed.`);
+      setMessage(error instanceof Error ? error.message : `${displayLabel(action)} failed.`);
     } finally {
       setBusy(null);
     }
@@ -55,7 +70,7 @@ export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterPr
             title={action.warning}
             type="button"
           >
-            {busy === action.action_name ? `${action.label}…` : action.label}
+            {busy === action.action_name ? `${displayLabel(action)}…` : displayLabel(action)}
           </button>
         ))}
       </div>

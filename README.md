@@ -56,6 +56,10 @@ Fallback if `make` is unavailable:
 python scripts/dev.py
 ```
 
+Browser-first local usage guide:
+
+- `RUN_LOCAL.md`
+
 ## Useful commands
 
 ```bash

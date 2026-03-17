@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { DeskSummaryView, HomeOperatorSummaryView } from "../types/api";
 
 interface DeskTabProps {
@@ -19,8 +20,29 @@ function compact(value: number | null | undefined): string {
 }
 
 export function DeskTab({ desk, homeSummary, onOpenSignal, onOpenRisk, onOpenCommandCenter, onSelectSymbol, onSelectTicket, onSelectTrade }: DeskTabProps) {
+  const [showOnboarding, setShowOnboarding] = useState(true);
+
   return (
     <section className="desk-grid">
+      {showOnboarding ? (
+        <article className="panel compact-panel" data-testid="desk-onboarding">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">First Run</p>
+              <h3>Start On Desk</h3>
+            </div>
+            <button className="text-button" onClick={() => setShowOnboarding(false)} type="button">
+              Dismiss
+            </button>
+          </div>
+          <div className="stack">
+            <small>Use Desk for triage, then move through Signals, Trade Tickets, Active Trades, Journal, and Pilot Ops.</small>
+            <small>Command Center handles safe operational actions like refresh, fast verify, pilot export, and review bundle generation.</small>
+            <small>This console is paper-trading and pilot mode only. No live broker execution is available here.</small>
+          </div>
+        </article>
+      ) : null}
+
       <article className="panel compact-panel">
         <h3>What Matters Now</h3>
         <div className="metric-grid">

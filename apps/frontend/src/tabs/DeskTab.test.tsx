@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { mockDeskSummary, mockHomeSummary } from "../api/mockData";
 import { DeskTab } from "./DeskTab";
@@ -25,5 +26,29 @@ describe("DeskTab", () => {
     expect(screen.getByRole("heading", { name: "Shadow Divergence" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Next Actions" })).toBeInTheDocument();
     expect(screen.getByText("ticket_btc_manual")).toBeInTheDocument();
+    expect(screen.getByTestId("desk-onboarding")).toBeInTheDocument();
+    expect(screen.getByText(/Command Center handles safe operational actions/i)).toBeInTheDocument();
+    expect(screen.getByText(/paper-trading and pilot mode only/i)).toBeInTheDocument();
+  });
+
+  it("lets the operator dismiss the onboarding card", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <DeskTab
+        desk={mockDeskSummary}
+        homeSummary={mockHomeSummary}
+        onOpenCommandCenter={vi.fn()}
+        onOpenRisk={vi.fn()}
+        onOpenSignal={vi.fn()}
+        onSelectSymbol={vi.fn()}
+        onSelectTicket={vi.fn()}
+        onSelectTrade={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByTestId("desk-onboarding")).not.toBeInTheDocument();
   });
 });

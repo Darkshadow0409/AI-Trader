@@ -42,7 +42,7 @@ describe("TradeTicketsTab", () => {
     expect(screen.getByRole("heading", { name: "Manual Fill Reconciliation" })).toBeInTheDocument();
     expect(screen.getByText("Read-only mock adapter surface only. No order routing is enabled.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Create Ticket" }));
+    await user.click(screen.getByRole("button", { name: "Create Draft Ticket" }));
     await waitFor(() => {
       expect(createSpy).toHaveBeenCalled();
       expect(onChanged).toHaveBeenCalled();

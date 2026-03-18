@@ -52,15 +52,15 @@ export function DeskTab({
         <article className="panel compact-panel" data-testid="desk-onboarding">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">First Run</p>
-              <h3>Start On Desk</h3>
+              <p className="eyebrow">Demo Start</p>
+              <h3>Start Here</h3>
             </div>
             <button className="text-button" onClick={() => setShowOnboarding(false)} type="button">
               Dismiss
             </button>
           </div>
           <div className="stack">
-            <small>Use Desk for triage, then move through Signals, Trade Tickets, Active Trades, Journal, and Pilot Ops.</small>
+            <small>Use Desk for triage, then move through Signals, Tickets, Trades, Journal, and Pilot Ops.</small>
             <small>Command Center handles safe operational actions like refresh, fast verify, pilot export, and review bundle generation.</small>
             <small>This console is paper-trading and pilot mode only. No live broker execution is available here.</small>
           </div>
@@ -169,26 +169,41 @@ export function DeskTab({
       <article className="panel compact-panel">
         <h3>Next Actions</h3>
         <div className="command-grid">
-          <button className="action-button" onClick={() => onSelectTicket(desk.open_tickets[0]?.ticket_id ?? null)} type="button">
+          <button
+            className="action-button"
+            onClick={() => {
+              onSelectTicket(desk.open_tickets[0]?.ticket_id ?? null);
+              onNavigate("trade_tickets");
+            }}
+            type="button"
+          >
             Review Tickets
           </button>
-          <button className="action-button" onClick={() => onSelectTrade(desk.active_paper_trades[0]?.trade_id ?? null)} type="button">
-            Check Active Trades
+          <button
+            className="action-button"
+            onClick={() => {
+              onSelectTrade(desk.active_paper_trades[0]?.trade_id ?? null);
+              onNavigate("active_trades");
+            }}
+            type="button"
+          >
+            Open Active Trades
           </button>
           <button
             className="action-button"
             onClick={() => {
               const signalId = desk.high_priority_signals[0]?.signal_id;
               if (signalId) {
+                onNavigate("signals");
                 onOpenSignal(signalId);
               }
             }}
             type="button"
           >
-            Inspect Lead Signal
+            Open Lead Signal
           </button>
           <button className="action-button" onClick={onOpenCommandCenter} type="button">
-            Open Command Center
+            Open Ops Console
           </button>
         </div>
         <div className="stack">

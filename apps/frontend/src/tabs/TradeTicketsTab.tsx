@@ -152,7 +152,7 @@ export function TradeTicketsTab({
         </article>
 
         <article className="panel compact-panel">
-          <h3>Create Ticket</h3>
+          <h3>Create Draft Ticket</h3>
           <div className="field-grid">
             <label className="field">
               <span>Signal</span>
@@ -188,7 +188,7 @@ export function TradeTicketsTab({
             onClick={() => void runAction("create-ticket", () => apiClient.createTradeTicket(createDraft))}
             type="button"
           >
-            {busy === "create-ticket" ? "Saving…" : "Create Ticket"}
+            {busy === "create-ticket" ? "Saving…" : "Create Draft Ticket"}
           </button>
         </article>
       </div>

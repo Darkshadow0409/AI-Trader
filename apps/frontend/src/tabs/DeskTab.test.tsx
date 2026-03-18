@@ -43,6 +43,7 @@ describe("DeskTab", () => {
     expect(screen.getByRole("heading", { name: "Next Actions" })).toBeInTheDocument();
     expect(screen.getByText("ticket_btc_manual")).toBeInTheDocument();
     expect(screen.getByTestId("desk-onboarding")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Start Here" })).toBeInTheDocument();
     expect(screen.getByText(/Command Center handles safe operational actions/i)).toBeInTheDocument();
     expect(screen.getByText(/paper-trading and pilot mode only/i)).toBeInTheDocument();
   });
@@ -50,6 +51,7 @@ describe("DeskTab", () => {
   it("lets the operator dismiss the onboarding card and use the demo path buttons", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
+    const onSelectTrade = vi.fn();
 
     render(
       <DeskTab
@@ -61,15 +63,18 @@ describe("DeskTab", () => {
         onOpenSignal={vi.fn()}
         onSelectSymbol={vi.fn()}
         onSelectTicket={vi.fn()}
-        onSelectTrade={vi.fn()}
+        onSelectTrade={onSelectTrade}
         paperCapitalSummary={paperCapitalSummary}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
     await user.click(screen.getByRole("button", { name: "5. Strategy" }));
+    await user.click(screen.getByRole("button", { name: "Open Active Trades" }));
 
     expect(screen.queryByTestId("desk-onboarding")).not.toBeInTheDocument();
     expect(onNavigate).toHaveBeenCalledWith("strategy_lab");
+    expect(onNavigate).toHaveBeenCalledWith("active_trades");
+    expect(onSelectTrade).toHaveBeenCalled();
   });
 });

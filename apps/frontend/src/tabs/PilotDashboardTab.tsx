@@ -30,7 +30,7 @@ export function PilotDashboardTab({ dashboard, executionGate, adapterHealth, aud
               <strong>{metric(dashboard.pilot_metrics.shadow_metrics.divergence_rate)}</strong>
             </div>
             <div>
-              <span className="metric-label">Manual Slippage Var</span>
+              <span className="metric-label">Manual vs Modeled Slippage</span>
               <strong>{metric(dashboard.pilot_metrics.slippage_metrics.avg_manual_slippage_variance_bps)}bps</strong>
             </div>
             <div>

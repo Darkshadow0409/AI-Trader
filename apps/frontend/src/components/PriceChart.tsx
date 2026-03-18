@@ -308,7 +308,7 @@ export function PriceChart({
         <div>
           <p className="eyebrow">Chart Surface</p>
           <h3>{chart.symbol} / {timeframe}</h3>
-          <small className="compact-copy">latest visible bar {latestBar ? formatDateTimeIST(latestBar.timestamp) : "n/a"}</small>
+          <small className="compact-copy">Visible bar (IST) {latestBar ? formatDateTimeIST(latestBar.timestamp) : "n/a"}</small>
         </div>
         <div className="inline-tags">
           <span className="tag">{chart.market_data_mode}</span>

@@ -22,7 +22,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /^1\.\sDesk$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^2\.\sSignals$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^5\.\sTickets(?:\s+\d+)?$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^8\.\sReviews(?:\s+\d+\/\d+)?$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^8\.\sReview Queue(?:\s+\d+\/\d+)?$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "BTC Focus" })).toBeInTheDocument();
     expect(screen.getByTestId("price-chart")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh Data" })).toBeInTheDocument();

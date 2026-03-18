@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from time import perf_counter
@@ -25,7 +26,7 @@ def _scheduled_refresh() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    seed_and_refresh()
+    startup_refresh = asyncio.create_task(asyncio.to_thread(seed_and_refresh))
     if settings.enable_scheduler:
         scheduler.add_job(
             _scheduled_refresh,
@@ -40,6 +41,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     finally:
         if scheduler.running:
             scheduler.shutdown(wait=False)
+        if not startup_refresh.done():
+            startup_refresh.cancel()
 
 
 app = FastAPI(title="AI Trader", lifespan=lifespan)

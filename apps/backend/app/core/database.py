@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Generator
 
+from sqlalchemy.exc import OperationalError
+from sqlalchemy import event
+from sqlalchemy.pool import NullPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.settings import get_settings
@@ -9,7 +13,24 @@ from app.core.settings import get_settings
 
 settings = get_settings()
 settings.sqlite_full_path.parent.mkdir(parents=True, exist_ok=True)
-engine = create_engine(f"sqlite:///{settings.sqlite_full_path}", echo=False, connect_args={"check_same_thread": False})
+engine = create_engine(
+    f"sqlite:///{settings.sqlite_full_path}",
+    echo=False,
+    connect_args={"check_same_thread": False, "timeout": 30},
+    poolclass=NullPool,
+)
+
+
+@event.listens_for(engine, "connect")
+def _configure_sqlite_connection(dbapi_connection, _) -> None:
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
 
 
 def _sqlite_columns(table_name: str) -> set[str]:
@@ -270,8 +291,19 @@ def _ensure_contract_columns() -> None:
 def init_db() -> None:
     from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, OpsActionRecord, PaperTradeRecord, PaperTradeReviewRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
 
-    SQLModel.metadata.create_all(engine)
-    _ensure_contract_columns()
+    last_error: OperationalError | None = None
+    for attempt in range(5):
+        try:
+            SQLModel.metadata.create_all(engine)
+            _ensure_contract_columns()
+            return
+        except OperationalError as exc:
+            last_error = exc
+            if "database is locked" not in str(exc).lower() or attempt == 4:
+                raise
+            time.sleep(1.0 + attempt)
+    if last_error is not None:
+        raise last_error
 
 
 def get_session() -> Generator[Session, None, None]:

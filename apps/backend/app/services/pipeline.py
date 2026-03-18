@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from time import perf_counter
 from datetime import UTC, datetime
 from math import isnan
@@ -48,6 +49,7 @@ from app.strategy_lab.service import _recompute_calibration_snapshots, seed_stra
 
 settings = get_settings()
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
+PIPELINE_REFRESH_LOCK = threading.RLock()
 
 
 def _parse_iso(value: str) -> datetime:
@@ -281,126 +283,128 @@ def _next_event(events: list[MacroEvent]) -> MacroEvent | None:
 
 
 def seed_and_refresh() -> PipelineSummary:
-    init_db()
-    with Session(engine) as session:
-        _seed_static_records(session)
-    return refresh_pipeline(force_live=False)
+    with PIPELINE_REFRESH_LOCK:
+        init_db()
+        with Session(engine) as session:
+            _seed_static_records(session)
+        return refresh_pipeline(force_live=False)
 
 
 def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
-    step_timings: dict[str, float] = {}
+    with PIPELINE_REFRESH_LOCK:
+        step_timings: dict[str, float] = {}
 
-    def time_step(name: str, started_at: float) -> None:
-        step_timings[name] = round((perf_counter() - started_at) * 1000, 2)
+        def time_step(name: str, started_at: float) -> None:
+            step_timings[name] = round((perf_counter() - started_at) * 1000, 2)
 
-    init_db()
-    with Session(engine) as session:
-        started = perf_counter()
-        _seed_static_records(session)
-        time_step("seed_static_records", started)
+        init_db()
+        with Session(engine) as session:
+            started = perf_counter()
+            _seed_static_records(session)
+            time_step("seed_static_records", started)
 
-        started = perf_counter()
-        bars, source_mode = _collect_market_data(force_live=force_live)
-        sync_asset_provenance(session, source_mode)
-        time_step("collect_market_data", started)
+            started = perf_counter()
+            bars, source_mode = _collect_market_data(force_live=force_live)
+            sync_asset_provenance(session, source_mode)
+            time_step("collect_market_data", started)
 
-        run = PipelineRun(started_at=naive_utc_now(), source_mode=source_mode, status="running")
-        session.add(run)
-        session.commit()
-        session.refresh(run)
+            run = PipelineRun(started_at=naive_utc_now(), source_mode=source_mode, status="running")
+            session.add(run)
+            session.commit()
+            session.refresh(run)
 
-        started = perf_counter()
-        events, news = _upsert_macro_and_news(session)
-        time_step("macro_news_upsert", started)
+            started = perf_counter()
+            events, news = _upsert_macro_and_news(session)
+            time_step("macro_news_upsert", started)
 
-        started = perf_counter()
-        _persist_bars(session, bars)
-        time_step("persist_bars", started)
+            started = perf_counter()
+            _persist_bars(session, bars)
+            time_step("persist_bars", started)
 
-        started = perf_counter()
-        _write_parquet(bars)
-        _refresh_duckdb()
-        time_step("analytics_storage_refresh", started)
+            started = perf_counter()
+            _write_parquet(bars)
+            _refresh_duckdb()
+            time_step("analytics_storage_refresh", started)
 
-        next_event = _next_event(events)
-        started = perf_counter()
-        feature_frame, correlations = build_feature_frame(bars, next_event.event_time if next_event else None)
-        time_step("feature_pipeline", started)
-        latest_rows = (
-            feature_frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
-        )
-        latest_tradeables = [
-            {
-                **row,
-                "data_quality": str(row.get("data_quality", "fixture")),
-            }
-            for row in latest_rows
-            if row["symbol"] in {"BTC", "ETH"}
-        ]
-        next_event_payload = (
-            {
-                "title": next_event.event_name,
-                "impact": next_event.impact,
-                "event_time": next_event.event_time.isoformat(),
-            }
-            if next_event
-            else None
-        )
-        started = perf_counter()
-        signals = generate_signals(latest_tradeables, correlations, next_event_payload)
-        time_step("signal_pipeline", started)
+            next_event = _next_event(events)
+            started = perf_counter()
+            feature_frame, correlations = build_feature_frame(bars, next_event.event_time if next_event else None)
+            time_step("feature_pipeline", started)
+            latest_rows = (
+                feature_frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
+            )
+            latest_tradeables = [
+                {
+                    **row,
+                    "data_quality": str(row.get("data_quality", "fixture")),
+                }
+                for row in latest_rows
+                if row["symbol"] in {"BTC", "ETH"}
+            ]
+            next_event_payload = (
+                {
+                    "title": next_event.event_name,
+                    "impact": next_event.impact,
+                    "event_time": next_event.event_time.isoformat(),
+                }
+                if next_event
+                else None
+            )
+            started = perf_counter()
+            signals = generate_signals(latest_tradeables, correlations, next_event_payload)
+            time_step("signal_pipeline", started)
 
-        started = perf_counter()
-        risk_reports = generate_risk_reports(signals)
-        time_step("risk_pipeline", started)
+            started = perf_counter()
+            risk_reports = generate_risk_reports(signals)
+            time_step("risk_pipeline", started)
 
-        started = perf_counter()
-        _persist_signals_and_risk(session, run, signals, risk_reports)
-        _recompute_calibration_snapshots(session)
-        sync_trade_links(session)
-        refresh_alerts(session)
-        refresh_ticket_alerts(session)
-        refresh_session_alerts(session)
-        refresh_pilot_alerts(session)
-        time_step("persist_and_refresh", started)
+            started = perf_counter()
+            _persist_signals_and_risk(session, run, signals, risk_reports)
+            _recompute_calibration_snapshots(session)
+            sync_trade_links(session)
+            refresh_alerts(session)
+            refresh_ticket_alerts(session)
+            refresh_session_alerts(session)
+            refresh_pilot_alerts(session)
+            time_step("persist_and_refresh", started)
 
-        run.completed_at = naive_utc_now()
-        run.bars_ingested = len(bars)
-        run.signals_emitted = len(signals)
-        run.status = "completed"
-        run.notes = json.dumps(
-            {
-                "news_items": len(news),
-                "macro_events": len(events),
-                "correlations": correlations,
-            }
-        )
-        session.add(run)
-        session.commit()
-        summary = PipelineSummary(
-            source_mode=source_mode,
-            bars_ingested=len(bars),
-            signals_emitted=len(signals),
-            risk_reports_built=len(risk_reports),
-            data_quality=DataQuality.FIXTURE if source_mode == "sample" else DataQuality.LIVE,
-        )
-        record_pipeline_timings(step_timings, summary.model_dump(mode="json"))
-        write_reviewability_snapshot(
-            "service_boundary_snapshot.json",
-            {
-                "recorded_at": naive_utc_now().isoformat(),
-                "services": {
-                    "pipeline": ["fixture ingestion", "bar persistence", "feature/signal/risk orchestration"],
-                    "data_reality": ["provenance assignment", "freshness policy", "realism penalties"],
-                    "operator_console": ["detail assembly", "alert refresh orchestration", "dashboard views"],
-                    "alerting": ["dedupe/cooldown", "sink fan-out", "delivery persistence"],
-                    "paper_trading": ["paper-trade ledger", "lifecycle transitions", "outcome analytics", "review links"],
-                    "trade_tickets": ["ticket checklist", "shadow monitoring", "manual fill reconciliation", "broker-ready read-only adapters"],
-                    "strategy_lab": ["registry", "promotion state", "validation", "calibration"],
-                    "journal": ["free-form notes", "post-trade review write surface"],
-                    "session_workflow": ["review tasks", "daily briefing", "weekly review", "operational backlog"],
-                    "pilot_ops": ["pilot metrics", "execution gate", "adapter health", "audit logs"],
+            run.completed_at = naive_utc_now()
+            run.bars_ingested = len(bars)
+            run.signals_emitted = len(signals)
+            run.status = "completed"
+            run.notes = json.dumps(
+                {
+                    "news_items": len(news),
+                    "macro_events": len(events),
+                    "correlations": correlations,
+                }
+            )
+            session.add(run)
+            session.commit()
+            summary = PipelineSummary(
+                source_mode=source_mode,
+                bars_ingested=len(bars),
+                signals_emitted=len(signals),
+                risk_reports_built=len(risk_reports),
+                data_quality=DataQuality.FIXTURE if source_mode == "sample" else DataQuality.LIVE,
+            )
+            record_pipeline_timings(step_timings, summary.model_dump(mode="json"))
+            write_reviewability_snapshot(
+                "service_boundary_snapshot.json",
+                {
+                    "recorded_at": naive_utc_now().isoformat(),
+                    "services": {
+                        "pipeline": ["fixture ingestion", "bar persistence", "feature/signal/risk orchestration"],
+                        "data_reality": ["provenance assignment", "freshness policy", "realism penalties"],
+                        "operator_console": ["detail assembly", "alert refresh orchestration", "dashboard views"],
+                        "alerting": ["dedupe/cooldown", "sink fan-out", "delivery persistence"],
+                        "paper_trading": ["paper-trade ledger", "lifecycle transitions", "outcome analytics", "review links"],
+                        "trade_tickets": ["ticket checklist", "shadow monitoring", "manual fill reconciliation", "broker-ready read-only adapters"],
+                        "strategy_lab": ["registry", "promotion state", "validation", "calibration"],
+                        "journal": ["free-form notes", "post-trade review write surface"],
+                        "session_workflow": ["review tasks", "daily briefing", "weekly review", "operational backlog"],
+                        "pilot_ops": ["pilot metrics", "execution gate", "adapter health", "audit logs"],
+                    },
                 },
-            },
-        )
-        return summary
+            )
+            return summary

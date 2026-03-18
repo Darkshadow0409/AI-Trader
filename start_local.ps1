@@ -12,5 +12,6 @@ if ($NoOpen) {
 else {
   $args += "--open"
 }
+$args += "--detach"
 
 python scripts/dev.py @args

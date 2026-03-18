@@ -79,9 +79,10 @@ The script now:
 
 - checks backend ports in this order: `8000`, `8001`, `8010`, then `8011-8015`
 - checks frontend ports in this order: `5173`, `5174`, `5175`, `5180`, then `5181-5184`
+- retries the next backend/frontend candidate if a spawned process exits early or a port becomes unavailable between probing and launch
 - normalizes Windows subprocess working directories to plain paths without the `\\?\` prefix
 - launches the frontend with `npm --prefix <frontend_path>` so `npm.cmd` never falls back to `C:\Windows`
-- waits for backend health before declaring startup ready
+- waits for backend health first, then waits for `/api/dashboard/overview` before declaring the backend usable
 - waits for the frontend URL before opening the browser
 - prints the final usable frontend URL, backend URL, health URL, and frontend API base
 - prints source mode and market-data mode once backend is healthy

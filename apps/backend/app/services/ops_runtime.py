@@ -101,8 +101,19 @@ def _summary_from_output(output: str, *, fallback: str) -> str:
     return " | ".join(lines[-3:])[:500] if lines else fallback
 
 
+def _subprocess_creationflags() -> int:
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform.startswith("win") else 0
+
+
 def _subprocess_action(command: list[str]) -> tuple[str, str, dict[str, object]]:
-    completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=True)
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+        creationflags=_subprocess_creationflags(),
+    )
     output = "\n".join(part for part in (completed.stdout, completed.stderr) if part).strip()
     return output, _summary_from_output(output, fallback="completed"), {"command": command}
 

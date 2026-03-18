@@ -81,6 +81,20 @@ def test_dispatch_alert_suppresses_cooldown_replays() -> None:
         assert second.suppressed_reason == "cooldown_window"
 
 
+def test_list_alerts_hides_suppressed_duplicates_from_ui() -> None:
+    with Session(engine) as session:
+        session.exec(delete(AlertRecord))
+        session.commit()
+
+        dispatch_alert(session, _base_alert())
+        dispatch_alert(session, _base_alert(alert_id="alert_test_dup"))
+
+        visible = list_alerts(session)
+
+    assert len(visible) == 1
+    assert visible[0].status == "sent"
+
+
 def test_sink_payload_formatting_is_stable() -> None:
     telegram = TelegramAlertSink(
         Settings(telegram_bot_token="token", telegram_chat_id="chat", alert_enable_telegram=True)

@@ -1,11 +1,11 @@
 [
   {
-    "risk_report_id": "risk_83a87cbea6fe55bb9883cce13be0b954",
-    "signal_id": "sig_c56fb3977fe1550a91bbc5103358a71e",
+    "risk_report_id": "risk_1a1e2265811d5c1999380e5d7e7e2b46",
+    "signal_id": "sig_48a7dc47b61156faad8f882b4ac87cc4",
     "symbol": "ETH",
     "as_of": "2026-03-14T00:00:00",
     "freshness_minutes": 2130,
-    "stop_price": 4377.753,
+    "stop_price": 4203.9781,
     "size_band": "probe",
     "max_portfolio_risk_pct": 0.004,
     "exposure_cluster": "crypto_beta",
@@ -17,8 +17,8 @@
       "macro_repricing_pct": -7.2
     },
     "report": {
-      "entry_reference": 4505.5777,
-      "atr_14": 58.1021,
+      "entry_reference": 4326.5773,
+      "atr_14": 55.7269,
       "cross_asset_positive": [],
       "scenario_shocks": {
         "risk_off_pct": -10.5,
@@ -94,12 +94,12 @@
     }
   },
   {
-    "risk_report_id": "risk_7a11f320899a5f5fb4988492c9b4b0f4",
-    "signal_id": "sig_765281d9cfc3570183cc9ce642dcec18",
+    "risk_report_id": "risk_802e39dee96750a1978f3e82777c5968",
+    "signal_id": "sig_dd248b00b1ec5b889a0391c1676e1ae2",
     "symbol": "BTC",
     "as_of": "2026-03-14T00:00:00",
     "freshness_minutes": 2130,
-    "stop_price": 83201.5717,
+    "stop_price": 85917.6178,
     "size_band": "probe",
     "max_portfolio_risk_pct": 0.004,
     "exposure_cluster": "crypto_beta",
@@ -111,8 +111,8 @@
       "macro_repricing_pct": -6.0
     },
     "report": {
-      "entry_reference": 85593.4967,
-      "atr_14": 1087.2386,
+      "entry_reference": 88389.1123,
+      "atr_14": 1123.4066,
       "cross_asset_positive": [],
       "scenario_shocks": {
         "risk_off_pct": -8.0,

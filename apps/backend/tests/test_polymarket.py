@@ -202,3 +202,72 @@ def test_related_polymarket_markets_suppresses_weak_matches(monkeypatch) -> None
     )
 
     assert polymarket.related_polymarket_markets("SILVER", "industrial metals", limit=3) == []
+
+
+def test_eth_relevance_reason_does_not_leak_btc_wording(monkeypatch) -> None:
+    monkeypatch.setattr(
+        polymarket,
+        "polymarket_hunter",
+        lambda limit=80: polymarket.PolymarketHunterView(
+            generated_at=polymarket.naive_utc_now(),
+            source_status="fixture",
+            source_note="fixture",
+            query="",
+            tag="",
+            sort="volume",
+            available_tags=["Crypto"],
+            events=[],
+            markets=[
+                polymarket.PolymarketMarketView(
+                    market_id="eth",
+                    event_id="evt_eth",
+                    event_title="Ethereum above $4k?",
+                    question="Will Ethereum trade above $4,000 this month?",
+                    slug="eth",
+                    status="active",
+                    active=True,
+                    closed=False,
+                    end_date=polymarket._parse_datetime("2026-05-01T00:00:00Z"),
+                    volume=450000,
+                    liquidity=120000,
+                    recent_activity=70000,
+                    primary_tag="Crypto",
+                    tags=["Crypto"],
+                    category="crypto",
+                    outcomes=[],
+                    source_status="fixture",
+                    source_note="fixture",
+                    related_assets=["ETH"],
+                    url="https://example.com/eth",
+                ),
+                polymarket.PolymarketMarketView(
+                    market_id="btc",
+                    event_id="evt_btc",
+                    event_title="Bitcoin above $95k?",
+                    question="Will Bitcoin trade above $95,000 this month?",
+                    slug="btc",
+                    status="active",
+                    active=True,
+                    closed=False,
+                    end_date=polymarket._parse_datetime("2026-05-01T00:00:00Z"),
+                    volume=900000,
+                    liquidity=200000,
+                    recent_activity=150000,
+                    primary_tag="Crypto",
+                    tags=["Crypto"],
+                    category="crypto",
+                    outcomes=[],
+                    source_status="fixture",
+                    source_note="fixture",
+                    related_assets=["BTC"],
+                    url="https://example.com/btc",
+                ),
+            ],
+        ),
+    )
+
+    markets = polymarket.related_polymarket_markets("ETH", "ethereum staking risk-on", limit=3)
+
+    assert markets
+    assert markets[0].market_id == "eth"
+    assert "btc" not in markets[0].relevance_reason.lower()

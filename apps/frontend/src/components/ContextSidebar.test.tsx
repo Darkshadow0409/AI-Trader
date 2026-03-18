@@ -36,4 +36,21 @@ describe("ContextSidebar", () => {
 
     expect(screen.getByText("No related Polymarket market is currently matched to this asset.")).toBeInTheDocument();
   });
+
+  it("uses asset-correct polymarket relevance language for eth", () => {
+    render(
+      <ContextSidebar
+        alerts={mockAlerts}
+        context={mockAssetContexts.ETH}
+        onOpenRisk={vi.fn()}
+        onOpenSignal={vi.fn()}
+        onSelectSymbol={vi.fn()}
+        ribbon={mockRibbon}
+        riskDetail={null}
+      />,
+    );
+
+    expect(screen.getAllByText(/Direct eth linkage/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Direct btc linkage/i)).not.toBeInTheDocument();
+  });
 });

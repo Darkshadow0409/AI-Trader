@@ -480,6 +480,24 @@ const mockPolymarketRelevantMarkets: PolymarketMarketView[] = [
   },
 ];
 
+const mockPolymarketEthMarkets: PolymarketMarketView[] = [
+  {
+    ...mockPolymarketRelevantMarkets[0],
+    market_id: "pm_market_eth_4k",
+    event_id: "pm_event_eth",
+    event_title: "Ethereum above $4k by April 30?",
+    question: "Will Ethereum trade above $4,000 on April 30, 2026?",
+    slug: "eth-above-4k-apr-30-2026",
+    volume: 410000,
+    liquidity: 118000,
+    recent_activity: 68000,
+    related_assets: ["ETH"],
+    relevance_score: 8.1,
+    relevance_reason: "Direct eth linkage, asset-specific wording. High volume. Active recent trading.",
+    url: "https://polymarket.com/event/ethereum-above-4000-april-2026",
+  },
+];
+
 export const mockWatchlist: WatchlistView[] = [
   {
     symbol: "BTC",
@@ -1010,6 +1028,9 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
     related_news: mockNews,
     latest_backtest: null,
     data_reality: ethDataReality,
+    related_polymarket_markets: [...mockPolymarketEthMarkets],
+    crowd_implied_narrative:
+      "Crowd-implied narrative: Yes at 57% in 'Will Ethereum trade above $4,000 on April 30, 2026?' with volume 410,000. Direct eth linkage, asset-specific wording. High volume.",
   },
   WTI: {
     symbol: "WTI",

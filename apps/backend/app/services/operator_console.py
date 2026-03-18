@@ -321,7 +321,23 @@ def update_journal_entry(session: Session, journal_id: str, payload: JournalEntr
 
 def list_alerts(session: Session) -> list[AlertEnvelope]:
     rows = session.exec(select(AlertRecord).order_by(desc(AlertRecord.created_at))).all()
-    return [_alert_view(row) for row in rows]
+    deduped: list[AlertRecord] = []
+    seen_keys: set[tuple[str, str, str | None, str | None, str]] = set()
+    for row in rows:
+        if row.status == "suppressed" and row.suppressed_reason in {"dedupe_window", "cooldown_window"}:
+            continue
+        semantic_key = (
+            row.category,
+            row.title,
+            row.signal_id,
+            row.risk_report_id,
+            row.dedupe_key,
+        )
+        if semantic_key in seen_keys:
+            continue
+        seen_keys.add(semantic_key)
+        deduped.append(row)
+    return [_alert_view(row) for row in deduped]
 
 
 def _compose_signal_alert(signal: SignalView) -> AlertEnvelope:

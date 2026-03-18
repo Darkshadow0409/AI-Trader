@@ -175,6 +175,9 @@ def execution_gate_status(session: Session) -> ExecutionGateView:
     }
     blockers: list[str] = []
     rationale: list[str] = []
+    created_count = int(summary.ticket_conversion["created"])
+    manual_execution_rate = summary.ticket_conversion["manual_execution_rate"]
+    shadow_active_count = summary.shadow_metrics["shadow_active_count"]
     if metrics["approved_rate"] < thresholds["approved_rate_min"]:
         blockers.append("approved ticket conversion is below pilot threshold")
     if metrics["shadow_divergence_rate"] > thresholds["shadow_divergence_rate_max"]:
@@ -187,13 +190,19 @@ def execution_gate_status(session: Session) -> ExecutionGateView:
         blockers.append("promoted strategy degradation rate is too high")
     if any(item.status != "healthy" for item in adapter_health):
         blockers.append("adapter health is degraded")
+    if created_count <= 0:
+        blockers.append("pilot baseline is not established yet")
+    if created_count > 0 and shadow_active_count <= 0:
+        blockers.append("shadow mode coverage has not been established yet")
+    if created_count > 0 and manual_execution_rate <= 0:
+        blockers.append("manual reconciliation baseline has not been established yet")
 
     status = "not_ready"
-    if not blockers and summary.ticket_conversion["manual_execution_rate"] > 0 and summary.shadow_metrics["shadow_active_count"] > 0:
+    if not blockers and manual_execution_rate > 0 and shadow_active_count > 0:
         status = "execution_candidate"
-    elif blockers and summary.ticket_conversion["created"] > 0:
+    elif blockers and created_count > 0:
         status = "review_required"
-    elif summary.ticket_conversion["created"] > 0:
+    elif created_count > 0:
         status = "pilot_running"
     rationale.append(f"Approved rate {metrics['approved_rate']:.2f} against minimum {thresholds['approved_rate_min']:.2f}.")
     rationale.append(f"Shadow divergence {metrics['shadow_divergence_rate']:.2f} against max {thresholds['shadow_divergence_rate_max']:.2f}.")

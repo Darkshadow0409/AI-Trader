@@ -194,7 +194,7 @@ def _asset_relevance(normalized_symbol: str, market: PolymarketMarketView, query
         score += 4.0
         reasons.append(f"direct {normalized_symbol.lower()} linkage")
     elif market.related_assets:
-        score -= 2.0
+        score -= 3.5
     if direct_hits:
         score += min(direct_hits, 3) * 1.4
         reasons.append("asset-specific wording")
@@ -205,6 +205,8 @@ def _asset_relevance(normalized_symbol: str, market: PolymarketMarketView, query
         score += 1.2
         reasons.append(f"{market.category.replace('_', '/')} category fit")
     elif market.category == "crypto" and profile["category"] == "commodities":
+        score -= 1.5
+    elif profile["category"] == "crypto" and market.category == "commodities":
         score -= 1.5
     return score, reasons
 
@@ -221,6 +223,8 @@ def _market_relevance(normalized_symbol: str, market: PolymarketMarketView, quer
         score -= 2.0
     if market.status != "active":
         score -= 0.5
+    if market.related_assets and normalized_symbol not in market.related_assets:
+        score -= 2.0
 
     reason_parts: list[str] = []
     if reasons:

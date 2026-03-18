@@ -283,6 +283,20 @@ a {
 .chart-shell {
   height: 320px;
   margin-top: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-canvas {
+  height: 100%;
+}
+
+.chart-canvas-empty {
+  background:
+    linear-gradient(rgba(41, 57, 57, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(41, 57, 57, 0.08) 1px, transparent 1px),
+    rgba(8, 14, 16, 0.88);
+  background-size: 18px 18px, 18px 18px, auto;
 }
 
 .chart-shell-lg {
@@ -464,6 +478,14 @@ a {
   align-items: center;
 }
 
+.workspace-badges,
+.workspace-cta-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .command-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -473,6 +495,12 @@ a {
 .pill {
   padding: 8px 10px;
   cursor: pointer;
+}
+
+.pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  border-color: rgba(49, 80, 77, 0.45);
 }
 
 .state-action {
@@ -501,6 +529,23 @@ a {
   width: 44px;
   height: 16px;
   color: var(--accent);
+}
+
+.chart-state-overlay {
+  position: absolute;
+  inset: 12px auto auto 12px;
+  max-width: min(360px, calc(100% - 24px));
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(231, 201, 121, 0.45);
+  background: rgba(8, 14, 16, 0.88);
+  backdrop-filter: blur(4px);
+  z-index: 3;
+}
+
+.chart-state-overlay.warning {
+  border-color: rgba(239, 143, 132, 0.5);
 }
 
 .context-event {

@@ -51,6 +51,11 @@ def _parse_iso(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC).replace(tzinfo=None)
 
 
+def _next_future_event(events: list[MacroEvent]) -> MacroEvent | None:
+    now = naive_utc_now()
+    return next((item for item in events if item.event_time > now), None)
+
+
 def _infer_assets(text: str, tags: list[str]) -> list[str]:
     haystack = f"{text} {' '.join(tags)}".lower()
     matched = [symbol for symbol, keywords in ASSET_KEYWORDS.items() if any(keyword in haystack for keyword in keywords)]
@@ -237,7 +242,7 @@ def list_research_views(session: Session) -> list[ResearchView]:
     if not rows:
         return []
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
-    next_event = next((item for item in events if item.event_time >= naive_utc_now()), None)
+    next_event = _next_future_event(events)
     frame, _ = build_feature_frame(
         [
             {
@@ -292,7 +297,7 @@ def dashboard_ribbon(session: Session) -> RibbonView:
     latest_bar = session.exec(select(MarketBar).order_by(desc(MarketBar.timestamp))).first()
     latest_run = latest_pipeline_run(session)
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
-    next_event = next((item for item in events if item.event_time >= naive_utc_now()), None)
+    next_event = _next_future_event(events)
     research_rows = list_research_views(session)
     btc_research = next((row for row in research_rows if row.symbol == "BTC"), None)
     freshness_age = freshness_minutes(latest_bar.timestamp) if latest_bar else 9999

@@ -29,7 +29,8 @@
     "primary_asset": "VIX",
     "event_relevance": "medium",
     "market_data_mode": "fixture",
-    "data_quality": "fixture"
+    "data_quality": "fixture",
+    "related_polymarket_markets": []
   },
   {
     "source": "EIA",
@@ -58,6 +59,49 @@
     "primary_asset": "WTI",
     "event_relevance": "medium",
     "market_data_mode": "fixture",
-    "data_quality": "fixture"
+    "data_quality": "fixture",
+    "related_polymarket_markets": [
+      {
+        "market_id": "pm_market_wti_85",
+        "event_id": "pm_event_oil",
+        "event_title": "WTI above $85 after next EIA print?",
+        "question": "Will WTI crude settle above $85 after the next EIA inventory report?",
+        "slug": "wti-above-85-after-eia",
+        "status": "active",
+        "active": true,
+        "closed": false,
+        "end_date": "2026-04-10T20:00:00",
+        "volume": 265000.0,
+        "liquidity": 73000.0,
+        "recent_activity": 91000.0,
+        "open_interest": 88000.0,
+        "primary_tag": "Commodities",
+        "tags": [
+          "Commodities",
+          "Energy",
+          "Macro"
+        ],
+        "category": "commodities",
+        "outcomes": [
+          {
+            "label": "Yes",
+            "probability": 0.34
+          },
+          {
+            "label": "No",
+            "probability": 0.66
+          }
+        ],
+        "source_status": "fixture_fallback",
+        "source_note": "Polymarket API unavailable; showing fixture fallback.",
+        "related_assets": [
+          "DXY",
+          "WTI"
+        ],
+        "relevance_score": 14.751,
+        "relevance_reason": "Direct wti linkage, asset-specific wording. High volume. Active recent trading",
+        "url": "https://polymarket.com/event/wti-above-85-after-eia"
+      }
+    ]
   }
 ]

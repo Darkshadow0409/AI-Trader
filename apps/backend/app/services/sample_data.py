@@ -16,25 +16,60 @@ ASSET_SEEDS: dict[str, tuple[float, float]] = {
     "US10Y": (4.18, 0.08),
 }
 
+ASSET_FIXTURE_PROFILES: dict[str, dict[str, float]] = {
+    "BTC": {
+        "drift": 0.00135,
+        "seasonal_period": 8.5,
+        "seasonal_scale": 0.022,
+        "shock_scale": 0.058,
+        "volume_base": 25000,
+        "volume_period": 12.0,
+        "volume_scale": 0.16,
+    },
+    "ETH": {
+        "drift": 0.0009,
+        "seasonal_period": 6.5,
+        "seasonal_scale": 0.03,
+        "shock_scale": 0.072,
+        "volume_base": 148000,
+        "volume_period": 9.0,
+        "volume_scale": 0.21,
+    },
+}
+
 
 def generate_sample_ohlcv(symbol: str, bars: int = 180) -> list[dict[str, object]]:
     base_price, amplitude = ASSET_SEEDS[symbol]
+    profile = ASSET_FIXTURE_PROFILES.get(
+        symbol,
+        {
+            "drift": 0.0003,
+            "seasonal_period": 9.0,
+            "seasonal_scale": 0.02,
+            "shock_scale": 0.06,
+            "volume_base": 7000,
+            "volume_period": 13.0,
+            "volume_scale": 0.15,
+        },
+    )
     rng = Random(symbol)
     start = naive_utc_now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=bars)
     close = base_price
     rows: list[dict[str, object]] = []
     for index in range(bars):
         ts = start + timedelta(days=index)
-        drift = 1 + (0.0012 if symbol in {"BTC", "ETH"} else 0.0003)
-        seasonal = sin(index / 9.0) * amplitude * 0.02
-        shock = rng.uniform(-amplitude * 0.06, amplitude * 0.06)
+        drift = 1 + profile["drift"]
+        seasonal = sin(index / profile["seasonal_period"]) * amplitude * profile["seasonal_scale"]
+        shock = rng.uniform(-amplitude * profile["shock_scale"], amplitude * profile["shock_scale"])
         close = max(0.1, close * drift + seasonal + shock)
         spread = max(amplitude * 0.015, close * 0.008)
         open_price = max(0.1, close - rng.uniform(-spread, spread))
         high = max(open_price, close) + rng.uniform(spread * 0.2, spread)
         low = min(open_price, close) - rng.uniform(spread * 0.2, spread)
-        volume_base = 25000 if symbol == "BTC" else 140000 if symbol == "ETH" else 7000
-        volume = max(1.0, volume_base * (1 + sin(index / 13.0) * 0.15 + rng.uniform(-0.08, 0.12)))
+        volume = max(
+            1.0,
+            profile["volume_base"] * (1 + sin(index / profile["volume_period"]) * profile["volume_scale"] + rng.uniform(-0.08, 0.12)),
+        )
         rows.append(
             {
                 "symbol": symbol,

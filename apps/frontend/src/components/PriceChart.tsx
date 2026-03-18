@@ -10,6 +10,7 @@ interface PriceChartProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  onRefresh?: () => void;
   onTimeframeChange: (timeframe: string) => void;
   selectedSignal?: SignalDetailView | null;
   selectedRisk?: RiskDetailView | null;
@@ -42,6 +43,7 @@ export function PriceChart({
   loading,
   error,
   onRetry,
+  onRefresh,
   onTimeframeChange,
   selectedSignal,
   selectedRisk,
@@ -269,6 +271,29 @@ export function PriceChart({
   const canRenderChart = !loading && !unavailable && validBars.length > 0;
   const fallbackTimeframe = chart.available_timeframes.includes("1d") ? "1d" : chart.available_timeframes[0] ?? null;
   const shouldOfferFallbackTimeframe = unavailable && fallbackTimeframe !== null && fallbackTimeframe !== timeframe;
+  const overlayTone = error || chart.status === "unusable" || chart.status === "stale" ? "warning" : "default";
+  const overlayLabel = error
+    ? "Disconnected"
+    : chart.status === "unusable"
+      ? "Unusable"
+      : chart.status === "no_data"
+        ? "No data"
+        : chart.status === "stale"
+          ? "Stale"
+          : chart.is_fixture_mode
+            ? "Fixture"
+            : null;
+  const overlayBody = error
+    ? "Backend disconnected. Last valid bars remain visible until refresh succeeds."
+    : chart.status === "unusable"
+      ? chart.status_note || "Current market context is unusable in this mode."
+      : chart.status === "no_data"
+        ? chart.status_note || "No bars are available for this timeframe in the current mode."
+        : chart.status === "stale"
+          ? chart.status_note || "Visible bars are stale for the current mode."
+          : chart.is_fixture_mode
+            ? "Fixture data only. Suitable for research, review, and paper workflow, not live market claims."
+            : "";
   const stateLabel = error
     ? "Backend disconnected or chart data request failed."
     : malformed
@@ -299,8 +324,10 @@ export function PriceChart({
           {TIMEFRAMES.map((value) => (
             <button
               className={timeframe === value ? "pill active" : "pill"}
+              disabled={!chart.available_timeframes.includes(value)}
               key={value}
-              onClick={() => onTimeframeChange(value)}
+              onClick={() => chart.available_timeframes.includes(value) && onTimeframeChange(value)}
+              title={chart.available_timeframes.includes(value) ? `${value} timeframe` : "Not available in current mode"}
               type="button"
             >
               {value}
@@ -308,6 +335,11 @@ export function PriceChart({
           ))}
         </div>
         <div className="inline-tags">
+          {onRefresh ? (
+            <button className="action-button" onClick={onRefresh} type="button">
+              Refresh Current Mode
+            </button>
+          ) : null}
           <button className={showEma20 ? "pill active" : "pill"} onClick={() => setShowEma20((current) => !current)} type="button">EMA 20</button>
           <button className={showEma50 ? "pill active" : "pill"} onClick={() => setShowEma50((current) => !current)} type="button">EMA 50</button>
           <button className={showEma200 ? "pill active" : "pill"} onClick={() => setShowEma200((current) => !current)} type="button">EMA 200</button>
@@ -426,11 +458,9 @@ export function PriceChart({
         }
       />
 
-      {canRenderChart ? (
+      {!loading ? (
         <>
           <div className="chart-banners">
-            {chart.is_fixture_mode ? <div className="state-block">Fixture mode active. This chart is suitable for research, review, and paper workflow, not live execution claims.</div> : null}
-            {chart.status_note ? <div className={`state-block ${chart.status === "stale" ? "state-error" : ""}`}>{chart.status_note}</div> : null}
             {!chart.instrument_mapping.broker_truth ? <div className="state-block">{chart.instrument_mapping.mapping_notes}</div> : null}
             {error ? (
               <div className="state-block state-error">
@@ -443,9 +473,22 @@ export function PriceChart({
               </div>
             ) : null}
           </div>
-          <div className="chart-shell chart-shell-lg" ref={mainRef} />
-          {showRsi ? <div className="chart-shell chart-shell-sm" data-testid="rsi-panel" ref={rsiRef} /> : null}
-          {showAtr ? <div className="chart-shell chart-shell-sm" data-testid="atr-panel" ref={atrRef} /> : null}
+          <div className="chart-shell chart-shell-lg">
+            {canRenderChart ? <div className="chart-canvas" ref={mainRef} /> : <div className="chart-canvas chart-canvas-empty" />}
+            {overlayLabel ? (
+              <div className={`chart-state-overlay ${overlayTone}`} data-testid="chart-state-overlay">
+                <strong>{overlayLabel}</strong>
+                <span>{overlayBody}</span>
+                {onRefresh ? (
+                  <button className="text-button" onClick={onRefresh} type="button">
+                    Refresh Data
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          {canRenderChart && showRsi ? <div className="chart-shell chart-shell-sm" data-testid="rsi-panel" ref={rsiRef} /> : null}
+          {canRenderChart && showAtr ? <div className="chart-shell chart-shell-sm" data-testid="atr-panel" ref={atrRef} /> : null}
         </>
       ) : null}
     </div>

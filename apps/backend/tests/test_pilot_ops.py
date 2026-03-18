@@ -52,3 +52,27 @@ def test_pilot_dashboard_exposes_blockers_and_backlog() -> None:
     assert "status" in dashboard.execution_gate.model_dump()
     assert dashboard.review_backlog.items
     assert isinstance(dashboard.recent_audit_logs, list)
+
+
+def test_execution_gate_never_reports_not_ready_without_blockers(monkeypatch) -> None:
+    seed_and_refresh()
+    with Session(engine) as session:
+        monkeypatch.setattr(
+            "app.services.pilot_ops.pilot_metric_summary",
+            lambda _session: type(
+                "Summary",
+                (),
+                {
+                    "ticket_conversion": {"created": 0.0, "approved_rate": 0.0, "shadow_rate": 0.0, "manual_execution_rate": 0.0},
+                    "shadow_metrics": {"divergence_rate": 0.0, "divergence_count": 0.0, "shadow_active_count": 0.0},
+                    "slippage_metrics": {"avg_manual_slippage_variance_bps": 0.0},
+                    "review_backlog_metrics": {"review_backlog": 0.0},
+                    "promoted_strategy_metrics": {"degradation_rate": 0.0},
+                },
+            )(),
+        )
+        monkeypatch.setattr("app.services.pilot_ops.adapter_health_summary", lambda _session: [])
+        gate = execution_gate_status(session)
+
+    assert gate.status == "not_ready"
+    assert gate.blockers

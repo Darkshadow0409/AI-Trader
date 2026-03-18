@@ -25,6 +25,8 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /^8\.\sReviews(?:\s+\d+\/\d+)?$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "BTC Focus" })).toBeInTheDocument();
     expect(screen.getByTestId("price-chart")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh Data" })).toBeInTheDocument();
+    expect(screen.getAllByText(/signal /i).length).toBeGreaterThan(0);
     expect((await screen.findAllByText("event-risk")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/mock/i)).length).toBeGreaterThan(0);
     const wtiLabels = await screen.findAllByText("WTI");

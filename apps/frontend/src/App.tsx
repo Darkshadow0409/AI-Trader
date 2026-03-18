@@ -116,6 +116,13 @@ function marketModeRank(mode: string): number {
   }
 }
 
+function compactId(value: string | null): string {
+  if (!value) {
+    return "n/a";
+  }
+  return value.length > 18 ? `${value.slice(0, 10)}...${value.slice(-4)}` : value;
+}
+
 function preferredWatchlistSymbol(rows: WatchlistSummaryView[]): string | null {
   if (rows.length === 0) {
     return null;
@@ -624,11 +631,20 @@ export default function App() {
               <h1>{activeTabLabel(activeTab)}</h1>
             </div>
             <div className="workspace-actions">
-              <span className="tag">asset {selectedSymbol}</span>
-              <span className="tag">signal {selectedSignalId ?? "n/a"}</span>
-              <button className="text-button" onClick={() => setCommandCenterOpen((current) => !current)} type="button">
-                {commandCenterOpen ? "Hide Command Center" : "Open Command Center"} (/)
-              </button>
+              <div className="workspace-badges">
+                <span className="tag">asset {selectedSymbol}</span>
+                <span className="tag" title={selectedSignalId ?? "n/a"}>
+                  signal {compactId(selectedSignalId)}
+                </span>
+              </div>
+              <div className="workspace-cta-group">
+                <button className="action-button" onClick={() => void refreshFocusSurface()} type="button">
+                  Refresh Data
+                </button>
+                <button className="text-button" onClick={() => setCommandCenterOpen((current) => !current)} type="button">
+                  {commandCenterOpen ? "Hide Command Center" : "Open Command Center"} (/)
+                </button>
+              </div>
             </div>
           </header>
 
@@ -665,6 +681,7 @@ export default function App() {
                   chart={resources.marketChart.data}
                   error={resources.marketChart.error}
                   loading={resources.marketChart.loading}
+                  onRefresh={() => void refreshFocusSurface()}
                   onRetry={() => void refreshFocusSurface()}
                   onTimeframeChange={setSelectedTimeframe}
                   selectedRisk={resources.riskDetail.data}

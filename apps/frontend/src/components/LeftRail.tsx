@@ -110,7 +110,9 @@ export function LeftRail({
             <div className="stack compact-stack">
               <div className="rail-header">
                 <strong>{item.symbol}</strong>
-                <small>{item.realism_grade}</small>
+                <small title="Reality grade for tradable alignment and source realism.">
+                  Reality {item.realism_grade}
+                </small>
               </div>
               <small>
                 {item.last_price.toFixed(2)} / {item.change_pct >= 0 ? "+" : ""}

@@ -19,7 +19,9 @@ interface TradeTicketsTabProps {
   selectedTicketId: string | null;
   selectedSymbol: string;
   selectedSignalId: string | null;
+  selectedSignalLabel?: string | null;
   selectedRiskReportId: string | null;
+  selectedRiskLabel?: string | null;
   onSelectTicket: (ticketId: string | null) => void;
   onSelectTrade: (tradeId: string | null) => void;
   onOpenSignal: (signalId: string) => void;
@@ -42,7 +44,9 @@ export function TradeTicketsTab({
   selectedTicketId,
   selectedSymbol,
   selectedSignalId,
+  selectedSignalLabel,
   selectedRiskReportId,
+  selectedRiskLabel,
   onSelectTicket,
   onSelectTrade,
   onOpenSignal,
@@ -153,13 +157,23 @@ export function TradeTicketsTab({
 
         <article className="panel compact-panel">
           <h3>Create Draft Ticket</h3>
+          <div className="stack">
+            <small>
+              Signal: {selectedSignalLabel ?? "no signal selected"}
+              {createDraft.signal_id ? <span className="muted-copy"> ({createDraft.signal_id})</span> : null}
+            </small>
+            <small>
+              Risk: {selectedRiskLabel ?? "no risk selected"}
+              {createDraft.risk_report_id ? <span className="muted-copy"> ({createDraft.risk_report_id})</span> : null}
+            </small>
+          </div>
           <div className="field-grid">
             <label className="field">
-              <span>Signal</span>
+              <span>Signal ID</span>
               <input value={createDraft.signal_id} onChange={(event) => setCreateDraft((current) => ({ ...current, signal_id: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Risk</span>
+              <span>Risk ID</span>
               <input value={createDraft.risk_report_id ?? ""} onChange={(event) => setCreateDraft((current) => ({ ...current, risk_report_id: event.target.value || null }))} />
             </label>
             <label className="field">
@@ -234,6 +248,11 @@ export function TradeTicketsTab({
                     <span className="metric-label">Target / Stop</span>
                     <strong>{compactNumber(selectedTicket.paper_account.projected_base_pnl)} / {compactNumber(selectedTicket.paper_account.projected_stop_loss)}</strong>
                   </div>
+                </div>
+              ) : null}
+              {selectedTicket.paper_account && selectedTicket.paper_account.allocated_capital > selectedTicket.paper_account.account_size ? (
+                <div className="stack">
+                  <small>Allocated capital exceeds the 10k paper account. This ticket reflects overlapping paper exposure and should be treated as an over-allocation warning.</small>
                 </div>
               ) : null}
               <div className="metric-row">
@@ -386,28 +405,33 @@ export function TradeTicketsTab({
                   </button>
                 </div>
                 {detail?.manual_fills?.length ? (
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Fill</th>
-                        <th>Price</th>
-                        <th>Slip</th>
-                        <th>Variance</th>
-                        <th>Review</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.manual_fills.map((fill) => (
-                        <tr key={fill.fill_id}>
-                          <td>{fill.fill_id}</td>
-                          <td>{compactNumber(fill.fill_price)}</td>
-                          <td>{compactNumber(fill.reconciliation.actual_slippage_bps)}bps</td>
-                          <td>{compactNumber(fill.reconciliation.slippage_variance_bps)}bps</td>
-                          <td>{fill.reconciliation.requires_review ? "needed" : "clear"}</td>
+                  <>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Fill</th>
+                          <th>Price</th>
+                          <th>Slip</th>
+                          <th>Variance</th>
+                          <th>Review</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {detail.manual_fills.map((fill) => (
+                          <tr key={fill.fill_id}>
+                            <td>{fill.fill_id}</td>
+                            <td>{compactNumber(fill.fill_price)}</td>
+                            <td>{compactNumber(fill.reconciliation.actual_slippage_bps)}bps</td>
+                            <td>{compactNumber(fill.reconciliation.slippage_variance_bps)}bps</td>
+                            <td>{fill.reconciliation.requires_review ? "needed" : "clear"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {detail.manual_fills.some((fill) => Math.abs(fill.reconciliation.slippage_variance_bps) >= 50) ? (
+                      <small>Large slippage variance usually means the manual fill was recorded well away from the original plan or under a delayed/proxy context. Treat it as a reconciliation exception, not a live execution claim.</small>
+                    ) : null}
+                  </>
                 ) : (
                   <p className="muted-copy">No manual fills linked yet.</p>
                 )}

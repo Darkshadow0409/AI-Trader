@@ -63,10 +63,11 @@ interface PollingOptions {
   deps?: unknown[];
   intervalMs?: number;
   enabled?: boolean;
+  preserveData?: boolean;
 }
 
 export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, options: PollingOptions = {}): ResourceState<T> {
-  const { deps = [], intervalMs = 30000, enabled = true } = options;
+  const { deps = [], intervalMs = 30000, enabled = true, preserveData = false } = options;
   const [data, setData] = useState<T>(initialData);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -98,8 +99,6 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
       }
     }
 
-    setData(initialData);
-    setError(null);
     if (!enabled) {
       setLoading(false);
       return () => {
@@ -107,6 +106,10 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
       };
     }
 
+    if (!preserveData) {
+      setData(initialData);
+    }
+    setError(null);
     setLoading(true);
     void runLoad();
     const timer = window.setInterval(() => {
@@ -117,7 +120,7 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [enabled, intervalMs, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, intervalMs, preserveData, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     data,
@@ -252,6 +255,7 @@ export function useDashboardData(
   const showResearch = activeTab === "research";
   const showWallet = activeTab === "wallet_balance";
   const showBacktests = activeTab === "backtests";
+  const showFocusSurface = ["desk", "signals", "high_risk", "watchlist", "risk", "trade_tickets", "active_trades"].includes(activeTab);
 
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
     status: "loading",
@@ -270,7 +274,7 @@ export function useDashboardData(
     market_data_mode: "fixture",
     last_refresh: null,
     next_event: null,
-  });
+  }, { preserveData: true });
   const deskSummary = usePollingResource<DeskSummaryView>(
     () => apiClient.deskSummary(),
     {
@@ -289,7 +293,7 @@ export function useDashboardData(
       adapter_health: [],
       audit_log_tail: [],
     },
-    { enabled: showDesk, intervalMs: 60000 },
+    { enabled: showDesk, intervalMs: 60000, preserveData: true },
   );
   const homeSummary = usePollingResource<HomeOperatorSummaryView>(
     () => apiClient.homeSummary(),
@@ -306,7 +310,7 @@ export function useDashboardData(
       shadow_divergence_summary: {},
       adapter_health_summary: {},
     },
-    { enabled: showDesk, intervalMs: 60000 },
+    { enabled: showDesk, intervalMs: 60000, preserveData: true },
   );
   const controlCenter = usePollingResource<CommandCenterStatusView>(
     () => apiClient.controlCenter(),
@@ -340,7 +344,7 @@ export function useDashboardData(
       action_history: [],
       notes: [],
     },
-    { enabled: commandCenterOpen, intervalMs: 60000 },
+    { enabled: commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const opsSummary = usePollingResource<OpsSummaryView>(
     () => apiClient.opsSummary(),
@@ -355,7 +359,7 @@ export function useDashboardData(
       action_history: [],
       available_actions: [],
     },
-    { enabled: commandCenterOpen, intervalMs: 60000 },
+    { enabled: commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const sessionOverview = usePollingResource<SessionOverviewView>(
     () => apiClient.sessionOverview(),
@@ -402,9 +406,9 @@ export function useDashboardData(
         items: [],
       },
     },
-    { enabled: showSession },
+    { enabled: showSession, preserveData: true },
   );
-  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), [], { enabled: showSession || showDesk, intervalMs: 60000 });
+  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), [], { enabled: showSession || showDesk, intervalMs: 60000, preserveData: true });
   const dailyBriefing = usePollingResource<DailyBriefingView>(
     () => apiClient.dailyBriefing(),
     {
@@ -417,7 +421,7 @@ export function useDashboardData(
       scout_to_focus_promotions: [],
       promoted_strategy_drift_warnings: [],
     },
-    { enabled: showSession },
+    { enabled: showSession, preserveData: true },
   );
   const weeklyReview = usePollingResource(
     () => apiClient.weeklyReview(),
@@ -443,7 +447,7 @@ export function useDashboardData(
       strategy_promotion_health: [],
       paper_trade_outcome_distribution: {},
     },
-    { enabled: showSession },
+    { enabled: showSession, preserveData: true },
   );
   const operationalBacklog = usePollingResource<OperationalBacklogView>(
     () => apiClient.operationalBacklog(),
@@ -453,7 +457,7 @@ export function useDashboardData(
       high_priority_count: 0,
       items: [],
     },
-    { enabled: showDesk || showSession || showPilot, intervalMs: 60000 },
+    { enabled: showDesk || showSession || showPilot, intervalMs: 60000, preserveData: true },
   );
   const reviewSummary = usePollingResource<ReviewSummaryView>(
     () => apiClient.reviewSummary(),
@@ -465,7 +469,7 @@ export function useDashboardData(
       realism_warning_violations: 0,
       review_completion_trend: {},
     },
-    { enabled: showSession },
+    { enabled: showSession, preserveData: true },
   );
   const pilotMetrics = usePollingResource<PilotMetricSummaryView>(
     () => apiClient.pilotMetrics(),
@@ -480,7 +484,7 @@ export function useDashboardData(
       promoted_strategy_metrics: {},
       mismatch_causes: [],
     },
-    { enabled: showPilot },
+    { enabled: showPilot, preserveData: true },
   );
   const pilotSummary = usePollingResource<PilotSummaryView>(
     () => apiClient.pilotSummary(),
@@ -494,12 +498,12 @@ export function useDashboardData(
       audit_anomalies: [],
       asset_class_trust_split: [],
     },
-    { enabled: showPilot },
+    { enabled: showPilot, preserveData: true },
   );
   const executionGate = usePollingResource<ExecutionGateView>(
     () => apiClient.executionGate(),
     { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
-    { enabled: showDesk || showPilot || commandCenterOpen, intervalMs: 60000 },
+    { enabled: showDesk || showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const pilotDashboard = usePollingResource<PilotDashboardView>(
     () => apiClient.pilotDashboard(),
@@ -524,32 +528,33 @@ export function useDashboardData(
       adapter_health: [],
       recent_audit_logs: [],
     },
-    { enabled: showPilot },
+    { enabled: showPilot, preserveData: true },
   );
-  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), [], { enabled: showPilot || showDesk, intervalMs: 60000 });
-  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), [], { enabled: showPilot || showDesk, intervalMs: 60000 });
+  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), [], { enabled: showPilot || showDesk, intervalMs: 60000, preserveData: true });
+  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), [], { enabled: showPilot || showDesk, intervalMs: 60000, preserveData: true });
   const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), [], { enabled: showSignals || showHighRiskSignals });
   const signalsSummary = usePollingResource<SignalsSummaryView>(
     () => apiClient.signalsSummary(),
     { generated_at: "", filter_metadata: {}, grouped_counts: {}, top_ranked_signals: [], warning_counts: {} },
-    { enabled: showSignals || showHighRiskSignals || showDesk, intervalMs: 60000 },
+    { enabled: showSignals || showHighRiskSignals || showDesk, intervalMs: 60000, preserveData: true },
   );
   const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), [], { enabled: showHighRiskSignals });
   const news = usePollingResource<NewsView[]>(() => apiClient.news(), [], { enabled: showNews });
   const polymarketHunter = usePollingResource<PolymarketHunterView>(
     () => apiClient.polymarketHunter(),
     { generated_at: "", source_status: "loading", source_note: "", query: "", tag: "", sort: "volume", available_tags: [], events: [], markets: [] },
-    { enabled: showPolymarket || showNews || showResearch || showDesk, intervalMs: 120000 },
+    { enabled: showPolymarket || showNews || showResearch || showDesk, intervalMs: 120000, preserveData: true },
   );
   const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), [], { enabled: showWatchlist });
   const watchlistSummary = usePollingResource<WatchlistSummaryView[]>(() => apiClient.watchlistSummary(), [], {
     enabled: showWatchlist || showDesk || Boolean(selectedSymbol),
     intervalMs: 60000,
+    preserveData: true,
   });
   const opportunities = usePollingResource<OpportunityHunterView>(
     () => apiClient.opportunities(),
     { generated_at: "", focus_queue: [], scout_queue: [] },
-    { enabled: showWatchlist || showDesk },
+    { enabled: showWatchlist || showDesk, preserveData: true },
   );
   const research = usePollingResource<ResearchView[]>(() => apiClient.research(), [], { enabled: showResearch });
   const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), [], { enabled: showRisk });
@@ -631,7 +636,7 @@ export function useDashboardData(
       },
       data_reality: null,
     },
-    { deps: [selectedSymbol, selectedTimeframe], enabled: Boolean(selectedSymbol), intervalMs: 60000 },
+    { deps: [selectedSymbol, selectedTimeframe], enabled: showFocusSurface && Boolean(selectedSymbol), intervalMs: 60000, preserveData: true },
   );
   const assetContext = usePollingResource<AssetContextView>(
     () => apiClient.assetContext(selectedSymbol),
@@ -646,22 +651,22 @@ export function useDashboardData(
       related_polymarket_markets: [],
       crowd_implied_narrative: "",
     },
-    { deps: [selectedSymbol], enabled: Boolean(selectedSymbol), intervalMs: 60000 },
+    { deps: [selectedSymbol], enabled: showFocusSurface && Boolean(selectedSymbol), intervalMs: 60000, preserveData: true },
   );
   const signalDetail = usePollingResource<SignalDetailView | null>(
     () => (selectedSignalId ? apiClient.signalDetail(selectedSignalId) : Promise.resolve(null)),
     selectedSignalId ? emptySignalDetail(selectedSignalId) : null,
-    { deps: [selectedSignalId], enabled: Boolean(selectedSignalId) },
+    { deps: [selectedSignalId], enabled: Boolean(selectedSignalId), preserveData: true },
   );
   const riskDetail = usePollingResource<RiskDetailView | null>(
     () => (selectedRiskReportId ? apiClient.riskDetail(selectedRiskReportId) : Promise.resolve(null)),
     selectedRiskReportId ? emptyRiskDetail(selectedRiskReportId) : null,
-    { deps: [selectedRiskReportId], enabled: Boolean(selectedRiskReportId) },
+    { deps: [selectedRiskReportId], enabled: Boolean(selectedRiskReportId), preserveData: true },
   );
   const paperTradeDetail = usePollingResource<PaperTradeDetailView | null>(
     () => (selectedTradeId ? apiClient.paperTradeDetail(selectedTradeId) : Promise.resolve(null)),
     selectedTradeId ? emptyPaperTradeDetail(selectedTradeId) : null,
-    { deps: [selectedTradeId], enabled: Boolean(selectedTradeId) },
+    { deps: [selectedTradeId], enabled: Boolean(selectedTradeId), preserveData: true },
   );
   const paperTradeTimeline = usePollingResource<TradeTimelineView | null>(
     () => (selectedTradeId ? apiClient.paperTradeTimeline(selectedTradeId) : Promise.resolve(null)),
@@ -682,7 +687,7 @@ export function useDashboardData(
   const tradeTicketDetail = usePollingResource<TradeTicketDetailView | null>(
     () => (selectedTicketId ? apiClient.tradeTicketDetail(selectedTicketId) : Promise.resolve(null)),
     null,
-    { deps: [selectedTicketId], enabled: Boolean(selectedTicketId) },
+    { deps: [selectedTicketId], enabled: Boolean(selectedTicketId), preserveData: true },
   );
   const shadowModeTickets = usePollingResource<TradeTicketDetailView[]>(() => apiClient.shadowModeTickets(), [], { enabled: showTickets });
   const brokerSnapshot = usePollingResource<BrokerAdapterSnapshotView>(

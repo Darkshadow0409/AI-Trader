@@ -13,6 +13,41 @@ interface ContextSidebarProps {
   riskError?: string | null;
   onOpenSignal: (signalId: string) => void;
   onOpenRisk: (riskReportId: string) => void;
+  onRefreshContext?: () => void;
+}
+
+function riskErrorLabel(error: string | null | undefined, hasRisk: boolean): string | null {
+  if (!error) {
+    return null;
+  }
+  if (error.includes("404") || error.includes("/risk/")) {
+    return hasRisk
+      ? "Risk context unavailable. Showing the last known risk context while refresh recovers."
+      : "Risk context unavailable for this asset.";
+  }
+  return hasRisk
+    ? "Risk context refresh failed. Showing the last known risk context."
+    : "Risk context unavailable right now.";
+}
+
+function relevantPolymarketMarkets(context: AssetContextView): NonNullable<AssetContextView["related_polymarket_markets"]> {
+  const asset = context.symbol.toUpperCase();
+  const assetSpecificTags: Record<string, string[]> = {
+    BTC: ["btc", "bitcoin", "crypto"],
+    ETH: ["eth", "ethereum", "crypto"],
+  };
+  const required = assetSpecificTags[asset] ?? [];
+  const rows = context.related_polymarket_markets ?? [];
+  return rows
+    .filter((item) => item.relevance_score >= 6)
+    .filter((item) => {
+      if (required.length === 0) {
+        return true;
+      }
+      const haystack = `${item.question} ${item.event_title}`.toLowerCase();
+      return item.related_assets.map((value) => value.toUpperCase()).includes(asset) || required.some((token) => haystack.includes(token));
+    })
+    .slice(0, 3);
 }
 
 export function ContextSidebar({
@@ -25,11 +60,36 @@ export function ContextSidebar({
   riskError,
   onOpenSignal,
   onOpenRisk,
+  onRefreshContext,
 }: ContextSidebarProps) {
   const event = ribbon.next_event as { title?: string; impact?: string; event_time?: string } | null;
   const risk = riskDetail ?? context.latest_risk;
   const detailRisk = riskDetail;
   const reality = context.data_reality ?? context.latest_signal?.data_reality ?? context.latest_risk?.data_reality ?? context.research?.data_reality;
+  const friendlyRiskError = riskErrorLabel(riskError, Boolean(risk));
+  const topPolymarketMatches = relevantPolymarketMarkets(context);
+  const uniqueAlerts = alerts.filter((item, index, rows) => {
+    const semanticKey = [
+      item.category,
+      item.title,
+      item.signal_id ?? "",
+      item.risk_report_id ?? "",
+      item.dedupe_key,
+      item.body,
+    ].join("|");
+    return rows.findIndex((candidate) =>
+      [
+        candidate.category,
+        candidate.title,
+        candidate.signal_id ?? "",
+        candidate.risk_report_id ?? "",
+        candidate.dedupe_key,
+        candidate.body,
+      ].join("|") === semanticKey) === index;
+  });
+  const relatedNewsEmptyState = reality?.news_suitability === "research_only" || ribbon.market_data_mode === "fixture"
+    ? "Current mode has limited news context for this asset."
+    : "No related news is loaded for the current asset.";
 
   return (
     <div className="context-stack">
@@ -51,7 +111,7 @@ export function ContextSidebar({
       </Panel>
 
       <Panel title="Risk Context" eyebrow={context.symbol}>
-        <StateBlock loading={riskLoading} error={riskError} />
+        <StateBlock actionLabel={friendlyRiskError ? "Retry risk context" : undefined} error={friendlyRiskError} loading={riskLoading} onAction={friendlyRiskError ? onRefreshContext : undefined} />
         {risk ? (
           <>
             <div className="metric-row">
@@ -104,19 +164,19 @@ export function ContextSidebar({
 
       <Panel title="Related News" eyebrow={context.symbol}>
         <div className="news-stack">
-          {context.related_news.map((item) => (
+          {context.related_news.length > 0 ? context.related_news.map((item) => (
             <button className="news-item" key={`${item.source}-${item.title}`} onClick={() => onSelectSymbol(item.affected_assets[0] ?? context.symbol)} type="button">
               <strong>{item.title}</strong>
               <small>{item.entity_tags.join(" / ")}</small>
             </button>
-          ))}
+          )) : <p className="muted-copy">{relatedNewsEmptyState}</p>}
         </div>
       </Panel>
 
       <Panel title="Crowd-Implied Narrative" eyebrow="Polymarket">
-        {context.crowd_implied_narrative ? <p className="compact-copy">{context.crowd_implied_narrative}</p> : <p className="muted-copy">No related Polymarket market is currently matched to this asset.</p>}
+        {context.crowd_implied_narrative ? <p className="compact-copy">{context.crowd_implied_narrative}</p> : <p className="muted-copy">No relevant crowd markets are currently matched to this asset.</p>}
         <div className="news-stack">
-          {(context.related_polymarket_markets ?? []).slice(0, 3).map((item) => (
+          {topPolymarketMatches.map((item) => (
             <button className="news-item" key={item.market_id} onClick={() => onSelectSymbol(item.related_assets[0] ?? context.symbol)} type="button">
               <strong>{item.question}</strong>
               <small>
@@ -125,13 +185,14 @@ export function ContextSidebar({
               <small>{item.relevance_reason}</small>
             </button>
           ))}
+          {topPolymarketMatches.length === 0 ? <p className="muted-copy">No relevant crowd markets for this asset.</p> : null}
         </div>
       </Panel>
 
       <Panel title="Alert Center" eyebrow="In-App">
         <div className="news-stack">
-          {alerts.length > 0 ? (
-            alerts.slice(0, 8).map((item) => (
+          {uniqueAlerts.length > 0 ? (
+            uniqueAlerts.slice(0, 8).map((item) => (
               <button
                 className="news-item"
                 key={item.alert_id}
@@ -152,6 +213,11 @@ export function ContextSidebar({
                   [{item.status}/{item.severity}] {item.title}
                 </strong>
                 <small>{item.channel_targets.join(", ") || "in_app"} / {item.tags.join(" / ")}</small>
+                {item.status === "suppressed" ? (
+                  <small>Suppressed in-app duplicate or gated delivery. Reason: {item.suppressed_reason ?? "delivery policy"}.</small>
+                ) : (
+                  <small>{item.status === "sent" ? "Actionable alert delivered." : "Delivery issue; inspect before acting."}</small>
+                )}
                 <small>{item.body}</small>
               </button>
             ))

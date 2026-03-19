@@ -301,6 +301,20 @@ export function PriceChart({
       : unavailable
       ? chart.status_note
       : null;
+  const timeframeReason = chart.available_timeframes.length === 0
+    ? canRenderChart
+      ? "Timeframe metadata is unavailable in the current mode. The loaded chart remains visible for research only."
+      : "Chart data is unavailable in the current mode, so timeframe controls are disabled."
+    : chart.is_fixture_mode && !chart.available_timeframes.includes("15m")
+      ? "Intraday timeframes are not available in fixture mode."
+      : unavailable
+        ? chart.status_note || "Selected timeframe is unavailable in the current mode."
+        : null;
+  const availableTimeframeLabel = chart.available_timeframes.length > 0
+    ? chart.available_timeframes.join(", ")
+    : canRenderChart
+      ? "loaded chart only"
+      : "none";
 
   return (
     <div className="chart-workspace" data-testid="price-chart-workspace">
@@ -348,6 +362,7 @@ export function PriceChart({
           <button className={showVolume ? "pill active" : "pill"} onClick={() => setShowVolume((current) => !current)} type="button">Volume</button>
         </div>
       </div>
+      {timeframeReason ? <div className="state-block">{timeframeReason}</div> : null}
 
       <div className="workflow-strip">
         <div className={selectedSignal ? "workflow-step active" : "workflow-step"}>
@@ -393,7 +408,7 @@ export function PriceChart({
         </div>
         <div>
           <span className="metric-label">Available TF</span>
-          <strong>{chart.available_timeframes.join(", ") || "none"}</strong>
+          <strong>{availableTimeframeLabel}</strong>
         </div>
         <div>
           <span className="metric-label">Malformed Bars</span>
@@ -479,6 +494,7 @@ export function PriceChart({
               <div className={`chart-state-overlay ${overlayTone}`} data-testid="chart-state-overlay">
                 <strong>{overlayLabel}</strong>
                 <span>{overlayBody}</span>
+                <span>Do not treat this chart as current live market truth unless the mode and freshness state explicitly support it.</span>
                 {onRefresh ? (
                   <button className="text-button" onClick={onRefresh} type="button">
                     Refresh Data

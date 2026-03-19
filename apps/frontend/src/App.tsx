@@ -67,6 +67,8 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "wallet_balance", label: "Wallet" },
 ];
 
+const focusSurfaceTabs: TabKey[] = ["desk", "signals", "high_risk", "watchlist", "risk", "trade_tickets", "active_trades"];
+
 function activeTabLabel(tab: TabKey): string {
   return tabs.find((item) => item.key === tab)?.label ?? "Workspace";
 }
@@ -175,8 +177,46 @@ export default function App() {
       stopLoss: activeRows.reduce((sum, row) => sum + (row.paper_account?.projected_stop_loss ?? 0), 0),
       riskPct: activeRows.reduce((sum, row) => sum + (row.paper_account?.risk_pct_of_account ?? 0), 0),
       openExposureCount: activeRows.length,
+      overAllocated: activeRows.reduce((sum, row) => sum + (row.paper_account?.allocated_capital ?? 0), 0) > accountSize,
     };
   }, [resources.activePaperTrades.data]);
+  const resolvedExecutionGate = useMemo(() => {
+    const directGate = resources.executionGate.data;
+    const deskGate = resources.deskSummary.data.execution_gate;
+    const pilotGate = {
+      status: resources.pilotSummary.data.gate_state,
+      blockers: resources.pilotSummary.data.blockers,
+      thresholds: directGate.thresholds,
+      metrics: directGate.metrics,
+      rationale: directGate.rationale,
+    };
+    if (!(directGate.status === "not_ready" && directGate.blockers.length === 0)) {
+      return directGate;
+    }
+    if (deskGate.blockers.length > 0 || deskGate.status !== "not_ready") {
+      return deskGate;
+    }
+    if (pilotGate.blockers.length > 0 || pilotGate.status !== "not_ready") {
+      return pilotGate;
+    }
+    return directGate;
+  }, [resources.deskSummary.data.execution_gate, resources.executionGate.data, resources.pilotSummary.data.blockers, resources.pilotSummary.data.gate_state]);
+  const resolvedOperationalBacklog = useMemo(() => {
+    const directBacklog = resources.operationalBacklog.data;
+    const deskBacklog = resources.deskSummary.data.operational_backlog;
+    const sessionBacklog = resources.sessionOverview.data.operational_backlog;
+    if (directBacklog.overdue_count > 0 || directBacklog.high_priority_count > 0 || directBacklog.items.length > 0) {
+      return directBacklog;
+    }
+    if (deskBacklog.overdue_count > 0 || deskBacklog.high_priority_count > 0 || deskBacklog.items.length > 0) {
+      return deskBacklog;
+    }
+    if (sessionBacklog.overdue_count > 0 || sessionBacklog.high_priority_count > 0 || sessionBacklog.items.length > 0) {
+      return sessionBacklog;
+    }
+    return directBacklog;
+  }, [resources.deskSummary.data.operational_backlog, resources.operationalBacklog.data, resources.sessionOverview.data.operational_backlog]);
+  const showFocusSurface = focusSurfaceTabs.includes(activeTab);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,12 +446,12 @@ export default function App() {
         resources.health.error,
         resources.overview.error,
         resources.watchlist.error,
-        resources.assetContext.error,
-        resources.marketChart.error,
+        showFocusSurface ? resources.assetContext.error : null,
+        showFocusSurface ? resources.marketChart.error : null,
       ]
         .filter(Boolean)
         .join(" | "),
-    [resources.assetContext.error, resources.health.error, resources.marketChart.error, resources.overview.error, resources.watchlist.error],
+    [resources.assetContext.error, resources.health.error, resources.marketChart.error, resources.overview.error, resources.watchlist.error, showFocusSurface],
   );
 
   const navItems: NavItem[] = useMemo(
@@ -421,9 +461,9 @@ export default function App() {
         label: `${index < 9 ? `${index + 1}. ` : ""}${tab.label}`,
         badge:
           tab.key === "session"
-            ? `${resources.operationalBacklog.data.overdue_count}/${resources.operationalBacklog.data.high_priority_count}`
+            ? `${resolvedOperationalBacklog.overdue_count}/${resolvedOperationalBacklog.high_priority_count}`
             : tab.key === "pilot_ops"
-              ? resources.executionGate.data.status
+              ? resolvedExecutionGate.status
               : tab.key === "trade_tickets"
                 ? String(resources.tradeTickets.data.length)
                 : tab.key === "active_trades"
@@ -432,18 +472,18 @@ export default function App() {
         tone:
           tab.key === activeTab
             ? "active"
-            : tab.key === "pilot_ops" && resources.executionGate.data.status === "review_required"
+            : tab.key === "pilot_ops" && resolvedExecutionGate.status === "review_required"
               ? "warning"
-              : tab.key === "session" && resources.operationalBacklog.data.overdue_count > 0
+              : tab.key === "session" && resolvedOperationalBacklog.overdue_count > 0
                 ? "critical"
                 : "default",
       })),
     [
       activeTab,
       resources.activePaperTrades.data.length,
-      resources.executionGate.data.status,
-      resources.operationalBacklog.data.high_priority_count,
-      resources.operationalBacklog.data.overdue_count,
+      resolvedExecutionGate.status,
+      resolvedOperationalBacklog.high_priority_count,
+      resolvedOperationalBacklog.overdue_count,
       resources.tradeTickets.data.length,
     ],
   );
@@ -454,6 +494,7 @@ export default function App() {
         return (
           <DeskTab
             desk={resources.deskSummary.data}
+            executionGate={resolvedExecutionGate}
             homeSummary={resources.homeSummary.data}
             onNavigate={(tab) => setActiveTab(tab as TabKey)}
             onOpenCommandCenter={() => setCommandCenterOpen(true)}
@@ -462,6 +503,7 @@ export default function App() {
             onSelectSymbol={setSelectedSymbol}
             onSelectTicket={focusTicket}
             onSelectTrade={focusTrade}
+            operationalBacklog={resolvedOperationalBacklog}
             paperCapitalSummary={paperCapitalSummary}
           />
         );
@@ -470,7 +512,7 @@ export default function App() {
           <SignalTable
             onSelectSignal={setSelectedSignalId}
             onSelectSymbol={setSelectedSymbol}
-            rows={resources.signals.data}
+            rows={resources.signals.data.length > 0 ? resources.signals.data : resources.signalsSummary.data.top_ranked_signals}
             selectedSymbol={selectedSymbol}
           />
         );
@@ -554,7 +596,7 @@ export default function App() {
       case "session":
         return (
           <SessionDashboardTab
-            backlog={resources.operationalBacklog.data}
+            backlog={resolvedOperationalBacklog}
             dailyBriefing={resources.dailyBriefing.data}
             onChanged={refreshDesk}
             overview={resources.sessionOverview.data}
@@ -578,9 +620,11 @@ export default function App() {
             onChanged={refreshDesk}
             onOpenRisk={setSelectedRiskReportId}
             onOpenSignal={setSelectedSignalId}
+            selectedRiskLabel={resources.riskDetail.data?.symbol ? `${resources.riskDetail.data.symbol} stop ${resources.riskDetail.data.stop_price.toFixed(2)}` : null}
             onSelectTicket={focusTicket}
             onSelectTrade={focusTrade}
             selectedRiskReportId={selectedRiskReportId}
+            selectedSignalLabel={resources.signalDetail.data ? `${resources.signalDetail.data.symbol} ${resources.signalDetail.data.signal_type}` : null}
             selectedSignalId={selectedSignalId}
             selectedSymbol={selectedSymbol}
             selectedTicketId={selectedTicketId}
@@ -594,7 +638,7 @@ export default function App() {
             adapterHealth={resources.adapterHealth.data}
             auditLogs={resources.auditLogs.data}
             dashboard={resources.pilotDashboard.data}
-            executionGate={resources.executionGate.data}
+            executionGate={resolvedExecutionGate}
           />
         );
       default:
@@ -605,8 +649,8 @@ export default function App() {
   return (
     <div className="terminal-shell operator-shell">
       <TopRibbon
-        backlog={resources.operationalBacklog.data}
-        executionGate={resources.executionGate.data}
+        backlog={resolvedOperationalBacklog}
+        executionGate={resolvedExecutionGate}
         health={resources.health.data}
         ribbon={resources.overview.data}
       />
@@ -614,8 +658,8 @@ export default function App() {
       <div className="workspace operator-workspace">
         <LeftRail
           activeTab={activeTab}
-          backlog={resources.operationalBacklog.data}
-          executionGate={resources.executionGate.data}
+          backlog={resolvedOperationalBacklog}
+          executionGate={resolvedExecutionGate}
           navItems={navItems}
           onSelectSymbol={setSelectedSymbol}
           onSelectTab={(key) => setActiveTab(key as TabKey)}
@@ -652,7 +696,7 @@ export default function App() {
             error={shellError || null}
             loading={
               resources.watchlist.loading ||
-              resources.assetContext.loading ||
+              (showFocusSurface && resources.assetContext.loading) ||
               resources.overview.loading ||
               resources.health.loading
             }
@@ -664,45 +708,48 @@ export default function App() {
             </ErrorBoundary>
           ) : null}
 
-          <div className="focus-layout operator-focus">
-            <Panel
-              title={`${selectedSymbol} Focus`}
-              eyebrow="Current Asset"
-              extra={
-                <div className="inline-tags">
-                  <span className="tag">{resources.assetContext.data.research?.trend_state ?? "n/a"}</span>
-                  <span className="tag">{resources.marketChart.data.freshness_state ?? resources.assetContext.data.data_reality?.freshness_state ?? "loading"}</span>
-                  <span className="tag">{resources.assetContext.data.data_reality?.provenance.realism_grade ?? "n/a"}</span>
-                </div>
-              }
-            >
-              <ErrorBoundary label="Chart Surface" resetKey={`${selectedSymbol}-${selectedTimeframe}-${resources.marketChart.data.status}`}>
-                <PriceChart
-                  chart={resources.marketChart.data}
-                  error={resources.marketChart.error}
-                  loading={resources.marketChart.loading}
-                  onRefresh={() => void refreshFocusSurface()}
+          {showFocusSurface ? (
+            <div className="focus-layout operator-focus" key={`focus-${activeTab}-${selectedSymbol}-${selectedSignalId ?? "none"}`}>
+              <Panel
+                title={`${selectedSymbol} Focus`}
+                eyebrow="Current Asset"
+                extra={
+                  <div className="inline-tags">
+                    <span className="tag">{resources.assetContext.data.research?.trend_state ?? "n/a"}</span>
+                    <span className="tag">{resources.marketChart.data.freshness_state ?? resources.assetContext.data.data_reality?.freshness_state ?? "loading"}</span>
+                    <span className="tag">{resources.assetContext.data.data_reality?.provenance.realism_grade ?? "n/a"}</span>
+                  </div>
+                }
+              >
+                <ErrorBoundary label="Chart Surface" resetKey={`${activeTab}-${selectedSymbol}-${selectedTimeframe}-${resources.marketChart.data.status}`}>
+                  <PriceChart
+                    chart={resources.marketChart.data}
+                    error={resources.marketChart.error}
+                    loading={resources.marketChart.loading}
+                    onRefresh={() => void refreshFocusSurface()}
+                    onRetry={() => void refreshFocusSurface()}
+                    onTimeframeChange={setSelectedTimeframe}
+                    selectedRisk={resources.riskDetail.data}
+                    selectedSignal={resources.signalDetail.data}
+                    selectedTicket={resources.tradeTicketDetail.data}
+                    selectedTrade={resources.paperTradeDetail.data}
+                    timeframe={selectedTimeframe}
+                  />
+                </ErrorBoundary>
+              </Panel>
+              <ErrorBoundary label="Signal Detail" resetKey={`${activeTab}-${selectedSymbol}-${selectedSignalId ?? "none"}`}>
+                <SignalDetailsCard
+                  context={resources.assetContext.data}
+                  detail={resources.signalDetail.data}
+                  error={resources.signalDetail.error}
+                  loading={resources.signalDetail.loading}
                   onRetry={() => void refreshFocusSurface()}
-                  onTimeframeChange={setSelectedTimeframe}
-                  selectedRisk={resources.riskDetail.data}
-                  selectedSignal={resources.signalDetail.data}
-                  selectedTicket={resources.tradeTicketDetail.data}
-                  selectedTrade={resources.paperTradeDetail.data}
-                  timeframe={selectedTimeframe}
                 />
               </ErrorBoundary>
-            </Panel>
-            <ErrorBoundary label="Signal Detail" resetKey={`${selectedSymbol}-${selectedSignalId ?? "none"}`}>
-              <SignalDetailsCard
-                context={resources.assetContext.data}
-                detail={resources.signalDetail.data}
-                error={resources.signalDetail.error}
-                loading={resources.signalDetail.loading}
-              />
-            </ErrorBoundary>
-          </div>
+            </div>
+          ) : null}
 
-          <Panel title={activeTabLabel(activeTab)} eyebrow="Operator Workspace">
+          <Panel key={activeTab} title={activeTabLabel(activeTab)} eyebrow="Operator Workspace">
             <ErrorBoundary label={`${activeTabLabel(activeTab)} Workspace`} resetKey={`${activeTab}-${selectedSymbol}-${selectedTradeId ?? "none"}-${selectedTicketId ?? "none"}`}>
               {renderTabContent()}
             </ErrorBoundary>
@@ -716,6 +763,7 @@ export default function App() {
               context={resources.assetContext.data}
               onOpenRisk={setSelectedRiskReportId}
               onOpenSignal={setSelectedSignalId}
+              onRefreshContext={() => void refreshFocusSurface()}
               onSelectSymbol={(symbol) => focusSymbol(symbol)}
               ribbon={resources.overview.data}
               riskDetail={resources.riskDetail.data}

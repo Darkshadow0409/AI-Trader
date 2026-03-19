@@ -54,4 +54,28 @@ describe("usePollingResource", () => {
 
     expect(loader).toHaveBeenCalledTimes(1);
   });
+
+  it("preserves the last known good data when a resource is disabled", async () => {
+    const loader = vi.fn().mockResolvedValue("live");
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) => usePollingResource(loader, "seed", { enabled, preserveData: true }),
+      { initialProps: { enabled: true } },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.data).toBe("live");
+
+    rerender({ enabled: false });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.data).toBe("live");
+    expect(result.current.loading).toBe(false);
+  });
 });

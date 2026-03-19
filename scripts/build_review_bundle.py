@@ -360,13 +360,15 @@ def collect_verify_output(runtime_env: dict[str, str]) -> tuple[str, list[str]]:
     commands = [
         ("python scripts/seed_data.py", [sys.executable, "scripts/seed_data.py"], ROOT),
         ("python scripts/backfill.py", [sys.executable, "scripts/backfill.py"], ROOT),
-        ("python -m pytest apps/backend/tests", [sys.executable, "-m", "pytest", "apps/backend/tests"], ROOT),
-        ("cd apps/frontend && npm run test -- --run", [npm_command(), "run", "test", "--", "--run"], FRONTEND_DIR),
-        ("cd apps/frontend && npm run build", [npm_command(), "run", "build"], FRONTEND_DIR),
-        ("python scripts/verify.py", [sys.executable, "scripts/verify.py"], ROOT),
+        ("python scripts/verify_fast.py", [sys.executable, "scripts/verify_fast.py"], ROOT),
     ]
     sections: list[str] = []
     failures: list[str] = []
+    sections.append(
+        "# Bundle verification note\n"
+        "The review bundle runs fixture refresh plus verify_fast.py for packaging sanity.\n"
+        "Full-suite verification remains a separate top-level workflow via verify.py.\n"
+    )
     for label, command, cwd in commands:
         code, output = run_command(command, cwd, runtime_env)
         sections.append(f"$ {label}\n[exit_code={code}]\n{output.rstrip()}\n")

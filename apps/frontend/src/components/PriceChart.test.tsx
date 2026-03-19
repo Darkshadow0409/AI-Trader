@@ -44,6 +44,7 @@ describe("PriceChart", () => {
 
     expect(screen.getByTestId("price-chart-workspace")).toBeInTheDocument();
     expect(screen.getByText(/Fixture data only/i)).toBeInTheDocument();
+    expect(screen.getByText(/Intraday timeframes are not available in fixture mode/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "EMA 20" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "1d" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "15m" })).toBeDisabled();
@@ -68,6 +69,7 @@ describe("PriceChart", () => {
 
     expect(screen.getByText(/Backend disconnected or chart data request failed/i)).toBeInTheDocument();
     expect(screen.getByTestId("chart-state-overlay")).toHaveTextContent(/Disconnected/i);
+    expect(screen.getByTestId("chart-state-overlay")).toHaveTextContent(/Do not treat this chart as current live market truth/i);
     expect(screen.getByRole("button", { name: "Retry chart" })).toBeInTheDocument();
     expect(screen.queryByText(/No chart data/i)).not.toBeInTheDocument();
   });

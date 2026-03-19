@@ -7,13 +7,51 @@ interface SignalDetailsCardProps {
   detail: SignalDetailView | null;
   loading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
 }
 
-export function SignalDetailsCard({ context, detail, loading, error }: SignalDetailsCardProps) {
+function signalErrorLabel(error: string | null | undefined, hasSignal: boolean): string | null {
+  if (!error) {
+    return null;
+  }
+  if (error.includes("404") || error.includes("/signals/")) {
+    return hasSignal
+      ? "Signal context unavailable. Showing the last known signal context while refresh recovers."
+      : "Signal context unavailable for this asset.";
+  }
+  return hasSignal
+    ? "Signal context refresh failed. Showing the last known signal context."
+    : "Signal context unavailable right now.";
+}
+
+function topRelevantMarkets(symbol: string, markets: NonNullable<SignalDetailView["related_polymarket_markets"]>): NonNullable<SignalDetailView["related_polymarket_markets"]> {
+  const asset = symbol.toUpperCase();
+  const requiredTokens: Record<string, string[]> = {
+    BTC: ["btc", "bitcoin", "crypto"],
+    ETH: ["eth", "ethereum", "crypto"],
+  };
+  const tokens = requiredTokens[asset] ?? [];
+  return markets
+    .filter((item) => item.relevance_score >= 6)
+    .filter((item) => {
+      if (tokens.length === 0) {
+        return true;
+      }
+      const haystack = `${item.question} ${item.event_title}`.toLowerCase();
+      return item.related_assets.map((value) => value.toUpperCase()).includes(asset) || tokens.some((token) => haystack.includes(token));
+    })
+    .slice(0, 3);
+}
+
+export function SignalDetailsCard({ context, detail, loading, error, onRetry }: SignalDetailsCardProps) {
   const signal = detail ?? context.latest_signal;
   const risk = detail?.related_risk ?? context.latest_risk;
   const signalDetail = detail;
   const reality = signalDetail?.data_reality ?? signal?.data_reality ?? context.data_reality;
+  const friendlyError = signalErrorLabel(error, Boolean(signal));
+  const relevantCrowdMarkets = signal && signalDetail?.related_polymarket_markets
+    ? topRelevantMarkets(signal.symbol, signalDetail.related_polymarket_markets)
+    : [];
 
   return (
     <Panel
@@ -21,7 +59,7 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
       eyebrow="Signal Detail"
       extra={<span className={signal ? `direction ${signal.direction}` : "muted-copy"}>{signal?.direction ?? "no signal"}</span>}
     >
-      <StateBlock loading={loading} error={error} />
+      <StateBlock actionLabel={friendlyError ? "Retry signal context" : undefined} error={friendlyError} loading={loading} onAction={friendlyError ? onRetry : undefined} />
       {signal ? (
         <>
           <p className="compact-copy">{signal.thesis}</p>
@@ -135,9 +173,9 @@ export function SignalDetailsCard({ context, detail, loading, error }: SignalDet
             </div>
           ) : null}
           {signalDetail?.crowd_implied_narrative ? <small>{signalDetail.crowd_implied_narrative}</small> : null}
-          {signalDetail && (signalDetail.related_polymarket_markets?.length ?? 0) > 0 ? (
+          {signalDetail && relevantCrowdMarkets.length > 0 ? (
             <div className="stack">
-              {signalDetail.related_polymarket_markets!.slice(0, 3).map((item) => (
+              {relevantCrowdMarkets.map((item) => (
                 <div className="stack" key={item.market_id}>
                   <div className="metric-row compact-row">
                     <span>{item.question}</span>

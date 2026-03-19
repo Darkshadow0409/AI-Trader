@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { formatDateTimeIST } from "../lib/time";
-import type { DeskSummaryView, HomeOperatorSummaryView } from "../types/api";
+import type { DeskSummaryView, ExecutionGateView, HomeOperatorSummaryView, OperationalBacklogView } from "../types/api";
 
 interface DeskTabProps {
   desk: DeskSummaryView;
   homeSummary: HomeOperatorSummaryView;
+  executionGate: ExecutionGateView;
+  operationalBacklog: OperationalBacklogView;
   onNavigate: (tab: string) => void;
   onOpenSignal: (signalId: string) => void;
   onOpenRisk: (riskReportId: string) => void;
@@ -22,6 +24,7 @@ interface DeskTabProps {
     stopLoss: number;
     riskPct: number;
     openExposureCount: number;
+    overAllocated: boolean;
   };
 }
 
@@ -35,6 +38,8 @@ function compact(value: number | null | undefined): string {
 export function DeskTab({
   desk,
   homeSummary,
+  executionGate,
+  operationalBacklog,
   onNavigate,
   onOpenSignal,
   onOpenRisk,
@@ -106,11 +111,11 @@ export function DeskTab({
         <div className="metric-grid">
           <div>
             <span className="metric-label">Gate</span>
-            <strong>{desk.execution_gate.status}</strong>
+            <strong>{executionGate.status}</strong>
           </div>
           <div>
             <span className="metric-label">Backlog</span>
-            <strong>{desk.operational_backlog.overdue_count} overdue</strong>
+            <strong>{operationalBacklog.overdue_count} overdue</strong>
           </div>
           <div>
             <span className="metric-label">Open Tickets</span>
@@ -126,7 +131,7 @@ export function DeskTab({
           </div>
         </div>
         <div className="stack">
-          {(desk.execution_gate.blockers.length ? desk.execution_gate.blockers : ["No active execution-gate blockers."]).map((item) => (
+          {(executionGate.blockers.length ? executionGate.blockers : ["No active execution-gate blockers."]).map((item) => (
             <small key={item}>{item}</small>
           ))}
         </div>
@@ -162,6 +167,9 @@ export function DeskTab({
         </div>
         <div className="stack">
           <small>Account context: {paperCapitalSummary.accountSize.toFixed(0)} demo account / {paperCapitalSummary.openExposureCount} active exposures</small>
+          {paperCapitalSummary.overAllocated ? (
+            <small>Allocated capital is above the 10k paper account. This view reflects overlapping open paper positions and should be treated as an over-allocation warning, not available buying power.</small>
+          ) : null}
           <small>Use this panel to explain risk per trade and portfolio-level open exposure in paper mode.</small>
         </div>
       </article>

@@ -144,7 +144,7 @@ def process_alive(pid: object) -> bool:
     try:
         os.kill(pid, 0)
         return True
-    except OSError:
+    except (OSError, SystemError, ValueError):
         return False
 
 
@@ -533,6 +533,10 @@ def main() -> int:
     if detach:
         stop_repo_processes(root_dir, backend_candidates + frontend_candidates)
         remove_runtime_state()
+        reused_backend = False
+        reused_frontend = False
+        backend_pid = None
+        frontend_pid = None
         time.sleep(2.0)
 
     backend_cmd = [
@@ -605,7 +609,16 @@ def main() -> int:
             frontend_url = f"http://{host}:{frontend_port}"
         else:
             print("Backend transport healthy. Waiting for operator data warmup...")
-            overview_payload = wait_for_json(f"{backend_url}/api/dashboard/overview", timeout_seconds=90, label="Backend overview")
+            try:
+                overview_payload = wait_for_json(
+                    f"{backend_url}/api/dashboard/overview",
+                    timeout_seconds=90,
+                    label="Backend overview",
+                )
+            except RuntimeError as error:
+                overview_payload = {}
+                print(f"Backend overview warmup warning: {error}")
+                print("Continuing with reused healthy backend; source and market mode are temporarily unknown.")
         source_mode = str((overview_payload or {}).get("source_mode", "unknown"))
         market_data_mode = str((overview_payload or {}).get("market_data_mode", "unknown"))
         print(f"Backend healthy: {health_url}")

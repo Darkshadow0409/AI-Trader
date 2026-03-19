@@ -3,8 +3,10 @@ import type { WalletBalanceView } from "../types/api";
 export function WalletBalanceTab({ rows }: { rows: WalletBalanceView[] }) {
   return (
     <div className="stack">
+      {rows.length === 0 ? <p className="muted-copy">No wallet balances are available in the current mode.</p> : null}
       {rows.map((wallet) => (
         <article className="panel compact-panel" key={`${wallet.venue}-${wallet.account_label}`}>
+          <h3>Wallet Balance</h3>
           <div className="metric-row">
             <strong>{wallet.account_label}</strong>
             <span>{wallet.venue}</span>

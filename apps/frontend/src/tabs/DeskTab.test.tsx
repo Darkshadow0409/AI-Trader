@@ -14,6 +14,7 @@ const paperCapitalSummary = {
   stopLoss: -240,
   riskPct: 2.5,
   openExposureCount: 2,
+  overAllocated: false,
 };
 
 describe("DeskTab", () => {
@@ -21,11 +22,13 @@ describe("DeskTab", () => {
     render(
       <DeskTab
         desk={mockDeskSummary}
+        executionGate={mockDeskSummary.execution_gate}
         homeSummary={mockHomeSummary}
         onNavigate={vi.fn()}
         onOpenCommandCenter={vi.fn()}
         onOpenRisk={vi.fn()}
         onOpenSignal={vi.fn()}
+        operationalBacklog={mockDeskSummary.operational_backlog}
         onSelectSymbol={vi.fn()}
         onSelectTicket={vi.fn()}
         onSelectTrade={vi.fn()}
@@ -56,11 +59,13 @@ describe("DeskTab", () => {
     render(
       <DeskTab
         desk={mockDeskSummary}
+        executionGate={mockDeskSummary.execution_gate}
         homeSummary={mockHomeSummary}
         onNavigate={onNavigate}
         onOpenCommandCenter={vi.fn()}
         onOpenRisk={vi.fn()}
         onOpenSignal={vi.fn()}
+        operationalBacklog={mockDeskSummary.operational_backlog}
         onSelectSymbol={vi.fn()}
         onSelectTicket={vi.fn()}
         onSelectTrade={onSelectTrade}

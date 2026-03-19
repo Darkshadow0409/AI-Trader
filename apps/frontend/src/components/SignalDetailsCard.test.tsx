@@ -14,4 +14,18 @@ describe("SignalDetailsCard", () => {
     expect(screen.getByText("fixture_source")).toBeInTheDocument();
     expect(screen.getByText("Direct btc linkage, asset-specific wording. High volume. Active recent trading.")).toBeInTheDocument();
   });
+
+  it("shows a friendly fallback instead of raw signal 404 text", () => {
+    render(
+      <SignalDetailsCard
+        context={mockAssetContexts.BTC}
+        detail={mockSignalDetail}
+        error="/signals/sig_missing returned 404"
+      />,
+    );
+
+    expect(screen.getByText(/Signal context unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\/signals\/sig_missing returned 404/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Breakout above the 20-day range remains intact with aligned structure and supportive volume.")).toBeInTheDocument();
+  });
 });

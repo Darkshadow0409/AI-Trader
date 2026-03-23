@@ -11,6 +11,8 @@ __pycache__
 .env.production.local
 .env.staging
 .env.staging.local
+docs/USER_MANUAL.html
+docs/USER_MANUAL.pdf
 node_modules
 dist
 coverage
@@ -23,11 +25,7 @@ ai_trader_compact_source_*.zip
 *.pid
 *.tar.gz
 *.zip
-data/local_runtime
-data/diagnostics
-data/exports
-data/parquet
-data/sqlite
+data
 deploy/acme
 deploy/certs
 apps/backend/.mypy_cache
@@ -35,6 +33,7 @@ apps/backend/tests
 apps/frontend/node_modules
 apps/frontend/dist
 apps/frontend/coverage
+*.tsbuildinfo
 apps/frontend/npm_install_log.txt
 apps/frontend/src/**/*.test.tsx
 apps/frontend/src/test

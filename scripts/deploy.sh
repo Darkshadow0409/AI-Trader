@@ -35,6 +35,11 @@ require_value "AI_TRADER_PUBLIC_BASE_URL"
 require_value "AI_TRADER_ALLOWED_ORIGINS"
 
 PUBLIC_BASE_URL="$(read_value "AI_TRADER_PUBLIC_BASE_URL")"
+HEALTHCHECK_BASE_URL="$(read_value "AI_TRADER_HEALTHCHECK_BASE_URL")"
+
+if [[ -z "${HEALTHCHECK_BASE_URL// }" ]]; then
+  HEALTHCHECK_BASE_URL="$PUBLIC_BASE_URL"
+fi
 
 cd "$ROOT_DIR"
 
@@ -52,6 +57,6 @@ echo "Pruning old dangling images..."
 docker image prune -f --filter "until=168h" >/dev/null || true
 
 echo "Running post-deploy health check..."
-"$ROOT_DIR/scripts/check_health.sh" "${PUBLIC_BASE_URL:-http://127.0.0.1}"
+"$ROOT_DIR/scripts/check_health.sh" "${HEALTHCHECK_BASE_URL:-http://127.0.0.1}"
 
 echo "Deploy complete."

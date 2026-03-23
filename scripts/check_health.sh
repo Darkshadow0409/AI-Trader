@@ -18,6 +18,10 @@ check_contains() {
 echo "Checking frontend root at $BASE_URL/ ..."
 check_contains "$BASE_URL/" "AI Trader"
 
+echo "Checking runtime-config.js ..."
+check_contains "$BASE_URL/runtime-config.js" "window.__AI_TRADER_RUNTIME__"
+check_contains "$BASE_URL/runtime-config.js" "apiBase"
+
 echo "Checking backend health ..."
 check_contains "$BASE_URL/api/health" "\"status\":\"ok\""
 

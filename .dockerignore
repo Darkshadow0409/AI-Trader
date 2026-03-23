@@ -28,6 +28,8 @@ data/diagnostics
 data/exports
 data/parquet
 data/sqlite
+deploy/acme
+deploy/certs
 apps/backend/.mypy_cache
 apps/backend/tests
 apps/frontend/node_modules

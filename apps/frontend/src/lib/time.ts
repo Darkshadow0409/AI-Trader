@@ -1,5 +1,7 @@
 export const DISPLAY_TIMEZONE = "Asia/Kolkata";
 
+const UTC_MISSING_OFFSET_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+
 const dateTimeFormatter = new Intl.DateTimeFormat("en-IN", {
   timeZone: DISPLAY_TIMEZONE,
   year: "numeric",
@@ -30,7 +32,8 @@ export function parseTimestampMs(value: string | null | undefined): number | nul
   if (!value) {
     return null;
   }
-  const parsed = Date.parse(value);
+  const normalized = UTC_MISSING_OFFSET_PATTERN.test(value) ? `${value}Z` : value;
+  const parsed = Date.parse(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 

@@ -18,6 +18,20 @@ describe("apiClient", () => {
     expect(payload.macro_regime).toBe("risk-on");
   });
 
+  it("dedupes concurrent identical GET requests while one is already in flight", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ macro_regime: "risk-on" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const [first, second] = await Promise.all([apiClient.overview(), apiClient.overview()]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(first.macro_regime).toBe("risk-on");
+    expect(second.macro_regime).toBe("risk-on");
+  });
+
   it("falls back to mock payloads when the API is unavailable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
@@ -58,6 +72,26 @@ describe("apiClient", () => {
       signal: expect.any(AbortSignal),
     });
     expect(payload.signal_id).toBe("sig_test");
+  });
+
+  it("uses trader-facing commodity aliases for asset context and chart requests", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ symbol: "WTI", instrument_mapping: { trader_symbol: "USOUSD" }, timeframe: "1d" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient.assetContext("WTI");
+    await apiClient.marketChart("WTI", "1d");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://127.0.0.1:8000/api/dashboard/assets/USOUSD", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://127.0.0.1:8000/api/market/chart/USOUSD?timeframe=1d", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it("posts active trade creates with the operator-console contract", async () => {
@@ -116,5 +150,98 @@ describe("apiClient", () => {
       signal: expect.any(AbortSignal),
     });
     expect(payload.trade_id).toBe("paper_trade_test");
+  });
+
+  it("includes browser credentials for OAuth-backed AI status requests", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ provider: "openai", auth_mode: "oauth", status: "auth_required", connected: false }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient.aiStatus();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/ai/status", {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("posts AI advisor requests as JSON when running the local terminal brief", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ final_answer: "brief", provider_status: { provider: "openai", auth_mode: "oauth", status: "auth_required", connected: false } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient.runAdvisor({
+      query: "What matters now for USOUSD?",
+      symbol: "WTI",
+      timeframe: "1d",
+      model: "gpt-5.4",
+      active_tab: "ai_desk",
+      selected_signal_id: null,
+      selected_risk_report_id: null,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/ai/advisor", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "What matters now for USOUSD?",
+        symbol: "WTI",
+        timeframe: "1d",
+        model: "gpt-5.4",
+        active_tab: "ai_desk",
+        selected_signal_id: null,
+        selected_risk_report_id: null,
+      }),
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("defaults Polymarket hunter requests to relevance ordering", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ generated_at: "", source_status: "live", source_note: "", query: "", tag: "", sort: "relevance", available_tags: [], events: [], markets: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient.polymarketHunter();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/polymarket/hunter?q=&tag=&sort=relevance",
+      {
+        headers: { "Content-Type": "application/json" },
+        signal: expect.any(AbortSignal),
+      },
+    );
+  });
+
+  it("prefers runtime-config api base over the static fallback", async () => {
+    vi.resetModules();
+    window.__AI_TRADER_RUNTIME__ = {
+      apiBase: "http://127.0.0.1:8011/api",
+      backendUrl: "http://127.0.0.1:8011",
+      frontendUrl: "http://127.0.0.1:5173",
+      generatedAt: "2026-03-23T00:00:00",
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ macro_regime: "risk-on" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtimeClient = await import("./client");
+    const payload = await runtimeClient.apiClient.overview();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8011/api/dashboard/overview", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(payload.macro_regime).toBe("risk-on");
+    delete window.__AI_TRADER_RUNTIME__;
   });
 });

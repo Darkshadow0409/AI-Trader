@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 from sqlmodel import Session
+from sqlmodel import delete
 from sqlmodel import select
 
 from app.core.database import engine
-from app.models.entities import RiskReport, SignalRecord
+from app.models.entities import AlertRecord, RiskReport, SignalRecord
 from app.models.schemas import TradeTicketCreateRequest
+from app.services.operator_console import refresh_alerts
 from app.services.pipeline import seed_and_refresh
-from app.services.pilot_ops import adapter_health_summary, execution_gate_status, pilot_dashboard, pilot_metric_summary, recent_audit_logs
+from app.services import pilot_ops
+from app.services.pilot_ops import (
+    adapter_health_summary,
+    execution_gate_snapshot,
+    execution_gate_status,
+    pilot_dashboard,
+    pilot_metric_summary,
+    recent_audit_logs,
+    refresh_pilot_alerts,
+)
 from app.services.trade_tickets import create_trade_ticket
 
 
@@ -76,3 +87,38 @@ def test_execution_gate_never_reports_not_ready_without_blockers(monkeypatch) ->
 
     assert gate.status == "not_ready"
     assert gate.blockers
+
+
+def test_pilot_metric_summary_survives_alert_mutation_during_ticket_expansion(monkeypatch) -> None:
+    seed_and_refresh()
+    with Session(engine) as session:
+        refresh_alerts(session)
+        original_detail = pilot_ops.get_trade_ticket_detail
+
+        def deleting_detail(inner_session, ticket_id):
+            inner_session.exec(delete(AlertRecord))
+            inner_session.commit()
+            return original_detail(inner_session, ticket_id)
+
+        monkeypatch.setattr("app.services.pilot_ops.get_trade_ticket_detail", deleting_detail)
+        summary = pilot_metric_summary(session)
+        gate = execution_gate_status(session)
+
+    assert summary.alert_metrics["actionable_alert_count"] >= 0
+    assert gate.status in {"not_ready", "pilot_running", "review_required", "execution_candidate"}
+
+
+def test_refresh_pilot_alerts_uses_snapshots_instead_of_heavy_recomputes(monkeypatch) -> None:
+    seed_and_refresh()
+    with Session(engine) as session:
+        summary = pilot_metric_summary(session)
+        gate = execution_gate_snapshot(session)
+        assert gate is not None
+
+        monkeypatch.setattr("app.services.pilot_ops.pilot_metric_summary", lambda _session: (_ for _ in ()).throw(AssertionError("heavy summary should not run")))
+        monkeypatch.setattr("app.services.pilot_ops.execution_gate_status", lambda _session: (_ for _ in ()).throw(AssertionError("heavy gate should not run")))
+        monkeypatch.setattr("app.services.pilot_ops.adapter_health_summary", lambda _session: (_ for _ in ()).throw(AssertionError("heavy adapter health should not run")))
+        monkeypatch.setattr("app.services.pilot_ops.latest_pilot_metric_summary", lambda _session: summary)
+        monkeypatch.setattr("app.services.pilot_ops.execution_gate_snapshot", lambda _session: gate)
+
+        refresh_pilot_alerts(session)

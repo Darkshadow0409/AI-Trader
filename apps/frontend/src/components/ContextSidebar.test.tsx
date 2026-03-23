@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { mockAlerts, mockAssetContexts, mockRibbon, mockRiskDetail } from "../api/mockData";
+import { mockAlerts, mockAssetContexts, mockMarketCharts, mockRibbon, mockRiskDetail } from "../api/mockData";
 import { ContextSidebar } from "./ContextSidebar";
 
 describe("ContextSidebar", () => {
@@ -68,9 +68,44 @@ describe("ContextSidebar", () => {
       />,
     );
 
-    expect(screen.getAllByText(/\[sent\/info\] BTC signal created/i)).toHaveLength(1);
+    expect(screen.getAllByText("BTC signal created")).toHaveLength(1);
     expect(screen.getByText(/Current mode has limited news context for this asset/i)).toBeInTheDocument();
-    expect(screen.getByText(/Actionable alert delivered/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ready for review or follow-up/i)).toBeInTheDocument();
+  });
+
+  it("keeps suppressed alerts visible without leaking internal dedupe tokens", () => {
+    render(
+      <ContextSidebar
+        alerts={mockAlerts}
+        context={mockAssetContexts.BTC}
+        onOpenRisk={vi.fn()}
+        onOpenSignal={vi.fn()}
+        onSelectSymbol={vi.fn()}
+        ribbon={mockRibbon}
+        riskDetail={mockRiskDetail}
+      />,
+    );
+
+    expect(screen.getByText("Noise reduced")).toBeInTheDocument();
+    expect(screen.getByText(/A duplicate alert was already shown/i)).toBeInTheDocument();
+    expect(screen.queryByText(/cooldown_window|dedupe_window/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the noise-reduced section visible even when there are no muted repeats", () => {
+    render(
+      <ContextSidebar
+        alerts={mockAlerts.filter((item) => item.status !== "suppressed")}
+        context={mockAssetContexts.BTC}
+        onOpenRisk={vi.fn()}
+        onOpenSignal={vi.fn()}
+        onSelectSymbol={vi.fn()}
+        ribbon={mockRibbon}
+        riskDetail={mockRiskDetail}
+      />,
+    );
+
+    expect(screen.getByText("Noise reduced")).toBeInTheDocument();
+    expect(screen.getByText("No muted repeats right now.")).toBeInTheDocument();
   });
 
   it("shows a friendly fallback instead of raw risk 404 text", () => {
@@ -123,5 +158,36 @@ describe("ContextSidebar", () => {
 
     expect(screen.getByText("No relevant crowd markets for this asset.")).toBeInTheDocument();
     expect(screen.queryByText(/FIFA World Cup/i)).not.toBeInTheDocument();
+  });
+
+  it("prefers selected chart freshness over stale context fallbacks", () => {
+    render(
+      <ContextSidebar
+        alerts={[]}
+        chart={{
+          ...mockMarketCharts["BTC:1d"],
+          freshness_minutes: 671,
+          freshness_state: "stale",
+          status: "stale",
+        }}
+        context={{
+          ...mockAssetContexts.BTC,
+          data_reality: {
+            ...mockAssetContexts.BTC.data_reality!,
+            freshness_minutes: 18,
+            freshness_state: "fresh",
+          },
+        }}
+        onOpenRisk={vi.fn()}
+        onOpenSignal={vi.fn()}
+        onSelectSymbol={vi.fn()}
+        ribbon={{ ...mockRibbon, data_freshness_minutes: 5, freshness_status: "fresh" }}
+        riskDetail={null}
+      />,
+    );
+
+    expect(screen.getByText(/Selected market freshness 671m \/ stale/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Selected market freshness 18m \/ fresh/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Chart state stale/i)).toBeInTheDocument();
   });
 });

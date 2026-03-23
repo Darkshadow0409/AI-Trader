@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,6 +12,7 @@ from app.connectors.polymarket_client import fetch_events
 from app.core.clock import naive_utc_now
 from app.core.settings import get_settings
 from app.models.schemas import PolymarketEventView, PolymarketHunterView, PolymarketMarketView, PolymarketOutcomeView
+from app.services.market_identity import PRIMARY_COMMODITY_CLUSTER, terminal_focus_priority
 
 
 settings = get_settings()
@@ -23,7 +25,14 @@ CATEGORY_KEYWORDS: dict[str, set[str]] = {
     "commodities": {"oil", "wti", "crude", "brent", "energy", "gold", "silver", "xau", "xag", "metals", "bullion"},
     "politics": {"trump", "biden", "election", "president", "congress", "politics", "geopolitics", "war"},
     "rates_inflation": {"fed", "fomc", "cpi", "inflation", "rates", "rate cut", "rate hike", "yield", "treasury", "dxy", "dollar", "usd"},
-    "broad_market_narrative": {"stocks", "equities", "market", "nasdaq", "spx", "s&p", "volatility", "vix"},
+    "broad_market_narrative": {"stocks", "equities", "nasdaq", "spx", "s&p", "volatility", "vix"},
+}
+
+DEFAULT_DISCOVERY_CATEGORIES = {
+    "commodities",
+    "macro",
+    "rates_inflation",
+    "broad_market_narrative",
 }
 
 ASSET_PROFILES: dict[str, dict[str, tuple[str, ...] | str]] = {
@@ -105,7 +114,10 @@ def _load_events() -> tuple[list[dict[str, Any]], str, str]:
     source_status = "fixture"
     source_note = "Using seeded Polymarket fixture data."
     events: list[dict[str, Any]] = []
-    if settings.polymarket_enabled:
+    if settings.use_sample_only:
+        events = _fixture_events()
+        source_note = "Sample mode uses seeded Polymarket fixture data."
+    elif settings.polymarket_enabled:
         try:
             events = fetch_events(limit=40, active=True, closed=False)
             source_status = "live"
@@ -130,11 +142,11 @@ def _load_events() -> tuple[list[dict[str, Any]], str, str]:
 
 
 def _infer_assets(*parts: Any) -> list[str]:
-    haystack = " ".join(str(part or "") for part in parts).lower()
+    haystack = _searchable_text(*parts)
     matched = [
         symbol
         for symbol, profile in ASSET_PROFILES.items()
-        if any(keyword in haystack for keyword in (*profile["direct"], *profile["macro"]))
+        if any(_keyword_match(haystack, keyword) for keyword in profile["direct"])
     ]
     return sorted(set(matched))
 
@@ -143,12 +155,24 @@ def _normalize_text(*parts: Any) -> str:
     return " ".join(str(part or "") for part in parts).lower()
 
 
+def _searchable_text(*parts: Any) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", " ", _normalize_text(*parts)).strip()
+    return f" {normalized} " if normalized else " "
+
+
+def _keyword_match(haystack: str, keyword: str) -> bool:
+    normalized_keyword = re.sub(r"[^a-z0-9]+", " ", keyword.lower()).strip()
+    if not normalized_keyword:
+        return False
+    return f" {normalized_keyword} " in haystack
+
+
 def _infer_category(*parts: Any) -> str:
-    haystack = _normalize_text(*parts)
-    best_category = "broad_market_narrative"
+    haystack = _searchable_text(*parts)
+    best_category = "other"
     best_score = 0
     for category, keywords in CATEGORY_KEYWORDS.items():
-        score = sum(1 for keyword in keywords if keyword in haystack)
+        score = sum(1 for keyword in keywords if _keyword_match(haystack, keyword))
         if score > best_score:
             best_category = category
             best_score = score
@@ -178,14 +202,109 @@ def _activity_score(market: PolymarketMarketView) -> float:
     return (_liquidity_score(market.recent_activity) * 0.6) + (_liquidity_score(market.volume) * 0.4)
 
 
+def _is_open_current_market(market: PolymarketMarketView) -> bool:
+    if market.closed or not market.active or market.status != "active":
+        return False
+    if market.end_date is not None and market.end_date < naive_utc_now():
+        return False
+    return True
+
+
+def _default_discovery_score(market: PolymarketMarketView) -> float:
+    category_bonus = {
+        "crypto": 1.3,
+        "commodities": 1.3,
+        "rates_inflation": 1.1,
+        "macro": 1.0,
+        "broad_market_narrative": 0.7,
+    }.get(market.category, 0.0)
+    asset_bonus = min(len(market.related_assets), 2) * 0.35
+    return round(
+        category_bonus
+        + (_liquidity_score(market.liquidity) * 1.2)
+        + (_liquidity_score(market.volume) * 1.0)
+        + (_activity_score(market) * 1.1)
+        + (_recency_score(market.end_date) * 1.0)
+        + asset_bonus,
+        3,
+    )
+
+
+def _default_market_reason(market: PolymarketMarketView) -> str:
+    parts = ["Active unresolved market"]
+    if market.category != "broad_market_narrative":
+        parts.append(f"{market.category.replace('_', ' ')} focus")
+    if market.related_assets:
+        parts.append(f"linked to {', '.join(market.related_assets[:2])}")
+    if market.volume >= 100000:
+        parts.append("high volume")
+    elif market.liquidity >= 25000:
+        parts.append("tradeable liquidity")
+    return ". ".join(part.capitalize() for part in parts[:3]) + "."
+
+
+def _include_in_default_discovery(market: PolymarketMarketView) -> bool:
+    if not _is_open_current_market(market):
+        return False
+    if market.category not in DEFAULT_DISCOVERY_CATEGORIES:
+        return False
+    if market.category == "politics":
+        return False
+    if market.volume < 5000 and market.liquidity < 1000 and market.recent_activity < 500:
+        return False
+    return _default_discovery_score(market) >= 1.6
+
+
+def _terminal_story_group(market: PolymarketMarketView) -> int:
+    if any(asset in PRIMARY_COMMODITY_CLUSTER for asset in market.related_assets):
+        return 0
+    if market.category in {"commodities", "rates_inflation", "macro"}:
+        return 1
+    if market.category == "crypto":
+        return 2
+    return 3
+
+
+def _terminal_story_key(market: PolymarketMarketView) -> tuple[float | int, ...]:
+    focus_rank = min((terminal_focus_priority(asset) for asset in market.related_assets), default=99)
+    return (
+        _terminal_story_group(market),
+        focus_rank,
+        -market.relevance_score,
+        -market.recent_activity,
+        -market.volume,
+        -market.liquidity,
+    )
+
+
+def _sort_broad_discovery_markets(rows: list[PolymarketMarketView]) -> list[PolymarketMarketView]:
+    return sorted(rows, key=_terminal_story_key)
+
+
+def _sort_broad_discovery_events(rows: list[PolymarketEventView]) -> list[PolymarketEventView]:
+    ranked_rows = [
+        row.model_copy(
+            update={
+                "markets": _sort_broad_discovery_markets(row.markets),
+                "market_count": len(row.markets),
+            }
+        )
+        for row in rows
+    ]
+    return sorted(
+        ranked_rows,
+        key=lambda row: _terminal_story_key(row.markets[0]) if row.markets else (99, 99, 0.0, 0.0, 0.0, 0.0),
+    )
+
+
 def _asset_relevance(normalized_symbol: str, market: PolymarketMarketView, query_hint: str) -> tuple[float, list[str]]:
     profile = ASSET_PROFILES.get(normalized_symbol)
     if profile is None:
         return 0.0, []
 
-    haystack = _normalize_text(market.question, market.event_title, market.primary_tag, " ".join(market.tags), query_hint)
-    direct_hits = sum(1 for keyword in profile["direct"] if keyword in haystack)
-    macro_hits = sum(1 for keyword in profile["macro"] if keyword in haystack)
+    haystack = _searchable_text(market.question, market.event_title, market.primary_tag, " ".join(market.tags), query_hint)
+    direct_hits = sum(1 for keyword in profile["direct"] if _keyword_match(haystack, keyword))
+    macro_hits = sum(1 for keyword in profile["macro"] if _keyword_match(haystack, keyword))
     category_match = market.category == profile["category"]
 
     score = 0.0
@@ -334,7 +453,9 @@ def _event_view(event: dict[str, Any], source_status: str, source_note: str) -> 
 
 
 def _sort_markets(rows: list[PolymarketMarketView], sort: str) -> list[PolymarketMarketView]:
-    key_name = {"liquidity": "liquidity", "recent": "recent_activity", "relevance": "relevance_score"}.get(sort, "volume")
+    if sort == "relevance":
+        return sorted(rows, key=lambda row: (row.relevance_score, row.recent_activity, row.volume, row.liquidity), reverse=True)
+    key_name = {"liquidity": "liquidity", "recent": "recent_activity"}.get(sort, "volume")
     return sorted(rows, key=lambda row: getattr(row, key_name), reverse=True)
 
 
@@ -343,11 +464,68 @@ def _rank_market_for_symbol(market: PolymarketMarketView, symbol: str, query_hin
     return market.model_copy(update={"relevance_score": score, "relevance_reason": reason})
 
 
-def polymarket_hunter(query: str = "", tag: str = "", sort: str = "volume", limit: int = 30) -> PolymarketHunterView:
+def polymarket_hunter(query: str = "", tag: str = "", sort: str = "relevance", limit: int = 30) -> PolymarketHunterView:
     raw_events, source_status, source_note = _load_events()
     events = [_event_view(event, source_status, source_note) for event in raw_events]
     normalized_query = query.strip().lower()
     normalized_tag = tag.strip().lower()
+
+    broad_discovery = not normalized_query and not normalized_tag
+    if broad_discovery:
+        curated_events: list[PolymarketEventView] = []
+        for event in events:
+            curated_markets = []
+            for market in event.markets:
+                if not _include_in_default_discovery(market):
+                    continue
+                curated_markets.append(
+                    market.model_copy(
+                        update={
+                            "relevance_score": _default_discovery_score(market),
+                            "relevance_reason": _default_market_reason(market),
+                        }
+                    )
+                )
+            if curated_markets:
+                curated_events.append(
+                    event.model_copy(
+                        update={
+                            "markets": curated_markets,
+                            "market_count": len(curated_markets),
+                        }
+                    )
+                )
+        if curated_events:
+            events = curated_events
+        else:
+            fallback_events: list[PolymarketEventView] = []
+            for event in events:
+                fallback_markets = []
+                for market in event.markets:
+                    if not _is_open_current_market(market) or market.category == "politics":
+                        continue
+                    score = _default_discovery_score(market)
+                    if score < 0.8:
+                        continue
+                    fallback_markets.append(
+                        market.model_copy(
+                            update={
+                                "relevance_score": score,
+                                "relevance_reason": _default_market_reason(market),
+                            }
+                        )
+                    )
+                if fallback_markets:
+                    fallback_events.append(
+                        event.model_copy(
+                            update={
+                                "markets": fallback_markets,
+                                "market_count": len(fallback_markets),
+                            }
+                        )
+                    )
+            events = fallback_events
+        events = _sort_broad_discovery_events(events)
 
     if normalized_query:
         events = [
@@ -360,7 +538,11 @@ def polymarket_hunter(query: str = "", tag: str = "", sort: str = "volume", limi
     if normalized_tag:
         events = [event for event in events if normalized_tag in {tag_name.lower() for tag_name in event.tags}]
 
-    markets = _sort_markets([market for event in events for market in event.markets], sort)[:limit]
+    all_markets = [market for event in events for market in event.markets]
+    if broad_discovery and sort == "relevance":
+        markets = _sort_broad_discovery_markets(all_markets)[:limit]
+    else:
+        markets = _sort_markets(all_markets, sort)[:limit]
     available_tags = sorted({tag_name for event in [_event_view(event, source_status, source_note) for event in raw_events] for tag_name in event.tags})
     return PolymarketHunterView(
         generated_at=naive_utc_now(),
@@ -383,8 +565,16 @@ def polymarket_market_detail(market_id: str) -> PolymarketMarketView | None:
 def related_polymarket_markets(symbol: str, *context_parts: Any, limit: int = 3) -> list[PolymarketMarketView]:
     normalized_symbol = symbol.upper()
     query_hint = " ".join(str(part or "") for part in context_parts).lower()
-    ranked = [_rank_market_for_symbol(market, normalized_symbol, query_hint) for market in polymarket_hunter(limit=80).markets]
-    strong_matches = [market for market in ranked if market.relevance_score >= 4.5]
+    ranked = [
+        _rank_market_for_symbol(market, normalized_symbol, query_hint)
+        for market in polymarket_hunter(limit=80).markets
+        if _is_open_current_market(market)
+    ]
+    strong_matches = [
+        market
+        for market in ranked
+        if market.relevance_score >= 6.0 and market.category != "politics"
+    ]
     strong_matches.sort(key=lambda market: (market.relevance_score, market.recent_activity, market.volume), reverse=True)
     return strong_matches[:limit]
 

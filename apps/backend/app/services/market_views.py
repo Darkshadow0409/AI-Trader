@@ -17,10 +17,72 @@ from app.models.schemas import (
     WatchlistSummaryView,
 )
 from app.services.data_reality import asset_reality, freshness_minutes, freshness_state, latest_pipeline_run
-from app.services.market_identity import instrument_mapping_view, market_data_mode, resolve_symbol
+from app.services.market_identity import instrument_mapping_view, market_data_mode, resolve_symbol, terminal_focus_priority
+from app.services.sample_data import seed_watchlist
 
 
 SUPPORTED_TIMEFRAMES = ["15m", "1h", "4h", "1d"]
+
+
+def chart_freshness_sla_minutes(timeframe: str) -> int:
+    return 240 if timeframe == "1d" else 60
+
+
+def _watchlist_market_mode_rank(mode: str) -> int:
+    return {
+        "broker_live": 3,
+        "public_live": 2,
+        "fixture": 1,
+    }.get(mode, 0)
+
+
+def _watchlist_freshness_rank(state: str) -> int:
+    return {
+        "fresh": 4,
+        "aging": 3,
+        "stale": 2,
+        "degraded": 1,
+        "unusable": 0,
+    }.get(state, 0)
+
+
+def _watchlist_realism_rank(grade: str) -> int:
+    return {
+        "A": 5,
+        "B": 4,
+        "C": 3,
+        "D": 2,
+        "E": 1,
+    }.get(grade, 0)
+
+
+def _watchlist_sort_key(row: WatchlistSummaryView) -> tuple[int, int, int, int, str]:
+    return (
+        terminal_focus_priority(row.symbol),
+        -_watchlist_market_mode_rank(row.market_data_mode),
+        -_watchlist_freshness_rank(row.freshness_state),
+        -_watchlist_realism_rank(row.realism_grade),
+        row.instrument_mapping.trader_symbol,
+    )
+
+
+def with_default_watchlist_items(rows: list[WatchlistItem]) -> list[WatchlistItem]:
+    seeded_rows = seed_watchlist()
+    by_symbol = {resolve_symbol(row.symbol): row for row in rows}
+    for seeded_row in seeded_rows:
+        symbol = resolve_symbol(str(seeded_row["symbol"]))
+        if symbol in by_symbol:
+            continue
+        by_symbol[symbol] = WatchlistItem(
+            symbol=symbol,
+            label=str(seeded_row["label"]),
+            thesis=str(seeded_row["thesis"]),
+            priority=int(seeded_row["priority"]),
+            status=str(seeded_row["status"]),
+            last_signal_score=float(seeded_row["last_signal_score"]),
+            updated_at=seeded_row["updated_at"],
+        )
+    return list(by_symbol.values())
 
 
 def _ema(values: list[float], period: int) -> list[float | None]:
@@ -273,8 +335,15 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
     data_mode = market_data_mode(session)
     mapping = instrument_mapping_view(normalized_symbol, requested_symbol=requested_symbol)
 
+    chart_freshness_sla = chart_freshness_sla_minutes(normalized_timeframe)
     if not rows:
-        reality = asset_reality(session, normalized_symbol, as_of=None, data_quality="missing")
+        reality = asset_reality(
+            session,
+            normalized_symbol,
+            as_of=None,
+            data_quality="missing",
+            freshness_sla_minutes=chart_freshness_sla,
+        )
         available_label = ", ".join(available_timeframes) if available_timeframes else "none"
         return MarketChartView(
             symbol=normalized_symbol,
@@ -297,7 +366,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
 
     latest_bar = rows[-1]
     age_minutes = freshness_minutes(latest_bar.timestamp)
-    state = freshness_state(age_minutes, 240 if normalized_timeframe == "1d" else 60)
+    state = freshness_state(age_minutes, chart_freshness_sla)
     note_parts = []
     if source_mode == "sample" or latest_bar.data_quality == "fixture":
         note_parts.append("Fixture mode is active. Use this chart for research, paper workflow, and review, not live execution claims.")
@@ -315,7 +384,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
         symbol=normalized_symbol,
         timeframe=normalized_timeframe,
         available_timeframes=available_timeframes,
-        status="stale" if state in {"stale", "degraded", "unusable"} else "ok",
+        status=state if state in {"stale", "degraded", "unusable"} else "ok",
         status_note=" ".join(note_parts) or "Chart data loaded from the local-first store.",
         source_mode=source_mode,
         market_data_mode=data_mode,
@@ -332,15 +401,17 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
             normalized_symbol,
             as_of=latest_bar.timestamp,
             data_quality=latest_bar.data_quality,
+            freshness_sla_minutes=chart_freshness_sla,
         ),
     )
 
 
 def list_watchlist_summaries(session: Session) -> list[WatchlistSummaryView]:
-    rows = session.exec(select(WatchlistItem).order_by(desc(WatchlistItem.last_signal_score))).all()
+    rows = with_default_watchlist_items(session.exec(select(WatchlistItem).order_by(desc(WatchlistItem.last_signal_score))).all())
     payload: list[WatchlistSummaryView] = []
     data_mode = market_data_mode(session)
     for row in rows:
+        mapping = instrument_mapping_view(row.symbol)
         bars = session.exec(
             select(MarketBar)
             .where(MarketBar.symbol == row.symbol)
@@ -356,22 +427,23 @@ def list_watchlist_summaries(session: Session) -> list[WatchlistSummaryView]:
             row.symbol,
             as_of=latest_bar.timestamp if latest_bar else None,
             data_quality=latest_bar.data_quality if latest_bar else "missing",
+            freshness_sla_minutes=chart_freshness_sla_minutes("1d"),
         )
         payload.append(
             WatchlistSummaryView(
                 symbol=row.symbol,
-                label=row.label,
+                label=mapping.display_name,
                 status=row.status,
                 last_price=round(latest_bar.close, 2) if latest_bar else 0.0,
                 change_pct=round((((latest_bar.close / first_bar.close) - 1) * 100), 2) if latest_bar and first_bar and first_bar.close else 0.0,
-                freshness_minutes=freshness_minutes(latest_bar.timestamp) if latest_bar else 9999,
-                freshness_state=freshness_state(freshness_minutes(latest_bar.timestamp), 240) if latest_bar else "unusable",
+                freshness_minutes=reality.freshness_minutes,
+                freshness_state=reality.freshness_state,
                 realism_grade=reality.provenance.realism_grade if reality else "n/a",
                 market_data_mode=data_mode,
                 source_label=(reality.provenance.source_type if reality else "missing"),
                 top_setup_tag="watch" if row.last_signal_score <= 0 else f"score {row.last_signal_score:.0f}",
                 sparkline=[round(item.close, 2) for item in ordered],
-                instrument_mapping=instrument_mapping_view(row.symbol),
+                instrument_mapping=mapping,
             )
         )
-    return payload
+    return sorted(payload, key=_watchlist_sort_key)

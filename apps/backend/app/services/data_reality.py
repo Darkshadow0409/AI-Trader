@@ -389,9 +389,11 @@ def build_data_reality(
     tradable_symbol: str | None = None,
     event_recency_minutes: int | None = None,
     event_context_note: str = "",
+    freshness_sla_minutes: int | None = None,
 ) -> DataRealityView:
     minutes = freshness_minutes(as_of) if as_of is not None else 9999
-    state = freshness_state(minutes, provenance.freshness_sla_minutes)
+    effective_freshness_sla = freshness_sla_minutes or provenance.freshness_sla_minutes
+    state = freshness_state(minutes, effective_freshness_sla)
     penalties: list[DataRealismPenaltyView] = []
 
     if source_mode == "sample" or data_quality == "fixture":
@@ -451,7 +453,7 @@ def build_data_reality(
             _penalty(
                 f"freshness_{state}",
                 severity,
-                f"Freshness policy is {state} at {minutes} minutes against an SLA of {provenance.freshness_sla_minutes}.",
+                f"Freshness policy is {state} at {minutes} minutes against an SLA of {effective_freshness_sla}.",
                 FRESHNESS_STATE_PENALTY[state],
             )
         )
@@ -565,6 +567,7 @@ def asset_reality(
     data_quality: str,
     features: dict[str, Any] | None = None,
     tradable_symbol: str | None = None,
+    freshness_sla_minutes: int | None = None,
 ) -> DataRealityView:
     latest_run = latest_pipeline_run(session)
     source_mode = latest_run.source_mode if latest_run else "sample"
@@ -580,4 +583,5 @@ def asset_reality(
         tradable_symbol=tradable_symbol,
         event_recency_minutes=event_recency,
         event_context_note=event_note,
+        freshness_sla_minutes=freshness_sla_minutes,
     )

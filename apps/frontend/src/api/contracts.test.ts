@@ -168,8 +168,13 @@ describe("frontend contract alignment", () => {
     });
     expect(ribbon).toMatchObject({
       macro_regime: expect.any(String),
+      market_data_as_of: expect.any(String),
+      system_refresh_status: expect.any(String),
       pipeline_status: expect.any(String),
       source_mode: expect.any(String),
+      data_mode_label: expect.any(String),
+      feed_source_label: expect.any(String),
+      mode_explainer: expect.any(String),
     });
     expect(signalDetail).toMatchObject({
       signal_id: expect.stringMatching(/^sig_/),

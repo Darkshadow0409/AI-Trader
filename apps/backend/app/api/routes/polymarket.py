@@ -13,7 +13,7 @@ router = APIRouter(prefix="/polymarket", tags=["polymarket"])
 def hunter(
     q: str = Query(default=""),
     tag: str = Query(default=""),
-    sort: str = Query(default="volume"),
+    sort: str = Query(default="relevance"),
     limit: int = Query(default=30, ge=1, le=100),
 ) -> PolymarketHunterView:
     return polymarket_hunter(query=q, tag=tag, sort=sort, limit=limit)

@@ -7,3 +7,12 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+interface Window {
+  __AI_TRADER_RUNTIME__?: {
+    apiBase?: string;
+    backendUrl?: string;
+    frontendUrl?: string;
+    generatedAt?: string;
+  };
+}

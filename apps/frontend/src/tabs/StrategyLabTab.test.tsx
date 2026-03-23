@@ -417,6 +417,9 @@ describe("StrategyLabTab", () => {
     expect(await screen.findByText("Adherence-adjusted outcome")).toBeInTheDocument();
     expect((await screen.findAllByText("BTCUSD -> BTCUSD")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText("fixture")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("float | 0 -> 0.02 | step 0.01")).toBeInTheDocument();
+    expect(await screen.findByText("paper trade 2, live sim 1")).toBeInTheDocument();
+    expect(await screen.findByText("breakout buffer 0.01")).toBeInTheDocument();
     expect(screen.getByTestId("equity-chart")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Run trend_breakout_v1/i }));

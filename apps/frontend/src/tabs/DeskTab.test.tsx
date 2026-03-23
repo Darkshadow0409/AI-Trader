@@ -36,7 +36,7 @@ describe("DeskTab", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Signal -> Ticket -> Shadow -> Review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Board -> Chart -> Risk -> Ticket -> Review" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "10k Paper Capital" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What Matters Now" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Review Queue" })).toBeInTheDocument();
@@ -74,12 +74,39 @@ describe("DeskTab", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
-    await user.click(screen.getByRole("button", { name: "5. Strategy" }));
+    await user.click(screen.getByRole("button", { name: "6. AI Desk" }));
     await user.click(screen.getByRole("button", { name: "Open Active Trades" }));
 
     expect(screen.queryByTestId("desk-onboarding")).not.toBeInTheDocument();
-    expect(onNavigate).toHaveBeenCalledWith("strategy_lab");
+    expect(onNavigate).toHaveBeenCalledWith("ai_desk");
     expect(onNavigate).toHaveBeenCalledWith("active_trades");
     expect(onSelectTrade).toHaveBeenCalled();
+  });
+
+  it("surfaces calm degraded desk notes when partial sections are degraded", () => {
+    render(
+      <DeskTab
+        desk={{
+          ...mockDeskSummary,
+          section_notes: {
+            adapter_health: "Adapter health is degraded. Using the last healthy adapter snapshot while refresh recovers.",
+          },
+        }}
+        executionGate={mockDeskSummary.execution_gate}
+        homeSummary={mockHomeSummary}
+        onNavigate={vi.fn()}
+        onOpenCommandCenter={vi.fn()}
+        onOpenRisk={vi.fn()}
+        onOpenSignal={vi.fn()}
+        operationalBacklog={mockDeskSummary.operational_backlog}
+        onSelectSymbol={vi.fn()}
+        onSelectTicket={vi.fn()}
+        onSelectTrade={vi.fn()}
+        paperCapitalSummary={paperCapitalSummary}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Degraded But Usable" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Adapter Health/i).length).toBeGreaterThan(0);
   });
 });

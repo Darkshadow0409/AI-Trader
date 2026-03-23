@@ -258,20 +258,26 @@ export function useDashboardData(
   const showFocusSurface = ["desk", "signals", "high_risk", "watchlist", "risk", "trade_tickets", "active_trades"].includes(activeTab);
 
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
-    status: "loading",
+    status: "syncing",
     sqlite_path: "",
     duckdb_path: "",
     parquet_dir: "",
-  });
+  }, { preserveData: true });
   const overview = usePollingResource<RibbonView>(() => apiClient.overview(), {
-    macro_regime: "loading",
+    macro_regime: "syncing",
     data_freshness_minutes: 0,
-    freshness_status: "loading",
+    freshness_status: "unknown",
+    market_data_as_of: null,
+    system_refresh_minutes: null,
+    system_refresh_status: "unknown",
     risk_budget_used_pct: 0,
     risk_budget_total_pct: 0,
-    pipeline_status: "loading",
-    source_mode: "loading",
+    pipeline_status: "syncing",
+    source_mode: "syncing",
     market_data_mode: "fixture",
+    data_mode_label: "Syncing market-data truth",
+    feed_source_label: "Syncing active feed path",
+    mode_explainer: "Syncing market-data truth from the active backend.",
     last_refresh: null,
     next_event: null,
   }, { preserveData: true });
@@ -282,6 +288,8 @@ export function useDashboardData(
       session_states: [],
       execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
       operational_backlog: { generated_at: "", overdue_count: 0, high_priority_count: 0, items: [] },
+      section_readiness: {},
+      section_notes: {},
       review_tasks: [],
       degraded_sources: [],
       high_priority_signals: [],
@@ -310,7 +318,7 @@ export function useDashboardData(
       shadow_divergence_summary: {},
       adapter_health_summary: {},
     },
-    { enabled: showDesk, intervalMs: 60000, preserveData: true },
+    { enabled: false, intervalMs: 60000, preserveData: true },
   );
   const controlCenter = usePollingResource<CommandCenterStatusView>(
     () => apiClient.controlCenter(),
@@ -408,7 +416,7 @@ export function useDashboardData(
     },
     { enabled: showSession, preserveData: true },
   );
-  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), [], { enabled: showSession || showDesk, intervalMs: 60000, preserveData: true });
+  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), [], { enabled: showSession, intervalMs: 60000, preserveData: true });
   const dailyBriefing = usePollingResource<DailyBriefingView>(
     () => apiClient.dailyBriefing(),
     {
@@ -457,7 +465,7 @@ export function useDashboardData(
       high_priority_count: 0,
       items: [],
     },
-    { enabled: showDesk || showSession || showPilot, intervalMs: 60000, preserveData: true },
+    { enabled: showSession || showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const reviewSummary = usePollingResource<ReviewSummaryView>(
     () => apiClient.reviewSummary(),
@@ -503,7 +511,7 @@ export function useDashboardData(
   const executionGate = usePollingResource<ExecutionGateView>(
     () => apiClient.executionGate(),
     { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
-    { enabled: showDesk || showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
+    { enabled: showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const pilotDashboard = usePollingResource<PilotDashboardView>(
     () => apiClient.pilotDashboard(),
@@ -530,8 +538,8 @@ export function useDashboardData(
     },
     { enabled: showPilot, preserveData: true },
   );
-  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), [], { enabled: showPilot || showDesk, intervalMs: 60000, preserveData: true });
-  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), [], { enabled: showPilot || showDesk, intervalMs: 60000, preserveData: true });
+  const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), [], { enabled: showPilot, intervalMs: 60000, preserveData: true });
+  const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), [], { enabled: showPilot, intervalMs: 60000, preserveData: true });
   const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), [], { enabled: showSignals || showHighRiskSignals });
   const signalsSummary = usePollingResource<SignalsSummaryView>(
     () => apiClient.signalsSummary(),
@@ -542,8 +550,8 @@ export function useDashboardData(
   const news = usePollingResource<NewsView[]>(() => apiClient.news(), [], { enabled: showNews });
   const polymarketHunter = usePollingResource<PolymarketHunterView>(
     () => apiClient.polymarketHunter(),
-    { generated_at: "", source_status: "loading", source_note: "", query: "", tag: "", sort: "volume", available_tags: [], events: [], markets: [] },
-    { enabled: showPolymarket || showNews || showResearch || showDesk, intervalMs: 120000, preserveData: true },
+    { generated_at: "", source_status: "syncing", source_note: "", query: "", tag: "", sort: "relevance", available_tags: [], events: [], markets: [] },
+    { enabled: showPolymarket || showNews || showResearch, intervalMs: 120000, preserveData: true },
   );
   const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), [], { enabled: showWatchlist });
   const watchlistSummary = usePollingResource<WatchlistSummaryView[]>(() => apiClient.watchlistSummary(), [], {
@@ -554,7 +562,7 @@ export function useDashboardData(
   const opportunities = usePollingResource<OpportunityHunterView>(
     () => apiClient.opportunities(),
     { generated_at: "", focus_queue: [], scout_queue: [] },
-    { enabled: showWatchlist || showDesk, preserveData: true },
+    { enabled: showWatchlist, preserveData: true },
   );
   const research = usePollingResource<ResearchView[]>(() => apiClient.research(), [], { enabled: showResearch });
   const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), [], { enabled: showRisk });
@@ -599,7 +607,7 @@ export function useDashboardData(
   );
   const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(() => apiClient.paperTradeReviews(), [], { enabled: showJournal });
   const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), [], { enabled: showWallet });
-  const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal });
+  const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
   const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), [], { intervalMs: 60000 });
   const backtests = usePollingResource<BacktestListView[]>(() => apiClient.backtests(), [], { enabled: showBacktests });
   const bars = usePollingResource<BarView[]>(() => apiClient.bars(selectedSymbol), [], {
@@ -626,7 +634,9 @@ export function useDashboardData(
       instrument_mapping: {
         requested_symbol: selectedSymbol,
         canonical_symbol: selectedSymbol,
+        trader_symbol: selectedSymbol,
         display_symbol: selectedSymbol,
+        display_name: selectedSymbol,
         underlying_asset: selectedSymbol,
         research_symbol: selectedSymbol,
         public_symbol: selectedSymbol,
@@ -678,7 +688,7 @@ export function useDashboardData(
     [],
     { deps: [selectedTradeId], enabled: showReplay && Boolean(selectedTradeId) },
   );
-  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), [], { enabled: showTickets || showDesk || Boolean(selectedTicketId) });
+  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), [], { enabled: showTickets || Boolean(selectedTicketId) });
   const tradeTicketSummary = usePollingResource<TicketSummaryView>(
     () => apiClient.tradeTicketSummary(),
     { generated_at: "", counts_by_state: {}, checklist_blockers: {}, shadow_active_count: 0, reconciliation_needed_count: 0, ready_for_review_count: 0 },

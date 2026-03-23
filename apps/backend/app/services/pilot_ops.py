@@ -70,11 +70,51 @@ def adapter_health_summary(session: Session) -> list[AdapterHealthView]:
     ]
 
 
+def adapter_health_snapshot(session: Session) -> list[AdapterHealthView]:
+    rows = session.exec(select(AdapterHealthRecord).order_by(desc(AdapterHealthRecord.checked_at))).all()
+    if rows:
+        return [
+            AdapterHealthView(
+                health_id=item.health_id,
+                adapter_name=item.adapter_name,
+                status=item.status,
+                checked_at=item.checked_at,
+                details=item.details_json,
+            )
+            for item in rows
+        ]
+    settings = default_broker_adapter().snapshot()
+    creds_present = {
+        "telegram": False,
+        "discord": False,
+    }
+    mock_status = "healthy" if settings.balances and settings.positions else "degraded"
+    return [
+        AdapterHealthView(
+            health_id="adapter_health_mock_broker_snapshot",
+            adapter_name="mock_broker",
+            status=mock_status,
+            checked_at=naive_utc_now(),
+            details={
+                "balances": len(settings.balances),
+                "positions": len(settings.positions),
+                "fill_imports": len(settings.fill_imports),
+                "credentials_present": creds_present,
+                "read_only": True,
+                "snapshot_only": True,
+            },
+        )
+    ]
+
+
 def pilot_metric_summary(session: Session) -> PilotMetricSummaryView:
     tickets = list_trade_tickets(session)
     analytics = paper_trade_analytics(session)
     backlog = operational_backlog(session)
-    alerts = session.exec(select(AlertRecord)).all()
+    alert_snapshots = [
+        {"severity": row.severity, "status": row.status}
+        for row in session.exec(select(AlertRecord)).all()
+    ]
     promoted = session.exec(select(StrategyRegistryEntry).where(StrategyRegistryEntry.lifecycle_state == "promoted")).all()
 
     total = len(tickets) or 1
@@ -101,8 +141,8 @@ def pilot_metric_summary(session: Session) -> PilotMetricSummaryView:
         if detail.data_reality is not None:
             trust_by_asset.setdefault(detail.data_reality.provenance.asset_class, []).append(detail.data_reality.realism_score)
 
-    actionable_alerts = [row for row in alerts if row.severity in {"warning", "critical", "info"}]
-    failed_or_suppressed = [row for row in actionable_alerts if row.status in {"failed", "suppressed"}]
+    actionable_alerts = [row for row in alert_snapshots if row["severity"] in {"warning", "critical", "info"}]
+    failed_or_suppressed = [row for row in actionable_alerts if row["status"] in {"failed", "suppressed"}]
     promoted_drift = analytics.hygiene_summary.promoted_strategy_drift_count
 
     summary = PilotMetricSummaryView(
@@ -156,9 +196,14 @@ def pilot_metric_summary(session: Session) -> PilotMetricSummaryView:
     return summary
 
 
-def execution_gate_status(session: Session) -> ExecutionGateView:
-    summary = pilot_metric_summary(session)
-    adapter_health = adapter_health_summary(session)
+def latest_pilot_metric_summary(session: Session) -> PilotMetricSummaryView | None:
+    row = session.exec(select(PilotMetricSnapshotRecord).order_by(desc(PilotMetricSnapshotRecord.generated_at))).first()
+    if row is None or not row.summary_json:
+        return None
+    return PilotMetricSummaryView.model_validate(row.summary_json)
+
+
+def _execution_gate_view(summary: PilotMetricSummaryView, adapter_health: list[AdapterHealthView]) -> ExecutionGateView:
     metrics = {
         "approved_rate": summary.ticket_conversion["approved_rate"],
         "shadow_divergence_rate": summary.shadow_metrics["divergence_rate"],
@@ -207,6 +252,19 @@ def execution_gate_status(session: Session) -> ExecutionGateView:
     rationale.append(f"Approved rate {metrics['approved_rate']:.2f} against minimum {thresholds['approved_rate_min']:.2f}.")
     rationale.append(f"Shadow divergence {metrics['shadow_divergence_rate']:.2f} against max {thresholds['shadow_divergence_rate_max']:.2f}.")
     return ExecutionGateView(status=status, blockers=blockers, thresholds=thresholds, metrics=metrics, rationale=rationale)
+
+
+def execution_gate_status(session: Session) -> ExecutionGateView:
+    summary = pilot_metric_summary(session)
+    adapter_health = adapter_health_summary(session)
+    return _execution_gate_view(summary, adapter_health)
+
+
+def execution_gate_snapshot(session: Session) -> ExecutionGateView | None:
+    summary = latest_pilot_metric_summary(session)
+    if summary is None:
+        return None
+    return _execution_gate_view(summary, adapter_health_snapshot(session))
 
 
 def recent_audit_logs(session: Session, limit: int = 12) -> list[AuditLogView]:
@@ -266,9 +324,11 @@ def pilot_dashboard(session: Session) -> PilotDashboardView:
 
 
 def refresh_pilot_alerts(session: Session) -> None:
-    gate = execution_gate_status(session)
-    summary = pilot_metric_summary(session)
-    health = adapter_health_summary(session)
+    summary = latest_pilot_metric_summary(session)
+    gate = execution_gate_snapshot(session)
+    health = adapter_health_snapshot(session)
+    if summary is None or gate is None:
+        return
     if gate.status in {"not_ready", "review_required"}:
         dispatch_alert(
             session,

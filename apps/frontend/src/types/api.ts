@@ -52,7 +52,9 @@ export interface ChartOverlayView {
 export interface InstrumentMappingView {
   requested_symbol: string;
   canonical_symbol: string;
+  trader_symbol: string;
   display_symbol: string;
+  display_name: string;
   underlying_asset: string;
   research_symbol: string;
   public_symbol: string;
@@ -239,6 +241,7 @@ export interface WatchlistView {
   last_signal_score: number;
   updated_at: string;
   freshness_minutes: number;
+  freshness_state: string;
 }
 
 export interface WatchlistSummaryView {
@@ -323,11 +326,17 @@ export interface RibbonView {
   macro_regime: string;
   data_freshness_minutes: number;
   freshness_status: string;
+  market_data_as_of: string | null;
+  system_refresh_minutes: number | null;
+  system_refresh_status: string;
   risk_budget_used_pct: number;
   risk_budget_total_pct: number;
   pipeline_status: string;
   source_mode: string;
   market_data_mode: string;
+  data_mode_label: string;
+  feed_source_label: string;
+  mode_explainer: string;
   last_refresh: string | null;
   next_event: Record<string, unknown> | null;
 }
@@ -1261,6 +1270,8 @@ export interface DeskSummaryView {
   session_states: SessionStateView[];
   execution_gate: ExecutionGateView;
   operational_backlog: OperationalBacklogView;
+  section_readiness: Record<string, string>;
+  section_notes: Record<string, string>;
   review_tasks: ReviewTaskView[];
   degraded_sources: DegradedSourceView[];
   high_priority_signals: SignalView[];
@@ -1357,6 +1368,87 @@ export interface OpsSummaryView {
   latest_contract_snapshot: OpsActionView | null;
   action_history: OpsActionView[];
   available_actions: OpsActionSpecView[];
+}
+
+export interface AIProviderStatusView {
+  provider: string;
+  auth_mode: string;
+  status: string;
+  connected: boolean;
+  oauth_enabled: boolean;
+  oauth_connect_url: string | null;
+  oauth_callback_url: string | null;
+  connected_account: string | null;
+  default_model: string;
+  selected_model: string;
+  available_models: string[];
+  guidance: string;
+  warning: string | null;
+  session_expires_at: string | null;
+}
+
+export interface AIAgentResultView {
+  agent: string;
+  headline: string;
+  summary: string;
+  confidence: number;
+  citations: string[];
+  warnings: string[];
+}
+
+export interface AIAdvisorRequest {
+  query: string;
+  symbol: string;
+  timeframe?: string;
+  model?: string | null;
+  active_tab?: string | null;
+  selected_signal_id?: string | null;
+  selected_risk_report_id?: string | null;
+}
+
+export interface AIActionStepView {
+  label: string;
+  workspace: string;
+  note: string;
+}
+
+export interface AIDeskContextSnapshotView {
+  selected_instrument: string;
+  active_workspace: string;
+  timeframe: string;
+  market_freshness: string;
+  data_mode_label: string;
+  feed_source_label: string;
+  truth_note: string;
+  signal_focus: string | null;
+  risk_focus: string | null;
+  watchlist_board: string[];
+  catalyst_headlines: string[];
+  crowd_markets: string[];
+}
+
+export interface AIAdvisorResponseView {
+  generated_at: string;
+  symbol: string;
+  timeframe: string;
+  requested_query: string;
+  provider_status: AIProviderStatusView;
+  market_data_mode: string;
+  context_summary: string;
+  final_answer: string;
+  agent_results: AIAgentResultView[];
+  warnings: string[];
+  live_data_available: boolean;
+  data_truth_note: string;
+  context_snapshot: AIDeskContextSnapshotView;
+  market_view: string;
+  why_it_matters_now: string;
+  key_levels: string[];
+  catalysts: string[];
+  invalidation: string;
+  risk_frame: string[];
+  related_markets: string[];
+  next_actions: AIActionStepView[];
 }
 
 export interface CommandCenterStatusView {

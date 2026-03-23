@@ -43,12 +43,29 @@ Optional:
 Copy-Item .env.example .env
 ```
 
-The defaults are already local-first and fixture-safe:
+The defaults are already local-first and browser-first:
 
 - backend host: `127.0.0.1`
 - backend port preference: `8000`, fallback `8001`, then `8010`
 - frontend port preference: `5173`, then `5174`, then `5175`, then `5180`
-- source mode: sample / fixture-first unless overridden
+- source mode: public-live for supported market data paths unless overridden
+
+Optional OpenAI OAuth for the AI Desk:
+
+- set `AI_TRADER_OPENAI_OAUTH_CLIENT_ID`
+- set `AI_TRADER_OPENAI_OAUTH_CLIENT_SECRET`
+- register local callback URLs that match your launcher/backend ports, for example:
+  - `http://127.0.0.1:8000/api/ai/oauth/callback`
+  - `http://127.0.0.1:8001/api/ai/oauth/callback`
+  - `http://127.0.0.1:8010/api/ai/oauth/callback`
+
+The AI Desk remains usable without OAuth, but it will run local advisory summaries only until OpenAI is connected.
+
+Important honesty rules:
+
+- `BTC` and `ETH` use the latest available public-live market data path when upstream connectors are available.
+- `WTI`, `gold`, `silver`, and macro-sensitive research context can still fall back to fixture/proxy context if no live source is wired for that instrument.
+- The UI will still label `fixture`, `public_live`, or `broker_live` explicitly. It should never pretend fixture data is live.
 
 ## Start the full stack
 
@@ -131,6 +148,22 @@ python scripts/backfill.py
 ```
 
 Normal daily use should prefer the in-app Command Center for refreshes after the stack is already running.
+
+## Refresh latest available data
+
+Once the stack is up, the browser should use the latest available data for the current mode automatically.
+
+You can also force a safe backend refresh from:
+
+- `Command Center` -> `Refresh Data`
+
+or directly:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/system/refresh
+```
+
+If the launcher chose another backend port, replace `8000` with the printed backend URL.
 
 ## What to open in the browser
 

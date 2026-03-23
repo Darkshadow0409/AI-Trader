@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatDateTimeIST } from "../lib/time";
+import { gateStatusLabel } from "../lib/uiLabels";
 import type { DeskSummaryView, ExecutionGateView, HomeOperatorSummaryView, OperationalBacklogView } from "../types/api";
 
 interface DeskTabProps {
@@ -35,6 +36,12 @@ function compact(value: number | null | undefined): string {
   return value.toFixed(2);
 }
 
+function sectionLabel(value: string): string {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function DeskTab({
   desk,
   homeSummary,
@@ -50,6 +57,13 @@ export function DeskTab({
   paperCapitalSummary,
 }: DeskTabProps) {
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const gateLabel = gateStatusLabel(executionGate.status);
+  const degradedDeskNotes = Object.entries(desk.section_notes).filter(([, note]) => note.trim().length > 0);
+  const gateGuidance = executionGate.status === "review_required"
+    ? `Review is blocking promotion or execution. Resolve ${Math.max(executionGate.blockers.length, 1)} outstanding review item(s) in Review Queue.`
+    : executionGate.status === "execution_candidate"
+      ? "Execution gate is clear enough for paper/pilot progression."
+      : "Gate status reflects the current discipline and readiness checks.";
 
   return (
     <section className="desk-grid">
@@ -64,45 +78,47 @@ export function DeskTab({
               Dismiss
             </button>
           </div>
-          <div className="stack">
-            <small>Use Desk for triage, then move through Signals, Tickets, Trades, Journal, and Pilot Ops.</small>
-            <small>Command Center handles safe operational actions like refresh, fast verify, pilot export, and review bundle generation.</small>
-            <small>This console is paper-trading and pilot mode only. No live broker execution is available here.</small>
-          </div>
-        </article>
+        <div className="stack">
+          <small>Use Desk as the commodity handoff surface, then move through Signals, Risk, Tickets, Journal, and Pilot Ops.</small>
+          <small>Start with USOUSD, XAUUSD, and XAGUSD. BTC and ETH remain secondary cross-asset confirmation, not the main product story.</small>
+          <small>Command Center handles safe operational actions like refresh, fast verify, pilot export, and review bundle generation.</small>
+          <small>This console is paper-trading and pilot mode only. No live broker execution is available here.</small>
+          <small>For oil: click USOUSD in the left rail, inspect the chart, then use Related News, Risk Context, Crowd Narrative, and AI Desk before drafting a paper ticket.</small>
+        </div>
+      </article>
       ) : null}
 
       <article className="panel compact-panel hero-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Demo Path</p>
-            <h3>Signal {"->"} Ticket {"->"} Shadow {"->"} Review</h3>
+            <p className="eyebrow">Commodity Runbook</p>
+            <h3>Board {"->"} Chart {"->"} Risk {"->"} Ticket {"->"} Review</h3>
           </div>
           <span className="tag">showcase-safe</span>
         </div>
         <div className="command-grid">
+          <button className="action-button" onClick={() => onNavigate("watchlist")} type="button">
+            1. Commodity Board
+          </button>
           <button className="action-button" onClick={() => onNavigate("signals")} type="button">
-            1. Signals
+            2. Signals
+          </button>
+          <button className="action-button" onClick={() => onNavigate("risk")} type="button">
+            3. Risk
           </button>
           <button className="action-button" onClick={() => onNavigate("trade_tickets")} type="button">
-            2. Tickets
+            4. Tickets
           </button>
-          <button className="action-button" onClick={() => onNavigate("active_trades")} type="button">
-            3. Trades
+          <button className="action-button" onClick={() => onNavigate("session")} type="button">
+            5. Review
           </button>
-          <button className="action-button" onClick={() => onNavigate("journal")} type="button">
-            4. Review
-          </button>
-          <button className="action-button" onClick={() => onNavigate("strategy_lab")} type="button">
-            5. Strategy
-          </button>
-          <button className="action-button" onClick={() => onNavigate("pilot_ops")} type="button">
-            6. Pilot Gate
+          <button className="action-button" onClick={() => onNavigate("ai_desk")} type="button">
+            6. AI Desk
           </button>
         </div>
         <div className="stack">
-          <small>Use the chart as the main narrative surface, then pivot to Ticket, Shadow, Review, and Pilot Gate to show the workflow discipline.</small>
-          <small>Data Reality, tradable alignment, realism penalties, and 10k paper-account framing are first-class demo points, not hidden metadata.</small>
+          <small>Keep the chart as the main narrative surface, then confirm catalysts, invalidation, and risk before moving into ticket and review discipline.</small>
+          <small>Data Reality, tradable alignment, proxy/live honesty, and 10k paper-account framing stay visible because they are part of the operator workflow, not hidden metadata.</small>
         </div>
       </article>
 
@@ -111,7 +127,7 @@ export function DeskTab({
         <div className="metric-grid">
           <div>
             <span className="metric-label">Gate</span>
-            <strong>{executionGate.status}</strong>
+            <strong>{gateLabel}</strong>
           </div>
           <div>
             <span className="metric-label">Backlog</span>
@@ -131,11 +147,36 @@ export function DeskTab({
           </div>
         </div>
         <div className="stack">
+          <small>{gateGuidance}</small>
           {(executionGate.blockers.length ? executionGate.blockers : ["No active execution-gate blockers."]).map((item) => (
             <small key={item}>{item}</small>
           ))}
+          {executionGate.status === "review_required" ? (
+            <button className="text-button" onClick={() => onNavigate("session")} type="button">
+              Open Review Queue
+            </button>
+          ) : null}
         </div>
       </article>
+
+      {degradedDeskNotes.length > 0 ? (
+        <article className="panel compact-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Desk Readiness</p>
+              <h3>Degraded But Usable</h3>
+            </div>
+            <span className="tag">partial</span>
+          </div>
+          <div className="stack">
+            {degradedDeskNotes.slice(0, 3).map(([section, note]) => (
+              <small key={section}>
+                {sectionLabel(section)}: {note}
+              </small>
+            ))}
+          </div>
+        </article>
+      ) : null}
 
       <article className="panel compact-panel">
         <h3>10k Paper Capital</h3>

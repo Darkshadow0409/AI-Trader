@@ -9,7 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import alerts, backtests, dashboard, health, journal, market, news, polymarket, portfolio, replay, research, risk, session, signals, strategies, system, tickets, watchlist
+from app.api.routes import ai, alerts, backtests, dashboard, health, journal, market, news, polymarket, portfolio, replay, research, risk, session, signals, strategies, system, tickets, watchlist
 from app.core.settings import get_settings
 from app.core.telemetry import record_route_timing
 from app.services.pipeline import seed_and_refresh
@@ -48,7 +48,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="AI Trader", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,6 +65,7 @@ async def route_timing_middleware(request: Request, call_next):
     return response
 
 app.include_router(health.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")

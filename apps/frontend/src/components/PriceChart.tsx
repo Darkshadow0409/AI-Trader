@@ -2,6 +2,7 @@ import { CandlestickSeries, ColorType, HistogramSeries, LineSeries, createChart,
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MarketChartView, PaperTradeDetailView, RiskDetailView, SignalDetailView, TradeTicketDetailView } from "../types/api";
 import { formatDateTimeIST, parseTimestampMs } from "../lib/time";
+import { dataQualityLabel } from "../lib/uiLabels";
 import { StateBlock } from "./StateBlock";
 
 interface PriceChartProps {
@@ -19,6 +20,32 @@ interface PriceChartProps {
 }
 
 const TIMEFRAMES = ["15m", "1h", "4h", "1d"];
+
+function dataModeLabel(mode: string): string {
+  switch (mode) {
+    case "fixture":
+      return "Fixture data";
+    case "public_live":
+      return "Public live data";
+    case "broker_live":
+      return "Broker live data";
+    default:
+      return mode.replace(/_/g, " ");
+  }
+}
+
+function feedSourceLabel(mode: string): string {
+  switch (mode) {
+    case "live":
+      return "Live-capable source family";
+    case "sample":
+      return "Sample source family";
+    case "fixture":
+      return "Fixture source family";
+    default:
+      return mode.replace(/_/g, " ");
+  }
+}
 
 function toChartTime(timestamp: string): UTCTimestamp {
   return Math.floor((parseTimestampMs(timestamp) ?? 0) / 1000) as UTCTimestamp;
@@ -271,11 +298,13 @@ export function PriceChart({
   const canRenderChart = !loading && !unavailable && validBars.length > 0;
   const fallbackTimeframe = chart.available_timeframes.includes("1d") ? "1d" : chart.available_timeframes[0] ?? null;
   const shouldOfferFallbackTimeframe = unavailable && fallbackTimeframe !== null && fallbackTimeframe !== timeframe;
-  const overlayTone = error || chart.status === "unusable" || chart.status === "stale" ? "warning" : "default";
+  const overlayTone = error || chart.status === "unusable" || chart.status === "degraded" || chart.status === "stale" ? "warning" : "default";
   const overlayLabel = error
     ? "Disconnected"
     : chart.status === "unusable"
       ? "Unusable"
+      : chart.status === "degraded"
+        ? "Degraded"
       : chart.status === "no_data"
         ? "No data"
         : chart.status === "stale"
@@ -287,6 +316,8 @@ export function PriceChart({
     ? "Backend disconnected. Last valid bars remain visible until refresh succeeds."
     : chart.status === "unusable"
       ? chart.status_note || "Current market context is unusable in this mode."
+      : chart.status === "degraded"
+        ? chart.status_note || "Visible bars are available for research, but the current market context is degraded."
       : chart.status === "no_data"
         ? chart.status_note || "No bars are available for this timeframe in the current mode."
         : chart.status === "stale"
@@ -321,14 +352,15 @@ export function PriceChart({
       <div className="panel-header">
         <div>
           <p className="eyebrow">Chart Surface</p>
-          <h3>{chart.symbol} / {timeframe}</h3>
+          <h3>{chart.instrument_mapping.trader_symbol} / {timeframe}</h3>
+          <small className="compact-copy">{chart.instrument_mapping.display_name} / underlying {chart.symbol}</small>
           <small className="compact-copy">Visible bar (IST) {latestBar ? formatDateTimeIST(latestBar.timestamp) : "n/a"}</small>
         </div>
         <div className="inline-tags">
-          <span className="tag">{chart.market_data_mode}</span>
-          <span className="tag">{chart.source_mode}</span>
+          <span className="tag">{dataModeLabel(chart.market_data_mode)}</span>
+          <span className="tag">{feedSourceLabel(chart.source_mode)}</span>
           <span className="tag">{chart.freshness_state}</span>
-          <span className="tag">{chart.data_quality}</span>
+          <span className="tag">quality {dataQualityLabel(chart.data_quality).toLowerCase()}</span>
           {chart.data_reality ? <span className="tag">{chart.data_reality.provenance.realism_grade}</span> : null}
         </div>
       </div>
@@ -417,8 +449,8 @@ export function PriceChart({
       </div>
       <div className="metric-strip compact-metrics">
         <div>
-          <span className="metric-label">Display</span>
-          <strong>{chart.instrument_mapping.display_symbol}</strong>
+          <span className="metric-label">Trader</span>
+          <strong>{chart.instrument_mapping.trader_symbol}</strong>
         </div>
         <div>
           <span className="metric-label">Research</span>
@@ -495,6 +527,7 @@ export function PriceChart({
                 <strong>{overlayLabel}</strong>
                 <span>{overlayBody}</span>
                 <span>Do not treat this chart as current live market truth unless the mode and freshness state explicitly support it.</span>
+                {!chart.instrument_mapping.broker_truth ? <span>Current mapping uses proxy/public fallback rather than direct broker-truth pricing.</span> : null}
                 {onRefresh ? (
                   <button className="text-button" onClick={onRefresh} type="button">
                     Refresh Data

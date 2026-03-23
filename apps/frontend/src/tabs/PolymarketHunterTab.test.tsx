@@ -12,9 +12,10 @@ describe("PolymarketHunterTab", () => {
     render(<PolymarketHunterTab hunter={mockPolymarketHunter} onSelectSymbol={onSelectSymbol} />);
 
     expect(screen.getByText("Polymarket Hunter")).toBeInTheDocument();
-    expect(screen.getAllByText("Bitcoin above $95k by March 31?").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("WTI above $85 after the next EIA?").length).toBeGreaterThan(0);
+    expect(screen.getByRole("combobox", { name: "Sort Polymarket markets" })).toHaveValue("relevance");
 
-    await user.click(screen.getByText("Will WTI crude settle above $85 after the next EIA inventory report?"));
+    await user.click(screen.getByRole("button", { name: "Focus WTI" }));
     expect(onSelectSymbol).toHaveBeenCalledWith("WTI");
   });
 });

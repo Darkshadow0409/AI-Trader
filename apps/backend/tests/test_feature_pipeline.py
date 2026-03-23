@@ -9,7 +9,7 @@ from app.services.feature_pipeline import build_feature_frame
 from app.services.sample_data import generate_sample_ohlcv
 
 
-SEEDED_SYMBOLS = ("BTC", "ETH", "WTI", "GOLD", "DXY", "US10Y")
+SEEDED_SYMBOLS = ("BTC", "ETH", "WTI", "GOLD", "SILVER", "DXY", "US10Y")
 CORE_COLUMNS = {
     "return_1",
     "return_5",
@@ -64,3 +64,22 @@ def test_feature_pipeline_latest_rows_cover_seeded_assets() -> None:
     assert latest.height == len(SEEDED_SYMBOLS)
     assert set(latest["symbol"].to_list()) == set(SEEDED_SYMBOLS)
     assert latest.select(pl.col("hours_to_event").is_not_null().all()).item() is True
+
+
+def test_feature_pipeline_handles_duplicate_symbol_timestamps_without_crashing() -> None:
+    bars: list[dict[str, object]] = []
+    for symbol in ("BTC", "ETH"):
+        generated = generate_sample_ohlcv(symbol)
+        bars.extend(generated)
+        duplicate = dict(generated[-1])
+        duplicate["return_1"] = duplicate.get("return_1", 0.0)
+        bars.append(duplicate)
+
+    frame, correlations = build_feature_frame(
+        bars,
+        datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=4),
+    )
+
+    assert frame.height >= len(bars)
+    assert "btc_eth_corr" in correlations
+    assert -1.0 <= correlations["btc_eth_corr"] <= 1.0

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
+from sqlalchemy import delete
 from sqlmodel import Session, desc, select
 
 from app.alerting import choose_channel_targets, dispatch_alert, stable_alert_id
@@ -29,11 +30,20 @@ from app.models.schemas import (
     SignalView,
 )
 from app.services.data_reality import asset_reality
+from app.services.market_identity import terminal_focus_priority
 from app.services.polymarket import crowd_implied_narrative, related_polymarket_markets
 from app.services.paper_trading import refresh_paper_trade_alerts
 
 
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
+RECOMPUTED_ALERT_CATEGORIES = (
+    "signal_ranked",
+    "high_risk_signal",
+    "scout_to_focus_promotion",
+    "stale_data_warning",
+    "risk_budget_breach",
+    "daily_digest_summary",
+)
 
 
 def _stable_id(prefix: str, *parts: object) -> str:
@@ -76,10 +86,10 @@ def _journal_view(row: JournalEntry) -> JournalReviewView:
         journal_id=row.journal_id,
         symbol=row.symbol,
         entered_at=row.entered_at,
-        entry_type=row.entry_type,
+        entry_type=row.entry_type or "review",
         note=row.note,
         mood=row.mood,
-        tags=row.tags_json,
+        tags=row.tags_json or [],
         signal_id=row.signal_id,
         risk_report_id=row.risk_report_id,
         trade_id=row.trade_id,
@@ -88,7 +98,7 @@ def _journal_view(row: JournalEntry) -> JournalReviewView:
         follow_through=row.follow_through,
         outcome=row.outcome,
         lessons=row.lessons,
-        review_status=row.review_status,
+        review_status=row.review_status or "logged",
         updated_at=row.updated_at,
         freshness_minutes=max(0, int((naive_utc_now() - row.updated_at).total_seconds() // 60)),
     )
@@ -113,6 +123,11 @@ def _alert_view(row: AlertRecord) -> AlertEnvelope:
         data_quality=row.data_quality,
         suppressed_reason=row.suppressed_reason,
     )
+
+
+def _clear_recomputed_alerts(session: Session) -> None:
+    session.exec(delete(AlertRecord).where(AlertRecord.category.in_(RECOMPUTED_ALERT_CATEGORIES)))
+    session.commit()
 
 
 def seed_console_records(session: Session) -> None:
@@ -180,6 +195,15 @@ def _seed_journal_entries(session: Session) -> None:
     for row in existing:
         if not getattr(row, "journal_id", None):
             row.journal_id = _stable_id("journal", row.symbol, row.entered_at.isoformat(), row.review_status)
+            patched = True
+        if not row.entry_type:
+            row.entry_type = "review"
+            patched = True
+        if row.tags_json is None:
+            row.tags_json = []
+            patched = True
+        if not row.review_status:
+            row.review_status = "logged"
             patched = True
         if row.updated_at is None:
             row.updated_at = row.entered_at
@@ -322,16 +346,17 @@ def update_journal_entry(session: Session, journal_id: str, payload: JournalEntr
 def list_alerts(session: Session) -> list[AlertEnvelope]:
     rows = session.exec(select(AlertRecord).order_by(desc(AlertRecord.created_at))).all()
     deduped: list[AlertRecord] = []
-    seen_keys: set[tuple[str, str, str | None, str | None, str]] = set()
+    seen_keys: set[tuple[str, str, str, str, str]] = set()
     for row in rows:
         if row.status == "suppressed" and row.suppressed_reason in {"dedupe_window", "cooldown_window"}:
             continue
+        asset_scope = ",".join(row.asset_ids_json) if row.asset_ids_json else "global"
         semantic_key = (
+            row.status,
             row.category,
             row.title,
-            row.signal_id,
-            row.risk_report_id,
-            row.dedupe_key,
+            row.severity,
+            asset_scope,
         )
         if semantic_key in seen_keys:
             continue
@@ -395,8 +420,11 @@ def _compose_focus_promotion_alert(item: OpportunityView) -> AlertEnvelope:
 
 
 def _compose_stale_data_alert(ribbon: Any) -> AlertEnvelope:
+    source_mode = getattr(ribbon, "source_mode", "unknown")
+    market_data_mode = getattr(ribbon, "market_data_mode", "unknown")
+    freshness_status = getattr(ribbon, "freshness_status", "unknown")
     return AlertEnvelope(
-        alert_id=stable_alert_id("stale_data", ribbon.last_refresh or "none", ribbon.data_freshness_minutes),
+        alert_id=stable_alert_id("stale_data", source_mode, market_data_mode, freshness_status),
         created_at=naive_utc_now(),
         signal_id=None,
         risk_report_id=None,
@@ -405,10 +433,10 @@ def _compose_stale_data_alert(ribbon: Any) -> AlertEnvelope:
         category="stale_data_warning",
         channel_targets=choose_channel_targets("warning"),
         title="Data freshness warning",
-        body=f"Pipeline freshness is {ribbon.data_freshness_minutes} minutes and status is {ribbon.freshness_status}.",
-        tags=["stale-data", ribbon.source_mode],
-        dedupe_key=f"stale_data:{ribbon.freshness_status}:{ribbon.data_freshness_minutes}",
-        data_quality=ribbon.source_mode,
+        body=f"Market data is {ribbon.data_freshness_minutes} minutes old and currently {ribbon.freshness_status}.",
+        tags=["stale-data", source_mode, market_data_mode],
+        dedupe_key=f"stale_data:{source_mode}:{market_data_mode}:{freshness_status}",
+        data_quality=source_mode,
     )
 
 
@@ -458,26 +486,52 @@ def _compose_daily_digest(signals: list[SignalView], opportunities: OpportunityH
 
 def list_opportunities(session: Session) -> OpportunityHunterView:
     from app.services.dashboard_data import list_research_views, list_risk_views, list_signal_views
+    from app.services.market_views import chart_freshness_sla_minutes, list_watchlist_summaries
 
     watchlist_rows = session.exec(select(WatchlistItem).order_by(desc(WatchlistItem.last_signal_score), WatchlistItem.priority.asc())).all()
     signal_map = {row.symbol: row for row in list_signal_views(session)}
     risk_map = {row.symbol: row for row in list_risk_views(session)}
     research_map = {row.symbol: row for row in list_research_views(session)}
+    summary_map = {row.symbol: row for row in list_watchlist_summaries(session)}
     opportunities: list[OpportunityView] = []
     for item in watchlist_rows:
         signal = signal_map.get(item.symbol)
         risk = risk_map.get(item.symbol)
         research = research_map.get(item.symbol)
+        summary = summary_map.get(item.symbol)
         signal_score = signal.score if signal else item.last_signal_score
         confidence_bonus = (signal.confidence * 15) if signal else 0.0
         noise_penalty = (signal.noise_probability * 18) if signal else 0.0
-        freshness_source = signal.freshness_minutes if signal else max(0, int((naive_utc_now() - item.updated_at).total_seconds() // 60))
+        freshness_source = (
+            summary.freshness_minutes
+            if summary is not None
+            else signal.freshness_minutes
+            if signal is not None
+            else max(0, int((naive_utc_now() - item.updated_at).total_seconds() // 60))
+        )
+        summary_marks_unusable = summary is not None and summary.freshness_state == "unusable"
+        reality_as_of = (
+            None
+            if summary_marks_unusable
+            else naive_utc_now() - timedelta(minutes=freshness_source)
+            if summary is not None and freshness_source < 9999
+            else signal.timestamp
+            if signal is not None
+            else item.updated_at
+        )
         data_reality = asset_reality(
             session,
             item.symbol,
-            as_of=signal.timestamp if signal else item.updated_at,
-            data_quality=signal.data_quality if signal else "fixture",
+            as_of=reality_as_of,
+            data_quality=(
+                signal.data_quality
+                if signal is not None
+                else research.data_quality
+                if research is not None
+                else "missing" if summary_marks_unusable else "fixture"
+            ),
             features=signal.features if signal else None,
+            freshness_sla_minutes=chart_freshness_sla_minutes("1d"),
         )
         freshness_penalty = min(freshness_source / 60, 12)
         realism_penalty = data_reality.ranking_penalty
@@ -518,8 +572,14 @@ def list_opportunities(session: Session) -> OpportunityHunterView:
                 data_reality=data_reality,
             )
         )
-    focus_queue = sorted((row for row in opportunities if row.queue == "focus"), key=lambda row: row.score, reverse=True)
-    scout_queue = sorted((row for row in opportunities if row.queue == "scout"), key=lambda row: row.score, reverse=True)
+    focus_queue = sorted(
+        (row for row in opportunities if row.queue == "focus"),
+        key=lambda row: (terminal_focus_priority(row.symbol), -row.score, row.freshness_minutes),
+    )
+    scout_queue = sorted(
+        (row for row in opportunities if row.queue == "scout"),
+        key=lambda row: (terminal_focus_priority(row.symbol), -row.score, row.freshness_minutes),
+    )
     return OpportunityHunterView(generated_at=naive_utc_now(), focus_queue=focus_queue, scout_queue=scout_queue)
 
 
@@ -564,7 +624,7 @@ def get_signal_detail(session: Session, signal_id: str) -> SignalDetailView | No
         evidence=evidence,
         catalyst_news=catalyst_news,
         related_risk=related_risk,
-        freshness_status=signal.data_reality.freshness_state if signal.data_reality else "fresh",
+        freshness_status=signal.data_reality.freshness_state if signal.data_reality else "unknown",
         related_polymarket_markets=related_markets,
         crowd_implied_narrative=crowd_implied_narrative(signal.symbol, signal.thesis, *(item.title for item in catalyst_news[:2])),
     )
@@ -592,13 +652,14 @@ def get_risk_detail(session: Session, risk_report_id: str) -> RiskDetailView | N
         stop_logic=stop_logic,
         risk_notes=_coalesce_risk_notes(risk),
         cluster_exposure=cluster if isinstance(cluster, RiskExposureView) else cluster,
-        freshness_status=risk.data_reality.freshness_state if risk.data_reality else "fresh",
+        freshness_status=risk.data_reality.freshness_state if risk.data_reality else "unknown",
     )
 
 
 def refresh_alerts(session: Session) -> None:
     from app.services.dashboard_data import dashboard_ribbon, list_high_risk_signal_views, list_signal_views
 
+    _clear_recomputed_alerts(session)
     signals = list_signal_views(session)
     high_risk = list_high_risk_signal_views(session)
     opportunities = list_opportunities(session)

@@ -87,6 +87,25 @@ describe("PriceChart", () => {
     expect(onTimeframeChange).not.toHaveBeenCalled();
   });
 
+  it("shows a degraded overlay when chart freshness is degraded but bars remain visible", () => {
+    render(
+      <PriceChart
+        chart={{
+          ...mockMarketCharts["BTC:1d"],
+          status: "degraded",
+          freshness_state: "degraded",
+          status_note: "Data freshness is degraded. Review the latest refresh before acting.",
+        }}
+        loading={false}
+        onTimeframeChange={vi.fn()}
+        timeframe="1d"
+      />,
+    );
+
+    expect(screen.getByTestId("chart-state-overlay")).toHaveTextContent(/Degraded/i);
+    expect(screen.getByTestId("chart-state-overlay")).toHaveTextContent(/Data freshness is degraded/i);
+  });
+
   it("shows a malformed-data state instead of crashing on invalid timestamps", () => {
     render(
       <PriceChart

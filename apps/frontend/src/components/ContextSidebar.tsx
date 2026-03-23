@@ -1,10 +1,12 @@
-import type { AlertEnvelope, AssetContextView, RibbonView, RiskDetailView } from "../types/api";
+import type { AlertEnvelope, AssetContextView, MarketChartView, RibbonView, RiskDetailView } from "../types/api";
 import { formatDateTimeIST } from "../lib/time";
+import { alertMetaLabel } from "../lib/uiLabels";
 import { Panel } from "./Panel";
 import { StateBlock } from "./StateBlock";
 
 interface ContextSidebarProps {
   context: AssetContextView;
+  chart?: MarketChartView | null;
   ribbon: RibbonView;
   onSelectSymbol: (symbol: string) => void;
   alerts: AlertEnvelope[];
@@ -50,8 +52,50 @@ function relevantPolymarketMarkets(context: AssetContextView): NonNullable<Asset
     .slice(0, 3);
 }
 
+function normalizeAlertKey(item: AlertEnvelope): string {
+  const normalizedDedupeKey =
+    item.category === "stale_data_warning"
+      ? "stale_data_warning"
+      : item.dedupe_key.replace(/:\d+(?:\.\d+)?$/, "");
+  return [
+    item.category,
+    item.title,
+    item.signal_id ?? "",
+    item.risk_report_id ?? "",
+    normalizedDedupeKey,
+  ].join("|");
+}
+
+function suppressedReasonLabel(reason: string | null | undefined): string {
+  switch (reason) {
+    case "cooldown_window":
+      return "A similar alert was already shown recently, so this repeat was muted.";
+    case "dedupe_window":
+      return "A duplicate alert was already shown, so this repeat was muted.";
+    default:
+      return "This alert was muted to keep the operator queue focused.";
+  }
+}
+
+function dataModeLabel(value: string): string {
+  return {
+    fixture: "Fixture data",
+    public_live: "Public live data",
+    broker_live: "Broker live data",
+  }[value] ?? value.replace(/_/g, " ");
+}
+
+function feedSourceLabel(value: string): string {
+  return {
+    sample: "Sample source family",
+    fixture: "Fixture source family",
+    live: "Live-capable source family",
+  }[value] ?? value.replace(/_/g, " ");
+}
+
 export function ContextSidebar({
   context,
+  chart,
   ribbon,
   onSelectSymbol,
   alerts,
@@ -65,28 +109,17 @@ export function ContextSidebar({
   const event = ribbon.next_event as { title?: string; impact?: string; event_time?: string } | null;
   const risk = riskDetail ?? context.latest_risk;
   const detailRisk = riskDetail;
-  const reality = context.data_reality ?? context.latest_signal?.data_reality ?? context.latest_risk?.data_reality ?? context.research?.data_reality;
+  const reality = chart?.data_reality ?? context.data_reality ?? context.latest_signal?.data_reality ?? context.latest_risk?.data_reality ?? context.research?.data_reality;
+  const selectedMarketFreshnessMinutes = chart?.freshness_minutes ?? reality?.freshness_minutes ?? null;
+  const selectedMarketFreshnessState = chart?.freshness_state ?? reality?.freshness_state ?? "unknown";
+  const chartState = chart?.status ?? "unknown";
   const friendlyRiskError = riskErrorLabel(riskError, Boolean(risk));
   const topPolymarketMatches = relevantPolymarketMarkets(context);
-  const uniqueAlerts = alerts.filter((item, index, rows) => {
-    const semanticKey = [
-      item.category,
-      item.title,
-      item.signal_id ?? "",
-      item.risk_report_id ?? "",
-      item.dedupe_key,
-      item.body,
-    ].join("|");
-    return rows.findIndex((candidate) =>
-      [
-        candidate.category,
-        candidate.title,
-        candidate.signal_id ?? "",
-        candidate.risk_report_id ?? "",
-        candidate.dedupe_key,
-        candidate.body,
-      ].join("|") === semanticKey) === index;
-  });
+  const mapping = reality?.provenance;
+  const isOilContext = mapping?.tradable_symbol === "USOUSD" || context.symbol === "WTI";
+  const uniqueAlerts = alerts.filter((item, index, rows) => rows.findIndex((candidate) => normalizeAlertKey(candidate) === normalizeAlertKey(item)) === index);
+  const actionableAlerts = uniqueAlerts.filter((item) => item.status !== "suppressed");
+  const suppressedAlerts = uniqueAlerts.filter((item) => item.status === "suppressed");
   const relatedNewsEmptyState = reality?.news_suitability === "research_only" || ribbon.market_data_mode === "fixture"
     ? "Current mode has limited news context for this asset."
     : "No related news is loaded for the current asset.";
@@ -145,14 +178,27 @@ export function ContextSidebar({
         {reality ? (
           <>
             <div className="metric-row">
-              <span>
-                {reality.provenance.realism_grade} / {reality.freshness_state}
-              </span>
+              <span>Reality {reality.provenance.realism_grade}</span>
               <span>{reality.provenance.source_type}</span>
             </div>
             <div className="metric-row compact-row">
-              <span>{reality.provenance.tradable_symbol}</span>
+              <span>
+                Selected market freshness {" "}
+                {selectedMarketFreshnessMinutes === null ? "unknown" : `${selectedMarketFreshnessMinutes}m / ${selectedMarketFreshnessState}`}
+              </span>
+              <span>{chart ? dataModeLabel(chart.market_data_mode) : dataModeLabel(ribbon.market_data_mode)}</span>
+            </div>
+            <div className="metric-row compact-row">
+              <span>{reality.provenance.tradable_symbol} / {reality.provenance.underlying_asset}</span>
               <span>score {reality.realism_score.toFixed(1)}</span>
+            </div>
+            <div className="metric-row compact-row">
+              <span>{reality.provenance.research_symbol} {"->"} {reality.provenance.tradable_symbol}</span>
+              <span>{chart ? feedSourceLabel(chart.source_mode) : ribbon.feed_source_label}</span>
+            </div>
+            <div className="metric-row compact-row">
+              <span>Chart state {chartState}</span>
+              <span>{chart?.status_note ? "chart-linked context" : "context snapshot"}</span>
             </div>
             <small>{reality.tradable_alignment_note}</small>
             {reality.ui_warning ? <small>{reality.ui_warning}</small> : null}
@@ -161,6 +207,16 @@ export function ContextSidebar({
           <p className="muted-copy">No provenance context is available for this asset.</p>
         )}
       </Panel>
+
+      {isOilContext ? (
+        <Panel title="Oil Research Guide" eyebrow="USOUSD">
+          <div className="stack">
+            <small>Use the chart for price structure, then pair it with EIA/macro news, risk context, and crowd narrative before drafting a ticket.</small>
+            <small>USOUSD is the trader-facing oil symbol here. Underlying research may still use WTI or USO proxy context, and the app will label that directly.</small>
+            <small>If intraday oil data is unavailable in the current mode, treat the chart as swing/event-driven research only.</small>
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel title="Related News" eyebrow={context.symbol}>
         <div className="news-stack">
@@ -192,35 +248,58 @@ export function ContextSidebar({
       <Panel title="Alert Center" eyebrow="In-App">
         <div className="news-stack">
           {uniqueAlerts.length > 0 ? (
-            uniqueAlerts.slice(0, 8).map((item) => (
-              <button
-                className="news-item"
-                key={item.alert_id}
-                onClick={() => {
-                  if (item.signal_id) {
-                    onOpenSignal(item.signal_id);
-                  }
-                  if (item.risk_report_id) {
-                    onOpenRisk(item.risk_report_id);
-                  }
-                  if (item.asset_ids[0]) {
-                    onSelectSymbol(item.asset_ids[0]);
-                  }
-                }}
-                type="button"
-              >
-                <strong>
-                  [{item.status}/{item.severity}] {item.title}
-                </strong>
-                <small>{item.channel_targets.join(", ") || "in_app"} / {item.tags.join(" / ")}</small>
-                {item.status === "suppressed" ? (
-                  <small>Suppressed in-app duplicate or gated delivery. Reason: {item.suppressed_reason ?? "delivery policy"}.</small>
-                ) : (
-                  <small>{item.status === "sent" ? "Actionable alert delivered." : "Delivery issue; inspect before acting."}</small>
-                )}
-                <small>{item.body}</small>
-              </button>
-            ))
+            <>
+              {actionableAlerts.length > 0 ? <small>Actionable alerts</small> : null}
+              {actionableAlerts.slice(0, 6).map((item) => (
+                <button
+                  className="news-item alert-item actionable-alert"
+                  key={item.alert_id}
+                  onClick={() => {
+                    if (item.signal_id) {
+                      onOpenSignal(item.signal_id);
+                    }
+                    if (item.risk_report_id) {
+                      onOpenRisk(item.risk_report_id);
+                    }
+                    if (item.asset_ids[0]) {
+                      onSelectSymbol(item.asset_ids[0]);
+                    }
+                  }}
+                  type="button"
+                >
+                  <strong>{item.title}</strong>
+                  <small>{alertMetaLabel(item)}</small>
+                  <small>{item.status === "sent" ? "Ready for review or follow-up." : "Delivery issue; inspect before acting."}</small>
+                  <small>{item.body}</small>
+                </button>
+              ))}
+              <small>Noise reduced</small>
+              <small>Muted repeats stay visible here so you can audit them without crowding the active queue.</small>
+              {suppressedAlerts.slice(0, 2).map((item) => (
+                <button
+                  className="news-item alert-item suppressed-alert"
+                  key={item.alert_id}
+                  onClick={() => {
+                    if (item.signal_id) {
+                      onOpenSignal(item.signal_id);
+                    }
+                    if (item.risk_report_id) {
+                      onOpenRisk(item.risk_report_id);
+                    }
+                    if (item.asset_ids[0]) {
+                      onSelectSymbol(item.asset_ids[0]);
+                    }
+                  }}
+                  type="button"
+                >
+                  <strong>{item.title}</strong>
+                  <small>{alertMetaLabel(item)} · muted repeat</small>
+                  <small>{suppressedReasonLabel(item.suppressed_reason)}</small>
+                  <small>{item.body}</small>
+                </button>
+              ))}
+              {suppressedAlerts.length === 0 ? <small>No muted repeats right now.</small> : null}
+            </>
           ) : (
             <p className="muted-copy">No active alerts in fixture mode.</p>
           )}

@@ -4,7 +4,9 @@ import { StateBlock } from "../components/StateBlock";
 import type { PolymarketHunterView } from "../types/api";
 
 interface PolymarketHunterTabProps {
+  error?: string | null;
   hunter: PolymarketHunterView;
+  loading?: boolean;
   onSelectSymbol: (symbol: string) => void;
 }
 
@@ -21,10 +23,10 @@ function valueForSort(row: PolymarketHunterView["markets"][number], sort: string
   }
 }
 
-export function PolymarketHunterTab({ hunter, onSelectSymbol }: PolymarketHunterTabProps) {
+export function PolymarketHunterTab({ error, hunter, loading, onSelectSymbol }: PolymarketHunterTabProps) {
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState("");
-  const [sort, setSort] = useState("volume");
+  const [sort, setSort] = useState("relevance");
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(hunter.markets[0]?.market_id ?? null);
 
   const rows = useMemo(() => {
@@ -47,6 +49,7 @@ export function PolymarketHunterTab({ hunter, onSelectSymbol }: PolymarketHunter
           </span>
         </div>
         <p className="compact-copy">{hunter.source_note}</p>
+        <p className="compact-copy">Default discovery shows active unresolved trader-relevant markets first. Use search or tags to widen the net.</p>
         <div className="control-row">
           <input
             aria-label="Search Polymarket markets"
@@ -65,17 +68,21 @@ export function PolymarketHunterTab({ hunter, onSelectSymbol }: PolymarketHunter
             ))}
           </select>
           <select aria-label="Sort Polymarket markets" className="select-input" onChange={(event) => setSort(event.target.value)} value={sort}>
+            <option value="relevance">Relevance</option>
             <option value="volume">Volume</option>
             <option value="liquidity">Liquidity</option>
             <option value="recent">Recent activity</option>
-            <option value="relevance">Relevance</option>
           </select>
         </div>
       </article>
 
       <div className="split-stack polymarket-hunter-layout">
         <article className="panel compact-panel">
-          {rows.length > 0 ? (
+          {loading ? (
+            <StateBlock loading />
+          ) : error ? (
+            <StateBlock error="Polymarket data source is unavailable right now." />
+          ) : rows.length > 0 ? (
             <table className="data-table">
               <thead>
                 <tr>
@@ -118,12 +125,23 @@ export function PolymarketHunterTab({ hunter, onSelectSymbol }: PolymarketHunter
               </tbody>
             </table>
           ) : (
-            <StateBlock empty emptyLabel="No Polymarket markets match the current filter." />
+            <StateBlock
+              empty
+              emptyLabel={
+                query || tag
+                  ? "No relevant crowd markets match the current filter."
+                  : "No trader-relevant crowd markets are available in the current source."
+              }
+            />
           )}
         </article>
 
         <article className="panel compact-panel">
-          {selectedMarket ? (
+          {loading ? (
+            <StateBlock loading />
+          ) : error ? (
+            <StateBlock error="Polymarket detail is unavailable until the current source recovers." />
+          ) : selectedMarket ? (
             <div className="stack">
               <div className="metric-row">
                 <strong>{selectedMarket.question}</strong>
@@ -172,7 +190,7 @@ export function PolymarketHunterTab({ hunter, onSelectSymbol }: PolymarketHunter
               </a>
             </div>
           ) : (
-            <StateBlock empty emptyLabel="Select a Polymarket market to inspect crowd-implied odds." />
+            <StateBlock empty emptyLabel="No trader-relevant crowd markets are available to inspect right now." />
           )}
         </article>
       </div>

@@ -31,6 +31,8 @@ import {
   mockSessionOverview,
   mockExecutionGate,
   mockAdapterHealth,
+  mockAIAdvisor,
+  mockAIStatus,
   mockAuditLogs,
   mockSignalDetail,
   mockSignals,
@@ -59,6 +61,9 @@ import type {
   ActiveTradeCreateRequest,
   ActiveTradeUpdateRequest,
   ActiveTradeView,
+  AIAdvisorRequest,
+  AIAdvisorResponseView,
+  AIProviderStatusView,
   AlertEnvelope,
   AssetContextView,
   BacktestDetailView,
@@ -133,21 +138,80 @@ import type {
   WatchlistSummaryView,
 } from "../types/api";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 30000);
+const runtimeApiBase =
+  typeof window !== "undefined" && typeof window.__AI_TRADER_RUNTIME__?.apiBase === "string" && window.__AI_TRADER_RUNTIME__.apiBase.trim().length > 0
+    ? window.__AI_TRADER_RUNTIME__.apiBase.trim()
+    : undefined;
+const API_BASE = runtimeApiBase ?? import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 120000);
 const USE_MOCK_FALLBACK = import.meta.env.MODE === "test" || import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true";
+const API_ORIGIN = API_BASE.replace(/\/api$/, "");
+const inflightGetRequests = new Map<string, Promise<unknown>>();
+const TRADER_SYMBOL_REQUESTS: Record<string, string> = {
+  WTI: "USOUSD",
+  GOLD: "XAUUSD",
+  SILVER: "XAGUSD",
+};
+const MOCK_CANONICAL_SYMBOLS: Record<string, string> = {
+  USOUSD: "WTI",
+  XAUUSD: "GOLD",
+  XAGUSD: "SILVER",
+};
+
+function requestSymbol(symbol: string): string {
+  const requested = symbol.toUpperCase();
+  return TRADER_SYMBOL_REQUESTS[requested] ?? requested;
+}
+
+function mockSymbol(symbol: string): string {
+  const requested = symbol.toUpperCase();
+  return MOCK_CANONICAL_SYMBOLS[requested] ?? requested;
+}
+
+function requestHeadersKey(headers: RequestInit["headers"]): string {
+  if (headers instanceof Headers) {
+    return JSON.stringify([...headers.entries()].sort());
+  }
+  if (Array.isArray(headers)) {
+    return JSON.stringify([...headers].sort());
+  }
+  return JSON.stringify(headers ?? null);
+}
+
+function inflightRequestKey(path: string, init?: RequestInit): string | null {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET" || init?.body !== undefined) {
+    return null;
+  }
+  return JSON.stringify({
+    url: `${API_BASE}${path}`,
+    method,
+    credentials: init?.credentials ?? null,
+    headers: requestHeadersKey(init?.headers),
+  });
+}
 
 async function requestJson<T>(path: string, fallback: T, init?: RequestInit): Promise<T> {
+  const requestKey = inflightRequestKey(path, init);
+  if (requestKey) {
+    const existing = inflightGetRequests.get(requestKey);
+    if (existing) {
+      return existing as Promise<T>;
+    }
+  }
+
+  const requestPromise = (async () => {
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(new Error(`Timed out loading ${path}`)), REQUEST_TIMEOUT_MS);
+  const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
+    const { headers: initHeaders, ...restInit } = init ?? {};
     const response = await fetch(`${API_BASE}${path}`, {
+      ...restInit,
       headers: {
         "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
+        ...(initHeaders ?? {}),
       },
       signal: controller.signal,
-      ...init,
     });
     if (!response.ok) {
       if (USE_MOCK_FALLBACK) {
@@ -170,10 +234,49 @@ async function requestJson<T>(path: string, fallback: T, init?: RequestInit): Pr
   } finally {
     globalThis.clearTimeout(timeout);
   }
+  })();
+
+  if (requestKey) {
+    inflightGetRequests.set(requestKey, requestPromise);
+    requestPromise.finally(() => {
+      if (inflightGetRequests.get(requestKey) === requestPromise) {
+        inflightGetRequests.delete(requestKey);
+      }
+    });
+  }
+
+  return requestPromise;
+}
+
+function openAiHeaders(openAiApiKey?: string | null): HeadersInit | undefined {
+  return openAiApiKey ? { "x-openai-api-key": openAiApiKey } : undefined;
+}
+
+function aiCredentials(openAiApiKey?: string | null): RequestCredentials | undefined {
+  return openAiApiKey ? undefined : "include";
 }
 
 export const apiClient = {
   health: () => requestJson<HealthView>("/health", mockHealth),
+  aiStatus: (openAiApiKey?: string | null) =>
+    requestJson<AIProviderStatusView>("/ai/status", mockAIStatus, {
+      headers: openAiHeaders(openAiApiKey),
+      credentials: aiCredentials(openAiApiKey),
+    }),
+  runAdvisor: (payload: AIAdvisorRequest, openAiApiKey?: string | null) =>
+    requestJson<AIAdvisorResponseView>("/ai/advisor", mockAIAdvisor, {
+      method: "POST",
+      headers: openAiHeaders(openAiApiKey),
+      credentials: aiCredentials(openAiApiKey),
+      body: JSON.stringify(payload),
+    }),
+  aiOauthStartUrl: (returnTo?: string | null) =>
+    `${API_ORIGIN}/ai/oauth/start?${new URLSearchParams({ return_to: returnTo ?? window.location.origin }).toString()}`,
+  aiLogout: () =>
+    requestJson<Record<string, unknown>>("/ai/oauth/logout", {}, {
+      method: "POST",
+      credentials: "include",
+    }),
   overview: () => requestJson<RibbonView>("/dashboard/overview", mockRibbon),
   deskSummary: () => requestJson<DeskSummaryView>("/dashboard/desk", mockDeskSummary),
   homeSummary: () => requestJson<HomeOperatorSummaryView>("/dashboard/home-summary", mockHomeSummary),
@@ -213,7 +316,7 @@ export const apiClient = {
   watchlistSummary: () => requestJson<WatchlistSummaryView[]>("/watchlist/summary", mockWatchlistSummary),
   opportunities: () => requestJson<OpportunityHunterView>("/watchlist/opportunity-hunter", mockOpportunities),
   research: () => requestJson<ResearchView[]>("/research", mockResearch),
-  polymarketHunter: (query = "", tag = "", sort = "volume") =>
+  polymarketHunter: (query = "", tag = "", sort = "relevance") =>
     requestJson<PolymarketHunterView>(
       `/polymarket/hunter?q=${encodeURIComponent(query)}&tag=${encodeURIComponent(tag)}&sort=${encodeURIComponent(sort)}`,
       mockPolymarketHunter,
@@ -225,9 +328,15 @@ export const apiClient = {
   riskExposure: () => requestJson<RiskExposureView[]>("/risk/exposure", mockRiskExposure),
   bars: (symbol: string) => requestJson<BarView[]>(`/market/bars/${symbol}`, mockBars[symbol] ?? mockBars.BTC),
   marketChart: (symbol: string, timeframe = "1d") =>
-    requestJson<MarketChartView>(`/market/chart/${symbol}?timeframe=${encodeURIComponent(timeframe)}`, mockMarketCharts[`${symbol}:${timeframe}`] ?? mockMarketCharts[`${symbol}:1d`]),
+    requestJson<MarketChartView>(
+      `/market/chart/${requestSymbol(symbol)}?timeframe=${encodeURIComponent(timeframe)}`,
+      mockMarketCharts[`${mockSymbol(symbol)}:${timeframe}`] ?? mockMarketCharts[`${mockSymbol(symbol)}:1d`],
+    ),
   assetContext: (symbol: string) =>
-    requestJson<AssetContextView>(`/dashboard/assets/${symbol}`, mockAssetContexts[symbol] ?? mockAssetContexts.BTC),
+    requestJson<AssetContextView>(
+      `/dashboard/assets/${requestSymbol(symbol)}`,
+      mockAssetContexts[mockSymbol(symbol)] ?? mockAssetContexts.BTC,
+    ),
   activeTrades: () => requestJson<ActiveTradeView[]>("/portfolio/active-trades", mockActiveTrades),
   createActiveTrade: (payload: ActiveTradeCreateRequest) =>
     requestJson<ActiveTradeView>("/portfolio/active-trades", mockActiveTrades[0], {

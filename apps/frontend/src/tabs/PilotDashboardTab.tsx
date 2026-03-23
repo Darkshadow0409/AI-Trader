@@ -1,4 +1,5 @@
 import type { AdapterHealthView, AuditLogView, ExecutionGateView, PilotDashboardView } from "../types/api";
+import { gateStatusLabel } from "../lib/uiLabels";
 
 interface PilotDashboardTabProps {
   dashboard: PilotDashboardView;
@@ -15,11 +16,18 @@ function metric(value: number | undefined): string {
 }
 
 export function PilotDashboardTab({ dashboard, executionGate, adapterHealth, auditLogs }: PilotDashboardTabProps) {
+  const gateLabel = gateStatusLabel(executionGate.status);
+  const gateGuidance = executionGate.status === "review_required"
+    ? "Review is still blocking pilot progression. Clear the Review Queue before treating this gate as demo-safe."
+    : executionGate.status === "execution_candidate"
+      ? "Gate checks are currently aligned for pilot-style review."
+      : "Gate checks still need operator attention before pilot progression.";
   return (
     <div className="split-stack">
       <div className="stack">
         <article className="panel compact-panel">
           <h3>Pilot Summary</h3>
+          <small className="compact-copy">Use this panel to explain whether the system is trustworthy enough for pilot operation. It is an execution-readiness dashboard, not a live-trading control surface.</small>
           <div className="metric-grid">
             <div>
               <span className="metric-label">Approved Rate</span>
@@ -93,9 +101,10 @@ export function PilotDashboardTab({ dashboard, executionGate, adapterHealth, aud
         <article className="panel compact-panel">
           <h3>Execution Gate</h3>
           <div className="metric-row compact-row">
-            <span>{executionGate.status}</span>
+            <span>{gateLabel}</span>
             <span>blockers {executionGate.blockers.length}</span>
           </div>
+          <small>{gateGuidance}</small>
           {executionGate.blockers.length > 0 ? executionGate.blockers.map((item) => <small key={item}>{item}</small>) : <small>No active blockers.</small>}
           {executionGate.rationale.map((item) => <small key={item}>{item}</small>)}
         </article>

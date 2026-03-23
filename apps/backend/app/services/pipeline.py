@@ -86,6 +86,7 @@ def _normalize_json(value: Any) -> Any:
 
 
 def _collect_market_data(force_live: bool = False) -> tuple[list[dict[str, object]], str]:
+    fallback_symbols = ("BTC", "ETH", "WTI", "GOLD", "SILVER", "DXY", "US10Y")
     use_live = force_live or not settings.use_sample_only
     bars: list[dict[str, object]] = []
     source_mode = "sample"
@@ -102,9 +103,11 @@ def _collect_market_data(force_live: bool = False) -> tuple[list[dict[str, objec
                     break
             except Exception:
                 continue
-    if not bars:
-        for symbol in ("BTC", "ETH", "WTI", "GOLD", "DXY", "US10Y"):
-            bars.extend(generate_sample_ohlcv(symbol))
+    seeded_symbols = fallback_symbols if not bars else tuple(
+        symbol for symbol in fallback_symbols if symbol not in {str(row["symbol"]) for row in bars}
+    )
+    for symbol in seeded_symbols:
+        bars.extend(generate_sample_ohlcv(symbol))
     return bars, source_mode
 
 

@@ -19,6 +19,7 @@ interface JournalTabProps {
   trades: PaperTradeView[];
   detail: PaperTradeDetailView | null;
   analytics: PaperTradeAnalyticsView;
+  error?: string | null;
   selectedSymbol: string;
   selectedTradeId: string | null;
   selectedSignalId: string | null;
@@ -46,6 +47,29 @@ function decodeBool(value: string): boolean | null {
 
 function titleize(value: string): string {
   return value.replace(/_/g, " ");
+}
+
+function compactId(value: string | null | undefined): string {
+  if (!value) {
+    return "manual";
+  }
+  if (value.length <= 18) {
+    return value;
+  }
+  return `${value.slice(0, 12)}...${value.slice(-6)}`;
+}
+
+function friendlyJournalError(error: string | null | undefined): string | null {
+  if (!error) {
+    return null;
+  }
+  if (error.includes("Failed to fetch") || error.includes("CORS")) {
+    return "Journal data is temporarily unavailable. The rest of the operator workflow remains usable while it reconnects.";
+  }
+  if (error.includes("/journal") || error.includes("500")) {
+    return "Journal history is temporarily unavailable. Try refreshing the local stack if the issue persists.";
+  }
+  return "Journal data is temporarily unavailable right now.";
 }
 
 function AnalyticsTable({ title, rows }: { title: string; rows: PaperTradeAnalyticsBucketView[] }) {
@@ -159,6 +183,7 @@ export function JournalTab({
   trades,
   detail,
   analytics,
+  error: journalError,
   selectedSymbol,
   selectedTradeId,
   selectedSignalId,
@@ -172,6 +197,7 @@ export function JournalTab({
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resolvedJournalError = error ?? friendlyJournalError(journalError);
   const [reviewDraft, setReviewDraft] = useState<PaperTradeReviewRequest>({
     thesis_respected: selectedReview?.thesis_respected ?? null,
     invalidation_respected: selectedReview?.invalidation_respected ?? null,
@@ -230,7 +256,7 @@ export function JournalTab({
   return (
     <div className="split-stack">
       <div className="stack">
-        <StateBlock error={error} />
+        <StateBlock error={resolvedJournalError} />
         <article className="panel compact-panel">
           <h3>Review Queue</h3>
           {closedTrades.length === 0 ? (
@@ -253,7 +279,7 @@ export function JournalTab({
                     key={trade.trade_id}
                     onClick={() => onSelectTrade(trade.trade_id)}
                   >
-                    <td>{trade.trade_id}</td>
+                    <td title={trade.trade_id}>{compactId(trade.trade_id)}</td>
                     <td>{trade.symbol}</td>
                     <td>{trade.status}</td>
                     <td>{trade.outcome?.realized_pnl_pct.toFixed(2)}%</td>
@@ -285,7 +311,7 @@ export function JournalTab({
               <div className="metric-grid">
                 <div>
                   <span className="metric-label">Trade</span>
-                  <strong>{selectedTrade.trade_id}</strong>
+                  <strong title={selectedTrade.trade_id}>{compactId(selectedTrade.trade_id)}</strong>
                 </div>
                 <div>
                   <span className="metric-label">Asset</span>
@@ -293,13 +319,14 @@ export function JournalTab({
                 </div>
                 <div>
                   <span className="metric-label">Linked Signal</span>
-                  <strong>{selectedTrade.signal_id ?? selectedSignalId ?? "manual"}</strong>
+                  <strong title={selectedTrade.signal_id ?? selectedSignalId ?? "manual"}>{compactId(selectedTrade.signal_id ?? selectedSignalId ?? "manual")}</strong>
                 </div>
                 <div>
                   <span className="metric-label">Linked Risk</span>
-                  <strong>{selectedTrade.risk_report_id ?? selectedRiskReportId ?? "manual"}</strong>
+                  <strong title={selectedTrade.risk_report_id ?? selectedRiskReportId ?? "manual"}>{compactId(selectedTrade.risk_report_id ?? selectedRiskReportId ?? "manual")}</strong>
                 </div>
               </div>
+              <small className="muted-copy">Unknown means the operator has not scored that review field yet.</small>
               <div className="field-grid">
                 <label className="field">
                   <span>Thesis Respected</span>
@@ -477,7 +504,13 @@ export function JournalTab({
                 <button className="text-button" disabled={busy} onClick={() => void handleSaveReview()} type="button">
                   {busy ? "Saving…" : "Save Review"}
                 </button>
-                <small>{selectedTrade.review_due ? "Review is due." : "Review already recorded."}</small>
+                <small>
+                  {selectedReview
+                    ? "Review recorded. Edit the fields below if you need to revise it."
+                    : selectedTrade.review_due
+                      ? "Structured review is due. Unknown means the operator has not scored that field yet."
+                      : "Structured review not recorded yet. Unknown means the operator has not scored that field yet."}
+                </small>
               </div>
             </>
           ) : (

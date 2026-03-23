@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import delete
 from sqlmodel import Session, select
@@ -12,7 +13,7 @@ from app.core.database import engine
 from app.core.settings import Settings
 from app.models.entities import AlertRecord
 from app.models.schemas import AlertEnvelope
-from app.services.operator_console import list_alerts
+from app.services.operator_console import _compose_stale_data_alert, list_alerts, refresh_alerts
 from app.services.pipeline import seed_and_refresh
 
 
@@ -93,6 +94,89 @@ def test_list_alerts_hides_suppressed_duplicates_from_ui() -> None:
 
     assert len(visible) == 1
     assert visible[0].status == "sent"
+
+
+def test_list_alerts_prefers_latest_actionable_alert_for_same_operator_slot() -> None:
+    with Session(engine) as session:
+        session.exec(delete(AlertRecord))
+        session.commit()
+
+        dispatch_alert(
+            session,
+            _base_alert(
+                alert_id="alert_test_old",
+                signal_id="sig_old",
+                dedupe_key="signal_ranked:sig_old",
+                body="University of Michigan Inflation Expectations is within 38.0h.",
+                created_at=naive_utc_now() - timedelta(days=1),
+            ),
+        )
+        dispatch_alert(
+            session,
+            _base_alert(
+                alert_id="alert_test_new",
+                signal_id="sig_new",
+                dedupe_key="signal_ranked:sig_new",
+                body="University of Michigan Inflation Expectations is within 1.7h.",
+                created_at=naive_utc_now(),
+            ),
+        )
+
+        visible = list_alerts(session)
+
+    assert len(visible) == 1
+    assert visible[0].body == "University of Michigan Inflation Expectations is within 1.7h."
+
+
+def test_refresh_alerts_replaces_legacy_recomputed_signal_bodies() -> None:
+    seed_and_refresh()
+    with Session(engine) as session:
+        dispatch_alert(
+            session,
+            _base_alert(
+                alert_id="alert_test_legacy_ranked",
+                signal_id="sig_legacy",
+                dedupe_key="signal_ranked:sig_legacy",
+                body="University of Michigan Inflation Expectations is within 38.0h.",
+                created_at=naive_utc_now() - timedelta(days=1),
+            ),
+        )
+
+        refresh_alerts(session)
+        visible = list_alerts(session)
+
+    ranked_bodies = [row.body for row in visible if row.category == "signal_ranked"]
+    assert ranked_bodies
+    assert all("38.0h" not in body for body in ranked_bodies)
+
+
+def test_stale_alerts_dedupe_across_freshness_minute_changes() -> None:
+    ribbon = SimpleNamespace(
+        last_refresh=naive_utc_now(),
+        data_freshness_minutes=670,
+        freshness_status="stale",
+        source_mode="live",
+        market_data_mode="public_live",
+    )
+    ribbon_later = SimpleNamespace(
+        last_refresh=naive_utc_now() + timedelta(minutes=5),
+        data_freshness_minutes=675,
+        freshness_status="stale",
+        source_mode="live",
+        market_data_mode="public_live",
+    )
+
+    with Session(engine) as session:
+        session.exec(delete(AlertRecord))
+        session.commit()
+
+        first = dispatch_alert(session, _compose_stale_data_alert(ribbon))
+        second = dispatch_alert(session, _compose_stale_data_alert(ribbon_later))
+
+        assert first.status == "sent"
+        assert second.status == "sent"
+        assert second.alert_id == first.alert_id
+        assert session.exec(select(AlertRecord)).all().__len__() == 1
 
 
 def test_sink_payload_formatting_is_stable() -> None:

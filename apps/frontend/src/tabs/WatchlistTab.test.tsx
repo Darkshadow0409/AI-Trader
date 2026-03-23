@@ -16,17 +16,18 @@ describe("WatchlistTab", () => {
         onSelectSymbol={onSelectSymbol}
         opportunities={mockOpportunities}
         rows={mockWatchlist}
-        selectedSymbol="BTC"
+        selectedSymbol="WTI"
       />,
     );
 
     expect(screen.getByText("Focus Queue")).toBeInTheDocument();
     expect(screen.getByText("Scout Queue")).toBeInTheDocument();
-    expect(screen.getAllByText("B / fresh")).toHaveLength(2);
-    expect(screen.getByText("BTCUSD -> BTCUSD (fixture)")).toBeInTheDocument();
+    expect(screen.getByText("E / fresh")).toBeInTheDocument();
+    expect(screen.getByText("10m / fresh")).toBeInTheDocument();
+    expect(screen.getByText("WTI_CTX -> USOUSD (end_of_day)")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByText("BTC")[0]);
+    fireEvent.click(screen.getAllByText("WTI")[0]);
 
-    expect(onSelectSymbol).toHaveBeenCalled();
+    expect(onSelectSymbol).toHaveBeenCalledWith("WTI");
   });
 });

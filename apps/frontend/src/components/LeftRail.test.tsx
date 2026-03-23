@@ -24,7 +24,8 @@ describe("LeftRail", () => {
     );
 
     expect(screen.getByText("71880.00 / +3.07%")).toBeInTheDocument();
-    expect(screen.getByText("fresh / trend_breakout")).toBeInTheDocument();
+    expect(screen.getAllByText("5m / fresh").length).toBeGreaterThan(0);
+    expect(screen.getByText("Reality B / fixture / trend breakout")).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: /ETH/i })[0]);
     expect(onSelectSymbol).toHaveBeenCalledWith("ETH");

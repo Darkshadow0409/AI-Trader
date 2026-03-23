@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -24,7 +24,7 @@ from app.models.schemas import (
     WalletBalanceView,
 )
 from app.services.data_reality import asset_reality, freshness_minutes, freshness_state, latest_pipeline_run
-from app.services.market_identity import instrument_mapping_view, market_data_mode
+from app.services.market_identity import instrument_mapping_view, market_data_mode, terminal_focus_priority
 from app.services.polymarket import crowd_implied_narrative, related_polymarket_markets
 from app.services.feature_pipeline import build_feature_frame
 
@@ -43,12 +43,43 @@ ASSET_KEYWORDS: dict[str, set[str]] = {
 }
 
 
+def _research_sort_key(view: ResearchView) -> tuple[int, float, float, str]:
+    return (
+        terminal_focus_priority(view.symbol),
+        -view.structure_score,
+        -view.breakout_distance,
+        view.label,
+    )
+
+
 def _clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(value, upper))
 
 
 def _parse_iso(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC).replace(tzinfo=None)
+
+
+def _operator_mode_labels(source_mode: str, data_mode: str) -> tuple[str, str, str]:
+    data_mode_label = {
+        "fixture": "Fixture research data",
+        "public_live": "Public live data",
+        "broker_live": "Broker-aligned live data",
+    }.get(data_mode, data_mode.replace("_", " "))
+    feed_source_label = {
+        "sample": "Local sample source family",
+        "fixture": "Fixture source family",
+        "live": "Live-capable source family",
+    }.get(source_mode, source_mode.replace("_", " "))
+    if data_mode == "fixture":
+        explainer = "Fixture mode is active. Feed source describes the source family, not live tradable market truth."
+    elif data_mode == "public_live":
+        explainer = "Using the latest public market data path available to this local desk."
+    elif data_mode == "broker_live":
+        explainer = "Using broker-aligned data where the current source path supports it."
+    else:
+        explainer = "Market mode and feed source are shown separately so data truth stays explicit."
+    return data_mode_label, feed_source_label, explainer
 
 
 def _next_future_event(events: list[MacroEvent]) -> MacroEvent | None:
@@ -62,6 +93,28 @@ def _infer_assets(text: str, tags: list[str]) -> list[str]:
     if "BTC" in matched and "ETH" not in matched and "crypto" in haystack:
         matched.append("ETH")
     return sorted(set(matched))
+
+
+def _event_signal_thesis(thesis: str, timestamp: datetime, features: dict[str, Any]) -> str:
+    hours_to_event = features.get("hours_to_event")
+    if hours_to_event is None or " is within " not in thesis:
+        return thesis
+    try:
+        event_offset = float(hours_to_event)
+    except (TypeError, ValueError):
+        return thesis
+    event_time = timestamp + timedelta(hours=event_offset)
+    title = thesis.split(" is within ", 1)[0].strip() or "Macro event"
+    remaining_hours = (event_time - naive_utc_now()).total_seconds() / 3600
+    if remaining_hours <= 0:
+        return (
+            f"{title} cleared {abs(remaining_hours):.1f}h ago. "
+            "Re-check whether the breakout still holds after the release."
+        )
+    return (
+        f"{title} is within {remaining_hours:.1f}h. Reduce conviction and treat "
+        "breakouts as event-sensitive until the release clears."
+    )
 
 def _news_view(item: NewsItem) -> NewsView:
     affected_assets = _infer_assets(f"{item.title} {item.summary}", item.tags_json)
@@ -138,6 +191,7 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
         _clamp(row.uncertainty + (0.16 if row.signal_type == "event_driven" else 0.08), 0.05, 0.95),
         2,
     )
+    thesis = _event_signal_thesis(row.thesis, row.timestamp, feature_snapshot) if row.signal_type == "event_driven" else row.thesis
     invalidation = risk_report.stop_price if risk_report else round(entry_reference - atr_14 * 1.2, 2)
     affected_assets = sorted(set([row.symbol, *(_infer_assets(row.thesis, [row.symbol]))]))
     return SignalView(
@@ -150,7 +204,7 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
         score=row.score,
         confidence=confidence,
         noise_probability=noise_probability,
-        thesis=row.thesis,
+        thesis=thesis,
         invalidation=invalidation,
         targets=_signal_targets(row.direction, entry_reference, atr_14),
         uncertainty=row.uncertainty,
@@ -159,6 +213,72 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
         features=feature_snapshot,
         data_reality=None,
     )
+
+
+def _trend_state_from_history(rows: list[MarketBar]) -> str:
+    if len(rows) < 2:
+        return "unknown"
+    baseline = rows[max(0, len(rows) - 6)].close
+    latest = rows[-1].close
+    if baseline <= 0:
+        return "unknown"
+    move = (latest / baseline) - 1
+    if move >= 0.01:
+        return "uptrend"
+    if move <= -0.01:
+        return "downtrend"
+    return "range"
+
+
+def _minimal_research_views(session: Session, rows: list[MarketBar]) -> list[ResearchView]:
+    grouped: dict[str, list[MarketBar]] = {}
+    for row in rows:
+        grouped.setdefault(row.symbol, []).append(row)
+
+    payload: list[ResearchView] = []
+    for symbol, symbol_rows in grouped.items():
+        ordered = sorted(symbol_rows, key=lambda item: item.timestamp)
+        latest = ordered[-1]
+        previous = ordered[-2] if len(ordered) >= 2 else latest
+        lookback = ordered[-6] if len(ordered) >= 6 else ordered[0]
+        recent_window = ordered[-20:]
+        volume_avg = sum(item.volume for item in recent_window) / len(recent_window) if recent_window else 0.0
+        breakout_high = max(item.high for item in recent_window) if recent_window else latest.high
+        breakout_low = min(item.low for item in recent_window) if recent_window else latest.low
+        breakout_reference = breakout_high if latest.close >= previous.close else breakout_low
+        breakout_distance = (
+            ((latest.close / breakout_reference) - 1) * 100
+            if breakout_reference
+            else 0.0
+        )
+        trend_state = _trend_state_from_history(ordered)
+        reality = asset_reality(
+            session,
+            symbol,
+            as_of=latest.timestamp,
+            data_quality=latest.data_quality,
+            freshness_sla_minutes=240,
+        )
+        structure_score = 60.0 if trend_state in {"uptrend", "downtrend"} else 42.0
+        view = ResearchView(
+            symbol=symbol,
+            label=instrument_mapping_view(symbol).trader_symbol,
+            timeframe="1d",
+            last_price=round(latest.close, 2),
+            return_1d_pct=round((((latest.close / previous.close) - 1) * 100), 2) if previous.close else 0.0,
+            return_5d_pct=round((((latest.close / lookback.close) - 1) * 100), 2) if lookback.close else 0.0,
+            trend_state=trend_state,
+            relative_volume=round((latest.volume / volume_avg), 2) if volume_avg else 0.0,
+            atr_pct=round((((latest.high - latest.low) / latest.close) * 100), 2) if latest.close else 0.0,
+            breakout_distance=round(breakout_distance, 2),
+            structure_score=structure_score,
+            data_quality=latest.data_quality,
+            data_reality=reality,
+        )
+        view.related_polymarket_markets = related_polymarket_markets(view.symbol, view.label, view.trend_state)
+        view.crowd_implied_narrative = crowd_implied_narrative(view.symbol, view.label, view.trend_state)
+        payload.append(view)
+    return sorted(payload, key=_research_sort_key)
 
 
 def list_signal_views(session: Session) -> list[SignalView]:
@@ -238,59 +358,67 @@ def list_risk_exposure_views(session: Session) -> list[RiskExposureView]:
 
 
 def list_research_views(session: Session) -> list[ResearchView]:
-    rows = session.exec(select(MarketBar).order_by(MarketBar.symbol.asc(), MarketBar.timestamp.asc())).all()
+    rows = session.exec(
+        select(MarketBar)
+        .where(MarketBar.timeframe == "1d")
+        .order_by(MarketBar.symbol.asc(), MarketBar.timestamp.asc())
+    ).all()
     if not rows:
         return []
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
     next_event = _next_future_event(events)
-    frame, _ = build_feature_frame(
-        [
-            {
-                "symbol": row.symbol,
-                "timeframe": row.timeframe,
-                "timestamp": row.timestamp,
-                "open": row.open,
-                "high": row.high,
-                "low": row.low,
-                "close": row.close,
-                "volume": row.volume,
-                "source": row.source,
-                "uncertainty": row.uncertainty,
-                "data_quality": row.data_quality,
-            }
-            for row in rows
-        ],
-        next_event.event_time if next_event else None,
-    )
-    latest = frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
-    payload = [
-        ResearchView(
-            symbol=str(item["symbol"]),
-            label=str(item["symbol"]),
-            timeframe="1d",
-            last_price=round(float(item.get("close") or 0.0), 2),
-            return_1d_pct=round(float(item.get("return_1") or 0.0) * 100, 2),
-            return_5d_pct=round(float(item.get("return_5") or 0.0) * 100, 2),
-            trend_state=str(item.get("trend_state") or "unknown"),
-            relative_volume=round(float(item.get("relative_volume") or 0.0), 2),
-            atr_pct=round(float(item.get("atr_pct") or 0.0) * 100, 2),
-            breakout_distance=round(float(item.get("breakout_distance") or 0.0) * 100, 2),
-            structure_score=round(float(item.get("structure_score") or 0.0), 2),
-            data_quality=str(item.get("data_quality") or "fixture"),
-            data_reality=asset_reality(
-                session,
-                str(item["symbol"]),
-                as_of=cast(datetime, item.get("timestamp")) if item.get("timestamp") is not None else None,
-                data_quality=str(item.get("data_quality") or "fixture"),
-                features=cast(dict[str, Any], item),
-            ),
+    try:
+        frame, _ = build_feature_frame(
+            [
+                {
+                    "symbol": row.symbol,
+                    "timeframe": row.timeframe,
+                    "timestamp": row.timestamp,
+                    "open": row.open,
+                    "high": row.high,
+                    "low": row.low,
+                    "close": row.close,
+                    "volume": row.volume,
+                    "source": row.source,
+                    "uncertainty": row.uncertainty,
+                    "data_quality": row.data_quality,
+                }
+                for row in rows
+            ],
+            next_event.event_time if next_event else None,
         )
-        for item in latest
-    ]
-    for row in payload:
-        row.related_polymarket_markets = related_polymarket_markets(row.symbol, row.label, row.trend_state)
-        row.crowd_implied_narrative = crowd_implied_narrative(row.symbol, row.label, row.trend_state)
-    return payload
+        latest = frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
+        payload = [
+            ResearchView(
+                symbol=str(item["symbol"]),
+                label=instrument_mapping_view(str(item["symbol"])).trader_symbol,
+                timeframe="1d",
+                last_price=round(float(item.get("close") or 0.0), 2),
+                return_1d_pct=round(float(item.get("return_1") or 0.0) * 100, 2),
+                return_5d_pct=round(float(item.get("return_5") or 0.0) * 100, 2),
+                trend_state=str(item.get("trend_state") or "unknown"),
+                relative_volume=round(float(item.get("relative_volume") or 0.0), 2),
+                atr_pct=round(float(item.get("atr_pct") or 0.0) * 100, 2),
+                breakout_distance=round(float(item.get("breakout_distance") or 0.0) * 100, 2),
+                structure_score=round(float(item.get("structure_score") or 0.0), 2),
+                data_quality=str(item.get("data_quality") or "fixture"),
+                data_reality=asset_reality(
+                    session,
+                    str(item["symbol"]),
+                    as_of=cast(datetime, item.get("timestamp")) if item.get("timestamp") is not None else None,
+                    data_quality=str(item.get("data_quality") or "fixture"),
+                    features=cast(dict[str, Any], item),
+                    freshness_sla_minutes=240,
+                ),
+            )
+            for item in latest
+        ]
+        for row in payload:
+            row.related_polymarket_markets = related_polymarket_markets(row.symbol, row.label, row.trend_state)
+            row.crowd_implied_narrative = crowd_implied_narrative(row.symbol, row.label, row.trend_state)
+        return sorted(payload, key=_research_sort_key)
+    except Exception:
+        return _minimal_research_views(session, rows)
 
 
 def dashboard_ribbon(session: Session) -> RibbonView:
@@ -299,27 +427,56 @@ def dashboard_ribbon(session: Session) -> RibbonView:
     events = session.exec(select(MacroEvent).order_by(MacroEvent.event_time.asc())).all()
     next_event = _next_future_event(events)
     research_rows = list_research_views(session)
-    btc_research = next((row for row in research_rows if row.symbol == "BTC"), None)
+    wti_research = next((row for row in research_rows if row.symbol == "WTI"), None)
+    gold_research = next((row for row in research_rows if row.symbol == "GOLD"), None)
+    silver_research = next((row for row in research_rows if row.symbol == "SILVER"), None)
     freshness_age = freshness_minutes(latest_bar.timestamp) if latest_bar else 9999
     freshness_status = freshness_state(freshness_age, 240)
     data_mode = market_data_mode(session)
+    source_mode = latest_run.source_mode if latest_run else "sample"
+    system_refresh_minutes = (
+        freshness_minutes(latest_run.completed_at)
+        if latest_run and latest_run.completed_at is not None
+        else None
+    )
+    system_refresh_status = (
+        freshness_state(system_refresh_minutes, 180)
+        if system_refresh_minutes is not None
+        else "unknown"
+    )
+    data_mode_label, feed_source_label, mode_explainer = _operator_mode_labels(source_mode, data_mode)
     risk_budget_used = round(sum(report.max_portfolio_risk_pct for report in list_risk_views(session)), 3)
     macro_regime = "balanced"
     if next_event and next_event.impact == "high":
         macro_regime = "event-risk"
-    elif btc_research and btc_research.trend_state == "uptrend" and btc_research.return_5d_pct > 0:
-        macro_regime = "risk-on"
-    elif btc_research and btc_research.return_5d_pct < 0:
+    elif wti_research and wti_research.trend_state == "uptrend" and wti_research.return_5d_pct > 0:
+        macro_regime = "energy-firm"
+    elif (
+        (gold_research and gold_research.return_5d_pct > 0 and gold_research.trend_state == "uptrend")
+        or (silver_research and silver_research.return_5d_pct > 0 and silver_research.trend_state == "uptrend")
+    ):
+        macro_regime = "hard-asset-bid"
+    elif all(
+        row.return_5d_pct < 0
+        for row in [wti_research, gold_research, silver_research]
+        if row is not None
+    ) and any(row is not None for row in [wti_research, gold_research, silver_research]):
         macro_regime = "defensive"
     return RibbonView(
         macro_regime=macro_regime,
         data_freshness_minutes=freshness_age,
         freshness_status=freshness_status,
+        market_data_as_of=latest_bar.timestamp if latest_bar else None,
+        system_refresh_minutes=system_refresh_minutes,
+        system_refresh_status=system_refresh_status,
         risk_budget_used_pct=risk_budget_used,
         risk_budget_total_pct=RISK_BUDGET_TOTAL_PCT,
         pipeline_status=latest_run.status if latest_run else "unknown",
-        source_mode=latest_run.source_mode if latest_run else "sample",
+        source_mode=source_mode,
         market_data_mode=data_mode,
+        data_mode_label=data_mode_label,
+        feed_source_label=feed_source_label,
+        mode_explainer=mode_explainer,
         last_refresh=latest_run.completed_at if latest_run else None,
         next_event=(
             {

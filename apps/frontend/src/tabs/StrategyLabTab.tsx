@@ -33,6 +33,59 @@ function titleize(value: string): string {
   return value.replace(/_/g, " ");
 }
 
+function formatSearchDefinition(definition: unknown): string {
+  const record = asRecord(definition);
+  const parts: string[] = [];
+  if (typeof record.kind === "string") {
+    parts.push(titleize(record.kind));
+  }
+  const low = asNumber(record.low, Number.NaN);
+  const high = asNumber(record.high, Number.NaN);
+  if (Number.isFinite(low) && Number.isFinite(high)) {
+    parts.push(`${low} -> ${high}`);
+  }
+  const step = asNumber(record.step, Number.NaN);
+  if (Number.isFinite(step)) {
+    parts.push(`step ${step}`);
+  }
+  if (Array.isArray(record.choices) && record.choices.length > 0) {
+    parts.push(`choices ${record.choices.join(", ")}`);
+  }
+  return parts.join(" | ") || String(definition);
+}
+
+function formatKeyValueRecord(record: Record<string, unknown>): string {
+  const entries = Object.entries(record);
+  if (entries.length === 0) {
+    return "n/a";
+  }
+  return entries.map(([key, value]) => `${titleize(key)} ${String(value)}`).join(", ");
+}
+
+function formatModeCounts(value: unknown): string {
+  const record = asRecord(value);
+  const entries = Object.entries(record);
+  if (entries.length === 0) {
+    return "n/a";
+  }
+  return entries.map(([key, count]) => `${titleize(key)} ${asNumber(count).toFixed(0)}`).join(", ");
+}
+
+function uniqueMeaningfulTransitions(history: StrategyDetailView["transition_history"]): StrategyDetailView["transition_history"] {
+  const seen = new Set<string>();
+  return history.filter((transition) => {
+    if (transition.from_state === transition.to_state) {
+      return false;
+    }
+    const key = `${transition.changed_at}:${transition.from_state}:${transition.to_state}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 export function StrategyLabTab() {
   const [strategies, setStrategies] = useState<StrategyListView[]>([]);
   const [strategyDetail, setStrategyDetail] = useState<StrategyDetailView | null>(null);
@@ -162,6 +215,7 @@ export function StrategyLabTab() {
   const backtestReality = backtestDetail?.data_reality ?? null;
   const latestCurveStart = backtestDetail?.equity_curve[0]?.timestamp ?? null;
   const latestCurveEnd = backtestDetail?.equity_curve[backtestDetail.equity_curve.length - 1]?.timestamp ?? null;
+  const lifecycleTransitions = strategyDetail ? uniqueMeaningfulTransitions(strategyDetail.transition_history) : [];
 
   return (
     <section className="stack">
@@ -353,7 +407,7 @@ export function StrategyLabTab() {
                   {Object.entries(strategyDetail.search_space).map(([name, definition]) => (
                     <tr key={name}>
                       <td>{name}</td>
-                      <td>{JSON.stringify(definition)}</td>
+                      <td>{formatSearchDefinition(definition)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -449,7 +503,7 @@ export function StrategyLabTab() {
                   </tr>
                   <tr>
                     <td>Modes</td>
-                    <td>{JSON.stringify(strategyDetail.forward_validation_summary.modes)}</td>
+                    <td>{formatModeCounts(strategyDetail.forward_validation_summary.modes)}</td>
                   </tr>
                   <tr>
                     <td>Lifecycle note</td>
@@ -582,13 +636,19 @@ export function StrategyLabTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {strategyDetail.transition_history.map((transition) => (
-                    <tr key={`${transition.changed_at}-${transition.to_state}`}>
-                      <td>{formatDateTimeIST(transition.changed_at)}</td>
-                      <td>{titleize(transition.from_state)}</td>
-                      <td>{titleize(transition.to_state)}</td>
+                  {lifecycleTransitions.length > 0 ? (
+                    lifecycleTransitions.map((transition) => (
+                      <tr key={`${transition.changed_at}-${transition.to_state}`}>
+                        <td>{formatDateTimeIST(transition.changed_at)}</td>
+                        <td>{titleize(transition.from_state)}</td>
+                        <td>{titleize(transition.to_state)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3}>No meaningful lifecycle changes recorded yet.</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -761,7 +821,7 @@ export function StrategyLabTab() {
                       </tr>
                       <tr>
                         <td>Best parameters</td>
-                        <td>{JSON.stringify(bestParameters)}</td>
+                        <td>{formatKeyValueRecord(bestParameters)}</td>
                       </tr>
                       <tr>
                         <td>Lifecycle state</td>

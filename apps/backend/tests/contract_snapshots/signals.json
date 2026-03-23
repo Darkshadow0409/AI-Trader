@@ -9,7 +9,7 @@
     "score": 23.62,
     "confidence": 0.58,
     "noise_probability": 0.58,
-    "thesis": "US CPI Release is within 36.5h. Reduce conviction and treat breakouts as event-sensitive until the release clears.",
+    "thesis": "US CPI Release is within 1.0h. Reduce conviction and treat breakouts as event-sensitive until the release clears.",
     "invalidation": 85917.6178,
     "targets": {
       "base": 90074.22,
@@ -125,7 +125,7 @@
     "score": 23.62,
     "confidence": 0.58,
     "noise_probability": 0.58,
-    "thesis": "US CPI Release is within 36.5h. Reduce conviction and treat breakouts as event-sensitive until the release clears.",
+    "thesis": "US CPI Release is within 1.0h. Reduce conviction and treat breakouts as event-sensitive until the release clears.",
     "invalidation": 4203.9781,
     "targets": {
       "base": 4410.17,

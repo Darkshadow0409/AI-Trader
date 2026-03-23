@@ -3,7 +3,8 @@ param(
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $root
+$python = Get-Command python.exe -ErrorAction Stop
+$launcher = $python.Source
 
 $args = @()
 if ($NoOpen) {
@@ -13,5 +14,13 @@ else {
   $args += "--open"
 }
 $args += "--detach"
+$args = @("scripts/dev.py") + $args
 
-python scripts/dev.py @args
+$startParams = @{
+  FilePath = $launcher
+  ArgumentList = $args
+  WorkingDirectory = $root
+  WindowStyle = "Hidden"
+}
+
+Start-Process @startParams | Out-Null

@@ -60,7 +60,9 @@ class ChartOverlayView(BaseModel):
 class InstrumentMappingView(BaseModel):
     requested_symbol: str
     canonical_symbol: str
+    trader_symbol: str
     display_symbol: str
+    display_name: str
     underlying_asset: str
     research_symbol: str
     public_symbol: str
@@ -247,6 +249,7 @@ class WatchlistView(BaseModel):
     last_signal_score: float
     updated_at: datetime
     freshness_minutes: int
+    freshness_state: str = "unknown"
 
 
 class WatchlistSummaryView(BaseModel):
@@ -314,11 +317,17 @@ class RibbonView(BaseModel):
     macro_regime: str
     data_freshness_minutes: int
     freshness_status: str
+    market_data_as_of: datetime | None = None
+    system_refresh_minutes: int | None = None
+    system_refresh_status: str = "unknown"
     risk_budget_used_pct: float
     risk_budget_total_pct: float
     pipeline_status: str
     source_mode: str
     market_data_mode: str
+    data_mode_label: str = ""
+    feed_source_label: str = ""
+    mode_explainer: str = ""
     last_refresh: datetime | None
     next_event: dict[str, Any] | None
 
@@ -1094,6 +1103,8 @@ class DeskSummaryView(BaseModel):
     session_states: list[SessionStateView] = Field(default_factory=list)
     execution_gate: ExecutionGateView
     operational_backlog: OperationalBacklogView
+    section_readiness: dict[str, str] = Field(default_factory=dict)
+    section_notes: dict[str, str] = Field(default_factory=dict)
     review_tasks: list[ReviewTaskView] = Field(default_factory=list)
     degraded_sources: list[DegradedSourceView] = Field(default_factory=list)
     high_priority_signals: list[SignalView] = Field(default_factory=list)
@@ -1190,6 +1201,87 @@ class OpsSummaryView(BaseModel):
     latest_contract_snapshot: OpsActionView | None = None
     action_history: list[OpsActionView] = Field(default_factory=list)
     available_actions: list[OpsActionSpecView] = Field(default_factory=list)
+
+
+class AIProviderStatusView(BaseModel):
+    provider: str
+    auth_mode: str
+    status: str
+    connected: bool
+    oauth_enabled: bool = False
+    oauth_connect_url: str | None = None
+    oauth_callback_url: str | None = None
+    connected_account: str | None = None
+    default_model: str
+    selected_model: str
+    available_models: list[str] = Field(default_factory=list)
+    guidance: str
+    warning: str | None = None
+    session_expires_at: datetime | None = None
+
+
+class AIAgentResultView(BaseModel):
+    agent: str
+    headline: str
+    summary: str
+    confidence: float
+    citations: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AIAdvisorRequest(BaseModel):
+    query: str
+    symbol: str
+    timeframe: str = "1d"
+    model: str | None = None
+    active_tab: str | None = None
+    selected_signal_id: str | None = None
+    selected_risk_report_id: str | None = None
+
+
+class AIDeskContextSnapshotView(BaseModel):
+    selected_instrument: str
+    active_workspace: str
+    timeframe: str
+    market_freshness: str
+    data_mode_label: str
+    feed_source_label: str
+    truth_note: str
+    signal_focus: str | None = None
+    risk_focus: str | None = None
+    watchlist_board: list[str] = Field(default_factory=list)
+    catalyst_headlines: list[str] = Field(default_factory=list)
+    crowd_markets: list[str] = Field(default_factory=list)
+
+
+class AIActionStepView(BaseModel):
+    label: str
+    workspace: str
+    note: str
+
+
+class AIAdvisorResponseView(BaseModel):
+    generated_at: datetime
+    symbol: str
+    timeframe: str
+    requested_query: str
+    provider_status: AIProviderStatusView
+    market_data_mode: str
+    context_summary: str
+    final_answer: str
+    agent_results: list[AIAgentResultView] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    live_data_available: bool = False
+    data_truth_note: str
+    context_snapshot: AIDeskContextSnapshotView
+    market_view: str
+    why_it_matters_now: str
+    key_levels: list[str] = Field(default_factory=list)
+    catalysts: list[str] = Field(default_factory=list)
+    invalidation: str
+    risk_frame: list[str] = Field(default_factory=list)
+    related_markets: list[str] = Field(default_factory=list)
+    next_actions: list[AIActionStepView] = Field(default_factory=list)
 
 
 class CommandCenterStatusView(BaseModel):

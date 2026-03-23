@@ -92,8 +92,8 @@
             "probability": 0.66
           }
         ],
-        "source_status": "fixture_fallback",
-        "source_note": "Polymarket API unavailable; showing fixture fallback.",
+        "source_status": "fixture",
+        "source_note": "Sample mode uses seeded Polymarket fixture data.",
         "related_assets": [
           "DXY",
           "WTI"

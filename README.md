@@ -60,6 +60,10 @@ Browser-first local usage guide:
 
 - `RUN_LOCAL.md`
 
+Single-VM staging deployment guide:
+
+- `DEPLOY_STAGING_GCP.md`
+
 ## Useful commands
 
 ```bash

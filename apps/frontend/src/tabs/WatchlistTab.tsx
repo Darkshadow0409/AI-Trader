@@ -96,7 +96,7 @@ export function WatchlistTab({ rows, opportunities, selectedSymbol, onSelectSymb
               <td>{item.status}</td>
               <td>{item.priority}</td>
               <td>{item.last_signal_score.toFixed(1)}</td>
-              <td>{item.freshness_minutes}m</td>
+              <td>{item.freshness_minutes}m / {item.freshness_state}</td>
               <td>{item.thesis}</td>
             </tr>
           ))}

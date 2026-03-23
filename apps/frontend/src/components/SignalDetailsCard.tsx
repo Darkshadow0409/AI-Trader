@@ -1,10 +1,13 @@
-import type { AssetContextView, SignalDetailView } from "../types/api";
+import type { AssetContextView, MarketChartView, RibbonView, SignalDetailView } from "../types/api";
+import { dataQualityLabel } from "../lib/uiLabels";
 import { Panel } from "./Panel";
 import { StateBlock } from "./StateBlock";
 
 interface SignalDetailsCardProps {
   context: AssetContextView;
   detail: SignalDetailView | null;
+  chart?: MarketChartView | null;
+  ribbon: RibbonView;
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -43,15 +46,19 @@ function topRelevantMarkets(symbol: string, markets: NonNullable<SignalDetailVie
     .slice(0, 3);
 }
 
-export function SignalDetailsCard({ context, detail, loading, error, onRetry }: SignalDetailsCardProps) {
+export function SignalDetailsCard({ context, detail, chart, ribbon: _ribbon, loading, error, onRetry }: SignalDetailsCardProps) {
   const signal = detail ?? context.latest_signal;
   const risk = detail?.related_risk ?? context.latest_risk;
   const signalDetail = detail;
-  const reality = signalDetail?.data_reality ?? signal?.data_reality ?? context.data_reality;
+  const reality = chart?.data_reality ?? signalDetail?.data_reality ?? signal?.data_reality ?? context.data_reality;
   const friendlyError = signalErrorLabel(error, Boolean(signal));
   const relevantCrowdMarkets = signal && signalDetail?.related_polymarket_markets
     ? topRelevantMarkets(signal.symbol, signalDetail.related_polymarket_markets)
     : [];
+  const selectedMarketFreshnessMinutes = chart?.freshness_minutes ?? reality?.freshness_minutes ?? context.data_reality?.freshness_minutes ?? null;
+  const selectedMarketFreshnessState = chart?.freshness_state ?? reality?.freshness_state ?? context.data_reality?.freshness_state ?? "unknown";
+  const selectedMarketFreshnessLabel =
+    selectedMarketFreshnessMinutes === null ? "unknown" : `${selectedMarketFreshnessMinutes}m / ${selectedMarketFreshnessState}`;
 
   return (
     <Panel
@@ -87,15 +94,17 @@ export function SignalDetailsCard({ context, detail, loading, error, onRetry }: 
               </strong>
             </div>
             <div>
-              <span className="metric-label">Data</span>
-              <strong>{signal.data_quality}</strong>
+              <span className="metric-label">Data Quality</span>
+              <strong>{dataQualityLabel(signal.data_quality)}</strong>
             </div>
-            {signalDetail ? (
-              <div>
-                <span className="metric-label">Freshness</span>
-                <strong>{signalDetail.freshness_status}</strong>
-              </div>
-            ) : null}
+            <div>
+              <span className="metric-label">Signal Age</span>
+              <strong>{signal.freshness_minutes}m old</strong>
+            </div>
+            <div>
+              <span className="metric-label">Selected Market Freshness</span>
+              <strong>{selectedMarketFreshnessLabel}</strong>
+            </div>
             {reality ? (
               <div>
                 <span className="metric-label">Reality</span>
@@ -115,9 +124,9 @@ export function SignalDetailsCard({ context, detail, loading, error, onRetry }: 
               </div>
               <div className="metric-row compact-row">
                 <span>
-                  {reality.provenance.research_symbol} {"->"} {reality.provenance.tradable_symbol}
+                  {reality.provenance.tradable_symbol} trader flow / {reality.provenance.research_symbol} research context
                 </span>
-                <span>{reality.provenance.intended_venue}</span>
+                <span>{chart?.status ? `chart ${chart.status}` : reality.provenance.intended_venue}</span>
               </div>
               <div className="metric-row compact-row">
                 <span>{reality.provenance.source_timing}</span>
@@ -129,6 +138,9 @@ export function SignalDetailsCard({ context, detail, loading, error, onRetry }: 
               </div>
               <small>{reality.tradable_alignment_note}</small>
               <small>{reality.timing_semantics_note}</small>
+              {reality.provenance.tradable_symbol === "USOUSD" ? (
+                <small>Oil research here means: chart first, then EIA/macro/news, then risk and ticket framing. Intraday claims are only valid if the current timeframe is truly available.</small>
+              ) : null}
               {reality.event_context_note ? <small>{reality.event_context_note}</small> : null}
               {reality.ui_warning ? <small>{reality.ui_warning}</small> : null}
             </div>
@@ -150,7 +162,7 @@ export function SignalDetailsCard({ context, detail, loading, error, onRetry }: 
               <span className="tag">risk {risk.max_portfolio_risk_pct.toFixed(3)}%</span>
               <span className="tag">{risk.size_band}</span>
               <span className="tag">{risk.exposure_cluster}</span>
-              <span className="tag">{context.data_reality?.provenance.tradable_symbol ?? signal.symbol}</span>
+              <span className="tag">{chart?.instrument_mapping.trader_symbol ?? context.data_reality?.provenance.tradable_symbol ?? signal.symbol}</span>
             </div>
           ) : null}
           {reality && reality.penalties.length > 0 ? (

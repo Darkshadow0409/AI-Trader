@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +34,17 @@ class Settings(BaseSettings):
     polymarket_cache_seconds: int = 120
     fred_api_key: str = ""
     openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_default_model: str = "gpt-5.4"
+    openai_available_models: str = "gpt-5.4,gpt-5,gpt-5-mini"
+    openai_oauth_client_id: str = ""
+    openai_oauth_client_secret: str = ""
+    openai_oauth_authorize_url: str = "https://auth.openai.com/authorize"
+    openai_oauth_token_url: str = "https://auth0.openai.com/oauth/token"
+    openai_oauth_userinfo_url: str = "https://auth0.openai.com/userinfo"
+    openai_oauth_revoke_url: str = "https://auth0.openai.com/oauth/revoke"
+    openai_oauth_audience: str = "https://api.openai.com/v1"
+    openai_oauth_scopes: str = "openid profile email offline_access"
     ollama_url: str = "http://127.0.0.1:11434"
     alert_enable_in_app: bool = True
     alert_enable_telegram: bool = False
@@ -46,6 +58,23 @@ class Settings(BaseSettings):
     telegram_chat_id: str = ""
     discord_webhook_url: str = ""
     allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:5173", "http://localhost:5173"])
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                return []
+            if normalized.startswith("["):
+                try:
+                    parsed = json.loads(normalized)
+                except json.JSONDecodeError:
+                    parsed = []
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+            return [item.strip() for item in normalized.split(",") if item.strip()]
+        return value
 
     @property
     def repo_root(self) -> Path:
@@ -82,6 +111,11 @@ class Settings(BaseSettings):
     @property
     def frontend_origin(self) -> str:
         return self.allowed_origins[0]
+
+    @property
+    def openai_available_models_list(self) -> list[str]:
+        configured = [item.strip() for item in self.openai_available_models.split(",") if item.strip()]
+        return configured or [self.openai_default_model]
 
 
 @lru_cache(maxsize=1)

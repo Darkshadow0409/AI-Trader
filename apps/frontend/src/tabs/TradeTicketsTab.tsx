@@ -36,6 +36,16 @@ function compactNumber(value: number | null | undefined): string {
   return value.toFixed(Math.abs(value) >= 100 ? 2 : 4);
 }
 
+function compactId(value: string | null | undefined): string {
+  if (!value) {
+    return "n/a";
+  }
+  if (value.length <= 18) {
+    return value;
+  }
+  return `${value.slice(0, 12)}...${value.slice(-6)}`;
+}
+
 export function TradeTicketsTab({
   tickets,
   shadowRows,
@@ -143,7 +153,7 @@ export function TradeTicketsTab({
                     key={ticket.ticket_id}
                     onClick={() => onSelectTicket(ticket.ticket_id)}
                   >
-                    <td>{ticket.ticket_id}</td>
+                    <td title={ticket.ticket_id}>{compactId(ticket.ticket_id)}</td>
                     <td>{ticket.symbol}</td>
                     <td>{ticket.status}</td>
                     <td>{ticket.approval_status}</td>
@@ -157,23 +167,24 @@ export function TradeTicketsTab({
 
         <article className="panel compact-panel">
           <h3>Create Draft Ticket</h3>
+          <small className="compact-copy">Draft a paper-trade or shadow-mode ticket from the current signal and risk context. This does not place a real order.</small>
           <div className="stack">
             <small>
               Signal: {selectedSignalLabel ?? "no signal selected"}
-              {createDraft.signal_id ? <span className="muted-copy"> ({createDraft.signal_id})</span> : null}
+              {createDraft.signal_id ? <span className="muted-copy"> • ref {compactId(createDraft.signal_id)}</span> : null}
             </small>
             <small>
               Risk: {selectedRiskLabel ?? "no risk selected"}
-              {createDraft.risk_report_id ? <span className="muted-copy"> ({createDraft.risk_report_id})</span> : null}
+              {createDraft.risk_report_id ? <span className="muted-copy"> • ref {compactId(createDraft.risk_report_id)}</span> : null}
             </small>
           </div>
           <div className="field-grid">
             <label className="field">
-              <span>Signal ID</span>
+              <span>Signal Ref</span>
               <input value={createDraft.signal_id} onChange={(event) => setCreateDraft((current) => ({ ...current, signal_id: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Risk ID</span>
+              <span>Risk Ref</span>
               <input value={createDraft.risk_report_id ?? ""} onChange={(event) => setCreateDraft((current) => ({ ...current, risk_report_id: event.target.value || null }))} />
             </label>
             <label className="field">
@@ -214,8 +225,8 @@ export function TradeTicketsTab({
             <>
               <div className="metric-grid">
                 <div>
-                  <span className="metric-label">Ticket</span>
-                  <strong>{selectedTicket.ticket_id}</strong>
+                  <span className="metric-label">Ticket Ref</span>
+                  <strong title={selectedTicket.ticket_id}>{compactId(selectedTicket.ticket_id)}</strong>
                 </div>
                 <div>
                   <span className="metric-label">Status</span>
@@ -255,6 +266,10 @@ export function TradeTicketsTab({
                   <small>Allocated capital exceeds the 10k paper account. This ticket reflects overlapping paper exposure and should be treated as an over-allocation warning.</small>
                 </div>
               ) : null}
+              <div className="stack">
+                <small>Current trading symbol: {selectedTicket.data_reality?.provenance.tradable_symbol ?? selectedTicket.symbol}</small>
+                <small>{selectedTicket.data_reality?.tradable_alignment_note ?? "Use data-reality and risk context before approving the ticket."}</small>
+              </div>
               <div className="metric-row">
                 {selectedTicket.signal_id ? (
                   <button className="text-button" onClick={() => onOpenSignal(selectedTicket.signal_id!)} type="button">
@@ -419,7 +434,7 @@ export function TradeTicketsTab({
                       <tbody>
                         {detail.manual_fills.map((fill) => (
                           <tr key={fill.fill_id}>
-                            <td>{fill.fill_id}</td>
+                            <td title={fill.fill_id}>{compactId(fill.fill_id)}</td>
                             <td>{compactNumber(fill.fill_price)}</td>
                             <td>{compactNumber(fill.reconciliation.actual_slippage_bps)}bps</td>
                             <td>{compactNumber(fill.reconciliation.slippage_variance_bps)}bps</td>
@@ -469,7 +484,7 @@ export function TradeTicketsTab({
               <tbody>
                 {shadowRows.map((ticket) => (
                   <tr key={ticket.ticket_id} onClick={() => onSelectTicket(ticket.ticket_id)}>
-                    <td>{ticket.ticket_id}</td>
+                    <td title={ticket.ticket_id}>{compactId(ticket.ticket_id)}</td>
                     <td>{ticket.symbol}</td>
                     <td>{ticket.shadow_summary?.ticket_valid ? "valid" : "invalid"}</td>
                     <td>{ticket.shadow_summary?.divergence_reason || "clear"}</td>

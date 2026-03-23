@@ -1,7 +1,7 @@
 :root {
   color: #dde7e4;
   background: #071012;
-  font-family: "Consolas", "Courier New", monospace;
+  font-family: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
   line-height: 1.45;
   --bg: #071012;
   --panel: rgba(8, 14, 16, 0.95);
@@ -55,7 +55,7 @@ a {
 }
 
 .terminal-shell {
-  padding: 12px;
+  padding: 8px;
 }
 
 .operator-shell {
@@ -64,9 +64,9 @@ a {
 
 .top-ribbon {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  grid-template-columns: minmax(340px, 2.5fr) repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .ribbon-block,
@@ -78,10 +78,14 @@ a {
 }
 
 .ribbon-block {
-  padding: 10px 12px;
-  min-height: 64px;
+  padding: 6px 8px;
+  min-height: 0;
   display: grid;
-  gap: 4px;
+  gap: 3px;
+}
+
+.ribbon-primary {
+  grid-column: auto;
 }
 
 .ribbon-label,
@@ -93,11 +97,20 @@ a {
   font-size: 11px;
 }
 
+.tag,
+.status-pill,
+.metric-label,
+.eyebrow,
+th,
+code {
+  font-family: "Consolas", "Courier New", monospace;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr) 340px;
-  gap: 12px;
-  min-height: calc(100vh - 110px);
+  gap: 10px;
+  min-height: calc(100vh - 88px);
 }
 
 .operator-main {
@@ -114,37 +127,63 @@ a {
   gap: 12px;
 }
 
+.left-rail {
+  align-self: start;
+  position: sticky;
+  top: 8px;
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
 .right-pane {
   align-self: start;
   position: sticky;
-  top: 12px;
-  max-height: calc(100vh - 24px);
+  top: 8px;
+  max-height: calc(100vh - 16px);
   overflow: auto;
 }
 
 @media (max-width: 1220px) {
+  .top-ribbon {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .workspace {
     grid-template-columns: 220px minmax(0, 1fr) 300px;
   }
 }
 
 @media (max-width: 980px) {
+  .top-ribbon {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .workspace {
     grid-template-columns: 200px minmax(0, 1fr);
   }
 
+  .left-rail,
   .right-pane {
     position: static;
     max-height: none;
+    overflow: visible;
+  }
+
+  .right-pane {
     grid-column: 1 / -1;
   }
 
   .nav-panel {
-    position: static;
+    max-height: none;
   }
 }
 
 @media (max-width: 900px) {
+  .top-ribbon {
+    grid-template-columns: 1fr;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -182,8 +221,9 @@ a {
 }
 
 .nav-panel {
-  position: sticky;
-  top: 12px;
+  position: static;
+  max-height: min(46vh, 420px);
+  overflow: auto;
 }
 
 .nav-list {
@@ -257,7 +297,7 @@ a {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 8px;
-  align-items: center;
+  align-items: start;
   text-align: left;
   padding: 8px 10px;
   cursor: pointer;
@@ -278,10 +318,15 @@ a {
 }
 
 .workspace-header {
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: rgba(7, 14, 16, 0.92);
   border: 1px solid var(--line);
   align-items: flex-start;
+  gap: 12px;
+}
+
+.operator-workspace-anchor {
+  scroll-margin-top: 12px;
 }
 
 .workspace-badges,
@@ -290,6 +335,14 @@ a {
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.workspace-inline-link {
+  padding: 4px 8px;
+}
+
+.subtle-tag {
+  opacity: 0.72;
 }
 
 .workspace-header h1,
@@ -314,6 +367,7 @@ a {
 .compact-row,
 .compact {
   color: var(--text-dim);
+  line-height: 1.55;
 }
 
 .state-block {
@@ -330,7 +384,7 @@ a {
 
 .focus-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2.15fr) minmax(320px, 0.85fr);
+  grid-template-columns: minmax(0, 2.35fr) minmax(320px, 0.8fr);
   gap: 12px;
   align-items: start;
 }
@@ -355,7 +409,7 @@ a {
 }
 
 .chart-shell-lg {
-  height: 500px;
+  height: 560px;
 }
 
 .chart-shell-sm {
@@ -458,6 +512,11 @@ a {
 
 .hero-panel .command-grid {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.chart-state-overlay.proxy {
+  border-color: #61513a;
+  background: rgba(40, 31, 16, 0.86);
 }
 
 .field {
@@ -584,6 +643,15 @@ a {
   cursor: pointer;
 }
 
+.alert-item.actionable-alert {
+  border-color: rgba(121, 212, 166, 0.32);
+}
+
+.alert-item.suppressed-alert {
+  opacity: 0.74;
+  border-style: dashed;
+}
+
 .sparkline {
   width: 44px;
   height: 16px;
@@ -698,6 +766,10 @@ textarea:focus-visible {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .ribbon-primary {
+    grid-column: span 2;
+  }
+
   .workspace {
     grid-template-columns: 220px minmax(0, 1fr);
   }
@@ -719,6 +791,10 @@ textarea:focus-visible {
   .command-grid,
   .top-ribbon {
     grid-template-columns: 1fr;
+  }
+
+  .ribbon-primary {
+    grid-column: span 1;
   }
 }
 

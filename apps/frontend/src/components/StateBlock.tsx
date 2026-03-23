@@ -9,7 +9,7 @@ interface StateBlockProps {
 
 export function StateBlock({ loading, error, empty, emptyLabel = "No data available.", actionLabel, onAction }: StateBlockProps) {
   if (loading) {
-    return <div className="state-block">Loading…</div>;
+    return <div className="state-block">Syncing operator data…</div>;
   }
   if (error) {
     return (

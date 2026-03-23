@@ -93,6 +93,15 @@ def _task_view(row: ReviewTaskRecord) -> ReviewTaskView:
     )
 
 
+def list_review_tasks_snapshot(session: Session, limit: int | None = None) -> list[ReviewTaskView]:
+    rows = session.exec(
+        select(ReviewTaskRecord).order_by(ReviewTaskRecord.due_at.asc(), ReviewTaskRecord.updated_at.desc())
+    ).all()
+    if limit is not None:
+        rows = rows[:limit]
+    return [_task_view(row) for row in rows]
+
+
 def _upsert_task(session: Session, payload: dict[str, Any]) -> None:
     row = session.exec(select(ReviewTaskRecord).where(ReviewTaskRecord.task_id == payload["task_id"])).first()
     if row is None:

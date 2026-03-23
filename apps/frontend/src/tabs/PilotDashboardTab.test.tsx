@@ -17,7 +17,7 @@ describe("PilotDashboardTab", () => {
     expect(screen.getByRole("heading", { name: "Pilot Summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Trust By Asset Class" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Execution Gate" })).toBeInTheDocument();
-    expect(screen.getByText("pilot_running")).toBeInTheDocument();
+    expect(screen.getByText("Pilot Running")).toBeInTheDocument();
     expect(screen.getByText(/approved ticket conversion is below pilot threshold/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Adapter Health" })).toBeInTheDocument();
     expect(screen.getByText("mock_broker")).toBeInTheDocument();

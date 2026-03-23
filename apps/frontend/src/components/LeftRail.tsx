@@ -1,4 +1,6 @@
 import type { ExecutionGateView, OperationalBacklogView, ResearchView, WatchlistSummaryView } from "../types/api";
+import { terminalFocusPriority } from "../lib/terminalFocus";
+import { gateStatusLabel } from "../lib/uiLabels";
 
 export interface NavItem {
   key: string;
@@ -22,6 +24,9 @@ interface LeftRailProps {
 function scoutAssets(research: ResearchView[]): ResearchView[] {
   return [...research]
     .sort((left, right) => {
+      if (terminalFocusPriority(left.symbol) !== terminalFocusPriority(right.symbol)) {
+        return terminalFocusPriority(left.symbol) - terminalFocusPriority(right.symbol);
+      }
       const rightPenalty = right.data_reality?.ranking_penalty ?? 0;
       const leftPenalty = left.data_reality?.ranking_penalty ?? 0;
       return (right.breakout_distance - rightPenalty / 100) - (left.breakout_distance - leftPenalty / 100);
@@ -50,6 +55,21 @@ function Sparkline({ points }: { points: number[] }) {
   );
 }
 
+function watchlistPriceLabel(item: WatchlistSummaryView): string {
+  if (item.freshness_state === "unusable" || item.last_price === 0) {
+    return "No live price in current mode";
+  }
+  return `${item.last_price.toFixed(2)} / ${item.change_pct >= 0 ? "+" : ""}${item.change_pct.toFixed(2)}%`;
+}
+
+function watchlistTruthLine(item: WatchlistSummaryView): string {
+  const reality = `Reality ${item.realism_grade}`;
+  if (!item.instrument_mapping.broker_truth) {
+    return `${reality} / ${item.market_data_mode} / proxy via ${item.instrument_mapping.broker_symbol}`;
+  }
+  return `${reality} / ${item.market_data_mode} / ${item.top_setup_tag.replace(/_/g, " ")}`;
+}
+
 export function LeftRail({
   activeTab,
   backlog,
@@ -63,16 +83,17 @@ export function LeftRail({
 }: LeftRailProps) {
   const scout = scoutAssets(research);
   const gateTone = executionGate?.status === "execution_candidate" ? "active" : executionGate?.status === "review_required" ? "warning" : "default";
+  const gateLabel = gateStatusLabel(executionGate?.status);
 
   return (
     <aside className="left-rail">
       <section className="rail-panel nav-panel">
         <div className="rail-header">
           <div>
-            <span className="eyebrow">Desk</span>
-            <strong>Operator Surface</strong>
+            <span className="eyebrow">Terminal</span>
+            <strong>Commodity Operator Surface</strong>
           </div>
-          <small className={`status-pill ${gateTone}`}>{executionGate?.status ?? "loading"}</small>
+          <small className={`status-pill ${gateTone}`}>{gateLabel}</small>
         </div>
         <div className="nav-list">
           {navItems.map((item) => (
@@ -96,10 +117,11 @@ export function LeftRail({
       <section className="rail-panel">
         <div className="rail-header">
           <div>
-            <span className="eyebrow">Watchlist</span>
-            <strong>Focus Assets</strong>
+            <span className="eyebrow">Primary Board</span>
+            <strong>Oil / Gold / Silver First</strong>
           </div>
         </div>
+        <small className="compact-copy">Click an asset to load its chart. USOUSD, XAUUSD, and XAGUSD are the lead operator board; BTC and ETH stay available as secondary context.</small>
         {watchlist.map((item) => (
           <button
             className={selectedSymbol === item.symbol ? "rail-item active" : "rail-item"}
@@ -109,27 +131,19 @@ export function LeftRail({
           >
             <div className="stack compact-stack">
               <div className="rail-header">
-                <strong>{item.symbol}</strong>
-                <small title="Reality grade for tradable alignment and source realism.">
-                  Reality {item.realism_grade}
-                </small>
+                <div className="stack compact-stack">
+                  <strong>{item.instrument_mapping.trader_symbol}</strong>
+                  <small>{item.instrument_mapping.display_name}</small>
+                </div>
+                <div className="stack compact-stack">
+                  <strong>{watchlistPriceLabel(item)}</strong>
+                  <small>{item.freshness_minutes}m / {item.freshness_state}</small>
+                </div>
               </div>
-              <small>
-                {item.last_price.toFixed(2)} / {item.change_pct >= 0 ? "+" : ""}
-                {item.change_pct.toFixed(2)}%
-              </small>
-              <small>
-                {item.freshness_state} / {item.top_setup_tag}
-              </small>
-              <small>
-                {item.market_data_mode} / {item.source_label}
-              </small>
-              <small>
-                {item.instrument_mapping.display_symbol} {"->"} {item.instrument_mapping.broker_symbol}
-              </small>
+              <small title={item.instrument_mapping.mapping_notes}>{watchlistTruthLine(item)}</small>
             </div>
             <Sparkline points={item.sparkline} />
-            <small>{item.freshness_minutes}m</small>
+            <small>{item.source_label}</small>
           </button>
         ))}
       </section>
@@ -138,9 +152,10 @@ export function LeftRail({
         <div className="rail-header">
           <div>
             <span className="eyebrow">Scout Queue</span>
-            <strong>Breakout Scan</strong>
+            <strong>Commodity Breakout Scan</strong>
           </div>
         </div>
+        <small className="compact-copy">This queue stays compact and commodities-led so the operator can jump from chart to signal context without scanning a generic dashboard list.</small>
         {scout.map((item) => (
           <button
             className={selectedSymbol === item.symbol ? "rail-item active" : "rail-item"}
@@ -148,7 +163,7 @@ export function LeftRail({
             onClick={() => onSelectSymbol(item.symbol)}
             type="button"
           >
-            <strong>{item.symbol}</strong>
+            <strong>{item.label}</strong>
             <span>{item.trend_state}</span>
             <small>{item.breakout_distance.toFixed(2)}%</small>
           </button>

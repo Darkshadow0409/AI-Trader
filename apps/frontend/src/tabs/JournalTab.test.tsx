@@ -41,7 +41,8 @@ describe("JournalTab", () => {
 
     expect(screen.getByRole("heading", { name: "Review Queue" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Decision Hygiene" })).toBeInTheDocument();
-    expect(screen.getAllByText("paper_trade_closed_btc").length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle("paper_trade_closed_btc").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Unknown means the operator has not scored that review field yet/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Outcomes by Strategy" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Failure Attribution" })).toBeInTheDocument();
 
@@ -63,4 +64,26 @@ describe("JournalTab", () => {
       expect(onChanged).toHaveBeenCalled();
     });
   }, 10000);
+
+  it("renders a calm journal-unavailable message instead of raw fetch text", () => {
+    render(
+      <JournalTab
+        analytics={mockPaperTradeAnalytics}
+        detail={mockPaperTradeDetail}
+        error="TypeError: Failed to fetch"
+        onChanged={vi.fn()}
+        onSelectTrade={vi.fn()}
+        reviews={mockPaperTradeReviews}
+        rows={mockJournal}
+        selectedRiskReportId={mockPaperTradeDetail.risk_report_id}
+        selectedSignalId={mockPaperTradeDetail.signal_id}
+        selectedSymbol="BTC"
+        selectedTradeId={mockPaperTradeDetail.trade_id}
+        trades={[...mockPaperTradesProposed, ...mockPaperTradesActive, ...mockPaperTradesClosed]}
+      />,
+    );
+
+    expect(screen.getByText(/Journal data is temporarily unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Failed to fetch/i)).not.toBeInTheDocument();
+  });
 });

@@ -1,6 +1,9 @@
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
+from app.core.database import engine
 from app.main import app
+from app.models.entities import JournalEntry
 from app.services.pipeline import seed_and_refresh
 
 
@@ -32,6 +35,10 @@ def test_api_starts_and_loads_sample_data() -> None:
     high_risk = client.get("/api/signals/high-risk")
     signal_detail = client.get(f"/api/signals/{signals.json()[0]['signal_id']}") if signals.json() else None
     asset_context = client.get("/api/dashboard/assets/BTC")
+    asset_context_oil = client.get("/api/dashboard/assets/USOUSD")
+    asset_context_oil_research = client.get("/api/dashboard/assets/WTI")
+    asset_context_gold = client.get("/api/dashboard/assets/XAUUSD")
+    asset_context_silver = client.get("/api/dashboard/assets/XAGUSD")
     active_trades = client.get("/api/portfolio/active-trades")
     wallet = client.get("/api/portfolio/wallet-balance")
     journal = client.get("/api/journal")
@@ -63,6 +70,15 @@ def test_api_starts_and_loads_sample_data() -> None:
     control_center = client.get("/api/system/control-center")
     pilot_export = client.post("/api/system/pilot-export")
     polymarket = client.get("/api/polymarket/hunter")
+    ai_status = client.get("/api/ai/status")
+    ai_advisor = client.post(
+        "/api/ai/advisor",
+        json={
+            "query": "What matters most right now for BTC?",
+            "symbol": "BTC",
+            "timeframe": "1d",
+        },
+    )
     assert news.status_code == 200
     assert watchlist.status_code == 200
     assert risk.status_code == 200
@@ -80,6 +96,10 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert high_risk.status_code == 200
     assert signal_detail is not None and signal_detail.status_code == 200
     assert asset_context.status_code == 200
+    assert asset_context_oil.status_code == 200
+    assert asset_context_oil_research.status_code == 200
+    assert asset_context_gold.status_code == 200
+    assert asset_context_silver.status_code == 200
     assert active_trades.status_code == 200
     assert wallet.status_code == 200
     assert journal.status_code == 200
@@ -111,8 +131,10 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert control_center.status_code == 200
     assert pilot_export.status_code == 200
     assert polymarket.status_code == 200
+    assert ai_status.status_code == 200
+    assert ai_advisor.status_code == 200
     assert len(bars.json()) > 0
-    assert market_chart.json()["status"] in {"ok", "stale"}
+    assert market_chart.json()["status"] in {"ok", "stale", "degraded", "unusable"}
     assert market_chart.json()["bars"]
     assert market_chart.json()["indicators"]["ema_20"] is not None
     assert market_chart.json()["market_data_mode"] in {"fixture", "public_live", "broker_live"}
@@ -126,15 +148,32 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert len(strategies.json()) >= 3
     assert len(backtests.json()) >= 1
     assert "macro_regime" in overview.json()
+    assert "market_data_as_of" in overview.json()
+    assert "system_refresh_minutes" in overview.json()
+    assert "data_mode_label" in overview.json()
+    assert "feed_source_label" in overview.json()
+    assert "mode_explainer" in overview.json()
     assert "execution_gate" in desk.json()
+    assert "section_readiness" in desk.json()
+    assert "section_notes" in desk.json()
     assert isinstance(research.json(), list)
     assert isinstance(active_trades.json(), list)
     assert isinstance(wallet.json(), list)
     assert isinstance(journal.json(), list)
     assert "focus_queue" in opportunities.json()
+    summary_by_symbol = {row["symbol"]: row for row in watchlist_summary.json()}
+    wti_opportunity = next(
+        row
+        for row in [*opportunities.json()["focus_queue"], *opportunities.json()["scout_queue"]]
+        if row["symbol"] == "WTI"
+    )
+    assert wti_opportunity["freshness_minutes"] == summary_by_symbol["WTI"]["freshness_minutes"]
+    assert wti_opportunity["data_reality"]["freshness_state"] == summary_by_symbol["WTI"]["freshness_state"]
     assert isinstance(watchlist_summary.json(), list)
     assert "sparkline" in watchlist_summary.json()[0]
     assert "instrument_mapping" in watchlist_summary.json()[0]
+    assert "freshness_state" in watchlist.json()[0]
+    assert [row["symbol"] for row in watchlist_summary.json()[:3]] == ["WTI", "GOLD", "SILVER"]
     assert isinstance(alerts.json(), list)
     assert isinstance(proposed_paper.json(), list)
     assert isinstance(active_paper.json(), list)
@@ -160,11 +199,34 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "stop_logic" in risk_detail.json()
     assert "data_reality" in risk_detail.json()
     assert "data_reality" in asset_context.json()
+    assert asset_context_oil.json()["symbol"] == "WTI"
+    assert asset_context_oil.json()["data_reality"]["provenance"]["tradable_symbol"] == "USOUSD"
+    assert asset_context_oil_research.json()["symbol"] == "WTI"
+    assert asset_context_oil_research.json()["data_reality"]["provenance"]["tradable_symbol"] == "USOUSD"
+    assert asset_context_gold.json()["symbol"] == "GOLD"
+    assert asset_context_gold.json()["data_reality"]["provenance"]["tradable_symbol"] == "XAUUSD"
+    assert asset_context_silver.json()["symbol"] == "SILVER"
+    assert asset_context_silver.json()["data_reality"]["provenance"]["tradable_symbol"] == "XAGUSD"
     assert refresh.json()["source_mode"] == "sample"
     assert "runtime_status" in control_center.json()
     assert "report_path" in pilot_export.json()
     assert "markets" in polymarket.json()
     assert "available_tags" in polymarket.json()
+    assert ai_status.json()["provider"] == "openai"
+    assert ai_status.json()["status"] in {"oauth_not_configured", "auth_required", "connected", "session_expired", "auth_unavailable"}
+    assert len(ai_advisor.json()["agent_results"]) == 4
+    assert ai_advisor.json()["provider_status"]["provider"] == "openai"
+    assert ai_advisor.json()["final_answer"]
+    assert ai_advisor.json()["context_snapshot"]["selected_instrument"]
+    assert ai_advisor.json()["context_snapshot"]["active_workspace"]
+    assert ai_advisor.json()["market_view"]
+    assert ai_advisor.json()["why_it_matters_now"]
+    assert ai_advisor.json()["key_levels"]
+    assert ai_advisor.json()["catalysts"]
+    assert ai_advisor.json()["invalidation"]
+    assert ai_advisor.json()["risk_frame"]
+    assert ai_advisor.json()["related_markets"]
+    assert ai_advisor.json()["next_actions"]
 
     active_paper_detail = client.get(f"/api/portfolio/paper-trades/{active_paper.json()[0]['trade_id']}") if active_paper.json() else None
     assert active_paper_detail is not None and active_paper_detail.status_code == 200
@@ -306,3 +368,22 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert "equity_curve" in backtest_detail.json()
     assert "data_reality" in backtest_detail.json()
     assert created.json()["strategy_name"] == "trend_breakout_v1"
+
+
+def test_journal_route_heals_legacy_blank_entry_type() -> None:
+    seed_and_refresh()
+    journal_id = ""
+    with Session(engine) as session:
+        row = session.exec(select(JournalEntry)).first()
+        assert row is not None
+        journal_id = row.journal_id
+        row.entry_type = ""
+        session.add(row)
+        session.commit()
+
+    client = TestClient(app)
+    response = client.get("/api/journal")
+
+    assert response.status_code == 200
+    healed = next(item for item in response.json() if item["journal_id"] == journal_id)
+    assert healed["entry_type"] == "review"

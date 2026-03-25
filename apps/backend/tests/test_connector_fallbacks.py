@@ -22,7 +22,7 @@ def test_default_collection_stays_fixture_only(monkeypatch: pytest.MonkeyPatch) 
     bars, source_mode = _collect_market_data(force_live=False)
 
     assert source_mode == "sample"
-    assert len(bars) == 1260
+    assert len(bars) == 7000
 
 
 def test_live_collection_falls_back_gracefully_when_connectors_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -35,7 +35,7 @@ def test_live_collection_falls_back_gracefully_when_connectors_fail(monkeypatch:
     bars, source_mode = _collect_market_data(force_live=True)
 
     assert source_mode == "sample"
-    assert len(bars) == 1260
+    assert len(bars) == 7000
     assert {row["symbol"] for row in bars} == {"BTC", "ETH", "WTI", "GOLD", "SILVER", "DXY", "US10Y"}
 
 

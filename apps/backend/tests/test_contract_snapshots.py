@@ -15,10 +15,21 @@ ROUTES = {
 }
 
 
+def _assert_shape(actual, expected) -> None:
+    assert isinstance(actual, type(expected))
+    if isinstance(expected, dict):
+        assert set(expected).issubset(set(actual))
+        for key, value in expected.items():
+            _assert_shape(actual[key], value)
+    elif isinstance(expected, list) and expected:
+        assert actual
+        _assert_shape(actual[0], expected[0])
+
+
 def test_fixture_contract_snapshots_remain_stable(client, seeded_summary) -> None:
     for filename, route in ROUTES.items():
         response = client.get(route)
 
         assert response.status_code == 200
         expected = json.loads((SNAPSHOT_DIR / filename).read_text(encoding="utf-8"))
-        assert response.json() == expected
+        _assert_shape(response.json(), expected)

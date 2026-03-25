@@ -889,6 +889,7 @@ def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalReq
     canonical_symbol = resolve_symbol(payload.symbol or signal.symbol)
     entry_reference = float(signal.features.get("close") or 0.0)
     atr_14 = float(signal.features.get("atr_14") or max(entry_reference * 0.03, 1.0))
+    entry_zone = signal.features.get("entry_zone") if isinstance(signal.features.get("entry_zone"), dict) else None
     trade = PaperTradeRecord(
         trade_id=_stable_id("paper_trade", signal.signal_id, payload.strategy_id or "manual"),
         signal_id=signal.signal_id,
@@ -896,7 +897,7 @@ def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalReq
         strategy_id=payload.strategy_id,
         symbol=canonical_symbol,
         side=payload.side or signal.direction,
-        proposed_entry_zone_json={
+        proposed_entry_zone_json=entry_zone or {
             "low": round(entry_reference - atr_14 * 0.15, 2),
             "high": round(entry_reference + atr_14 * 0.15, 2),
         },
@@ -905,6 +906,18 @@ def create_proposed_paper_trade(session: Session, payload: PaperTradeProposalReq
         size_plan_json={
             "size_band": risk.size_band if risk else "small",
             "max_portfolio_risk_pct": risk.max_portfolio_risk_pct if risk else 0.5,
+            "leverage_band": risk.report.get("leverage_band") if risk else "0.5x to 1.0x",
+            "leverage_cap": risk.report.get("leverage_cap") if risk else 1.0,
+            "expected_holding_window": signal.features.get("holding_window"),
+            "expected_r_multiple": signal.features.get("expected_r_multiple"),
+            "scenario_analytics": {
+                "no_leverage": "baseline",
+                "half_size": "reduced drawdown / reduced upside",
+                "full_size": "full thesis size",
+                "retest_entry": "preferred when confirmation is available",
+                "immediate_entry": "higher slippage and invalidation risk",
+                "atr_stop": "preferred default for commodity setups",
+            },
         },
         actual_size=0.0,
         entry_slippage_bps=0.0,

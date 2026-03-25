@@ -26,7 +26,7 @@ import { StrategyLabTab } from "./tabs/StrategyLabTab";
 import { TradeTicketsTab } from "./tabs/TradeTicketsTab";
 import { WalletBalanceTab } from "./tabs/WalletBalanceTab";
 import { WatchlistTab } from "./tabs/WatchlistTab";
-import { preferredCommoditySymbol } from "./lib/terminalFocus";
+import { isPrimaryCommodity, preferredCommoditySymbol } from "./lib/terminalFocus";
 import { gateStatusLabel } from "./lib/uiLabels";
 import type { DeskSummaryView, ExecutionGateView, HomeOperatorSummaryView, OperationalBacklogView, WatchlistSummaryView } from "./types/api";
 
@@ -400,19 +400,22 @@ export default function App() {
   }, [hasSettledWorkspaceScroll, resources.deskSummary.loading, resources.overview.loading, resources.watchlistSummary.loading]);
 
   useEffect(() => {
-    if (hasAutoSelectedSymbol) {
-      return;
-    }
     const preferredSymbol =
       preferredCommoditySymbol(resources.watchlistSummary.data)
       ?? resources.watchlist.data[0]?.symbol
       ?? resources.signalsSummary.data.top_ranked_signals[0]?.symbol
       ?? resources.signals.data[0]?.symbol;
     if (preferredSymbol) {
-      setSelectedSymbol(preferredSymbol);
-      setHasAutoSelectedSymbol(true);
+      const shouldAdoptPreferred =
+        !hasAutoSelectedSymbol
+        || !selectedSymbol
+        || (!isPrimaryCommodity(selectedSymbol) && isPrimaryCommodity(preferredSymbol));
+      if (shouldAdoptPreferred) {
+        setSelectedSymbol(preferredSymbol);
+        setHasAutoSelectedSymbol(true);
+      }
     }
-  }, [hasAutoSelectedSymbol, resources.signals.data, resources.signalsSummary.data.top_ranked_signals, resources.watchlist.data, resources.watchlistSummary.data]);
+  }, [hasAutoSelectedSymbol, resources.signals.data, resources.signalsSummary.data.top_ranked_signals, resources.watchlist.data, resources.watchlistSummary.data, selectedSymbol]);
 
   useEffect(() => {
     const signalId = resources.assetContext.data.latest_signal?.signal_id ?? resources.signals.data.find((row) => row.symbol === selectedSymbol)?.signal_id ?? null;

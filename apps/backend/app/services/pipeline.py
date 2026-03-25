@@ -87,6 +87,7 @@ def _normalize_json(value: Any) -> Any:
 
 def _collect_market_data(force_live: bool = False) -> tuple[list[dict[str, object]], str]:
     fallback_symbols = ("BTC", "ETH", "WTI", "GOLD", "SILVER", "DXY", "US10Y")
+    timeframe_plan = ("15m", "1h", "4h", "1d")
     use_live = force_live or not settings.use_sample_only
     bars: list[dict[str, object]] = []
     source_mode = "sample"
@@ -103,11 +104,12 @@ def _collect_market_data(force_live: bool = False) -> tuple[list[dict[str, objec
                     break
             except Exception:
                 continue
-    seeded_symbols = fallback_symbols if not bars else tuple(
-        symbol for symbol in fallback_symbols if symbol not in {str(row["symbol"]) for row in bars}
-    )
-    for symbol in seeded_symbols:
-        bars.extend(generate_sample_ohlcv(symbol))
+    existing_pairs = {(str(row["symbol"]), str(row["timeframe"])) for row in bars}
+    for symbol in fallback_symbols:
+        for timeframe in timeframe_plan:
+            if (symbol, timeframe) in existing_pairs:
+                continue
+            bars.extend(generate_sample_ohlcv(symbol, timeframe=timeframe))
     return bars, source_mode
 
 
@@ -334,7 +336,10 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
             feature_frame, correlations = build_feature_frame(bars, next_event.event_time if next_event else None)
             time_step("feature_pipeline", started)
             latest_rows = (
-                feature_frame.sort(["symbol", "timestamp"]).group_by("symbol", maintain_order=True).tail(1).to_dicts()
+                feature_frame.sort(["symbol", "timeframe", "timestamp"])
+                .group_by(["symbol", "timeframe"], maintain_order=True)
+                .tail(1)
+                .to_dicts()
             )
             latest_tradeables = [
                 {
@@ -342,7 +347,7 @@ def refresh_pipeline(force_live: bool = False) -> PipelineSummary:
                     "data_quality": str(row.get("data_quality", "fixture")),
                 }
                 for row in latest_rows
-                if row["symbol"] in {"BTC", "ETH"}
+                if row["symbol"] in {"WTI", "GOLD", "SILVER", "BTC", "ETH"}
             ]
             next_event_payload = (
                 {

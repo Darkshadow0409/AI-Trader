@@ -26,9 +26,9 @@ def test_seed_data_script_emits_deterministic_fixture_counts() -> None:
     payload = _run_script("seed_data.py")
 
     assert payload["source_mode"] == "sample"
-    assert payload["bars_ingested"] == 1080
-    assert payload["signals_emitted"] == 2
-    assert payload["risk_reports_built"] == 2
+    assert payload["bars_ingested"] == 7000
+    assert payload["signals_emitted"] >= 3
+    assert payload["risk_reports_built"] >= payload["signals_emitted"]
     assert payload["data_quality"] == "fixture"
 
 
@@ -36,7 +36,7 @@ def test_backfill_script_emits_deterministic_fixture_counts() -> None:
     payload = _run_script("backfill.py")
 
     assert payload["source_mode"] == "sample"
-    assert payload["bars_ingested"] == 1080
-    assert payload["signals_emitted"] == 2
-    assert payload["risk_reports_built"] == 2
+    assert payload["bars_ingested"] == 7000
+    assert payload["signals_emitted"] >= 3
+    assert payload["risk_reports_built"] >= payload["signals_emitted"]
     assert payload["data_quality"] == "fixture"

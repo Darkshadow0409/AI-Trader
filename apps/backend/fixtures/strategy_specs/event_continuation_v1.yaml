@@ -1,15 +1,15 @@
 name: event_continuation_v1
 version: "1.0"
 template: event_continuation
-description: Event-sensitive continuation model that can only be promoted after walk-forward validation and is proxy-grade if routed through a proxy market.
-universe: [WTI, BTC, ETH]
+description: Event-sensitive commodity continuation model for oil and precious metals around macro and inventory catalysts.
+universe: [WTI, GOLD, SILVER]
 underlying_symbol: WTI
-tradable_symbol: BTC
+tradable_symbol: USOUSD
 timeframe: 1d
 rules:
   entry: hours_to_event <= event_hours_max and return_1 > 0 and relative_volume > relative_volume_min
   exit: hours_to_event < -24 or return_1 < 0
-tags: [event, proxy, macro]
+tags: [event, proxy, macro, commodities]
 parameters:
   event_hours_max: 48
   relative_volume_min: 1.0

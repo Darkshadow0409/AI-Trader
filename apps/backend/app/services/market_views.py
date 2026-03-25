@@ -377,7 +377,7 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
     if state in {"stale", "degraded", "unusable"}:
         note_parts.append(f"Data freshness is {state}. Review the latest refresh before acting.")
     if normalized_timeframe != "1d":
-        note_parts.append("Current fixture data is strongest on 1d bars. Intraday availability depends on what has been seeded locally.")
+        note_parts.append("Intraday bars are seeded locally for operator rehearsal. Treat them as research/paper context unless broker-truth data is explicitly available.")
     if not mapping.broker_truth:
         note_parts.append(mapping.mapping_notes)
     return MarketChartView(
@@ -408,6 +408,10 @@ def market_chart_view(session: Session, symbol: str, timeframe: str) -> MarketCh
 
 def list_watchlist_summaries(session: Session) -> list[WatchlistSummaryView]:
     rows = with_default_watchlist_items(session.exec(select(WatchlistItem).order_by(desc(WatchlistItem.last_signal_score))).all())
+    latest_signals = {
+        row.symbol: row
+        for row in session.exec(select(SignalRecord).order_by(desc(SignalRecord.score), desc(SignalRecord.timestamp))).all()
+    }
     payload: list[WatchlistSummaryView] = []
     data_mode = market_data_mode(session)
     for row in rows:
@@ -441,7 +445,11 @@ def list_watchlist_summaries(session: Session) -> list[WatchlistSummaryView]:
                 realism_grade=reality.provenance.realism_grade if reality else "n/a",
                 market_data_mode=data_mode,
                 source_label=(reality.provenance.source_type if reality else "missing"),
-                top_setup_tag="watch" if row.last_signal_score <= 0 else f"score {row.last_signal_score:.0f}",
+                top_setup_tag=(
+                    str(latest_signals[row.symbol].features_json.get("setup_family") or latest_signals[row.symbol].signal_type).replace("_", " ")
+                    if row.symbol in latest_signals
+                    else "watch"
+                ),
                 sparkline=[round(item.close, 2) for item in ordered],
                 instrument_mapping=mapping,
             )

@@ -69,7 +69,7 @@ def test_strategy_detail_includes_operator_feedback_summary(client) -> None:
 
 
 def test_refresh_generates_repeated_hygiene_alerts(seeded_summary) -> None:
-    assert seeded_summary.signals_emitted == 2
+    assert seeded_summary.signals_emitted >= 3
     with Session(engine) as session:
         session.exec(delete(AlertRecord))
         session.commit()

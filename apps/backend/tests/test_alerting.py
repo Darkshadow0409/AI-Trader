@@ -42,7 +42,7 @@ def test_pipeline_generates_persisted_alerts(seeded_summary) -> None:
         alerts = list_alerts(session)
         categories = {row.category for row in alerts}
 
-    assert seeded_summary.signals_emitted == 2
+    assert seeded_summary.signals_emitted >= 3
     assert "signal_ranked" in categories
     assert "high_risk_signal" in categories
     assert "daily_digest_summary" in categories

@@ -10,6 +10,14 @@ interface SignalTableProps {
 
 type SortKey = "score" | "confidence" | "freshness" | "noise" | "symbol";
 
+function asString(value: unknown, fallback = "n/a"): string {
+  return typeof value === "string" && value.trim().length > 0 ? value : fallback;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function riskTier(row: SignalView): string {
   if (row.noise_probability >= 0.35 || row.data_reality?.freshness_state === "stale") {
     return "high";
@@ -21,8 +29,12 @@ function riskTier(row: SignalView): string {
 }
 
 function horizon(row: SignalView): string {
+  const trigger = asString(row.features.trigger_timeframe, "");
   if (row.signal_type === "event_driven") {
     return "event";
+  }
+  if (trigger.includes("1m") || trigger.includes("5m")) {
+    return "intraday";
   }
   if ((row.features.breakout_distance as number | undefined) !== undefined) {
     return "swing";
@@ -109,6 +121,7 @@ export function SignalTable({ rows, selectedSymbol, onSelectSymbol, onSelectSign
           <select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}>
             <option value="all">all</option>
             <option value="event">event</option>
+            <option value="intraday">intraday</option>
             <option value="swing">swing</option>
             <option value="daily">daily</option>
           </select>
@@ -164,14 +177,15 @@ export function SignalTable({ rows, selectedSymbol, onSelectSymbol, onSelectSign
           <tr>
             <th>Asset</th>
             <th>Family</th>
+            <th>Status</th>
+            <th>Regime</th>
             <th>Score</th>
             <th>Conf.</th>
-            <th>Noise</th>
-            <th>Risk</th>
+            <th>Entry / Stop</th>
+            <th>Targets</th>
             <th>Fresh</th>
             <th>Reality</th>
-            <th>Invalidation</th>
-            <th>Targets</th>
+            <th>Why now</th>
           </tr>
         </thead>
         <tbody>
@@ -185,22 +199,29 @@ export function SignalTable({ rows, selectedSymbol, onSelectSymbol, onSelectSign
               }}
             >
               <td>{row.symbol}</td>
-              <td>{row.signal_type.replace(/_/g, " ")}</td>
+              <td>{asString(row.features.setup_family, row.signal_type).replace(/_/g, " ")}</td>
+              <td>{asString(row.features.setup_status, "candidate").replace(/_/g, " ")}</td>
+              <td>{asString(row.features.regime, "mixed").replace(/_/g, " ")}</td>
               <td>{row.score.toFixed(1)}</td>
               <td>{(row.confidence * 100).toFixed(0)}%</td>
-              <td>{(row.noise_probability * 100).toFixed(0)}%</td>
-              <td>{riskTier(row)}</td>
-              <td>{row.data_reality?.freshness_state ?? "n/a"}</td>
-              <td>{row.data_reality?.provenance.realism_grade ?? "n/a"}</td>
-              <td>{row.invalidation.toFixed(2)}</td>
+              <td>
+                {asNumber((row.features.entry_zone as { low?: number } | undefined)?.low)?.toFixed(2) ?? "n/a"}
+                {" / "}
+                {row.invalidation.toFixed(2)}
+              </td>
               <td>
                 {row.targets.base?.toFixed(2)} / {row.targets.stretch?.toFixed(2)}
               </td>
+              <td>{row.data_reality?.freshness_state ?? "n/a"}</td>
+              <td>
+                {(row.data_reality?.provenance.realism_grade ?? "n/a")} / {riskTier(row)}
+              </td>
+              <td>{Array.isArray(row.features.why_now) ? String(row.features.why_now[0] ?? row.thesis) : row.thesis}</td>
             </tr>
           ))}
           {filteredRows.length === 0 ? (
             <tr>
-              <td colSpan={10}>
+              <td colSpan={11}>
                 <p className="muted-copy">No signals match the current operator filters.</p>
               </td>
             </tr>

@@ -22,6 +22,20 @@ def seed_registry(session: Session) -> None:
         lifecycle_state, lifecycle_note = DEFAULT_LIFECYCLE.get(spec.name, ("experimental", "Seeded strategy template."))
         if spec.name in existing_names:
             row = existing_rows[spec.name]
+            row.version = spec.version
+            row.template = spec.template
+            row.description = spec.description
+            row.underlying_symbol = spec.underlying_symbol
+            row.tradable_symbol = spec.tradable_symbol
+            row.timeframe = spec.timeframe
+            row.warmup_bars = spec.validation.warmup_bars
+            row.fees_bps = spec.execution.fees_bps
+            row.slippage_bps = spec.execution.slippage_bps
+            row.proxy_grade = spec.proxy_grade
+            row.tags_json = spec.tags
+            row.validation_json = spec.validation.model_dump(mode="json")
+            row.search_space_json = {key: value.model_dump(mode="json") for key, value in spec.search_space.items()}
+            row.spec_json = dump_strategy_spec(spec)
             if not getattr(row, "lifecycle_state", None):
                 row.lifecycle_state = lifecycle_state
             if not getattr(row, "lifecycle_updated_at", None):

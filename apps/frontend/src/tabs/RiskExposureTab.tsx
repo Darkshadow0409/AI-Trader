@@ -35,11 +35,14 @@ export function RiskExposureTab({ exposures, reports, selectedSymbol, onSelectSy
         <thead>
           <tr>
             <th>Asset</th>
+            <th>Family</th>
             <th>Stop</th>
+            <th>ATR Stop</th>
             <th>Band</th>
-            <th>Risk</th>
-            <th>Risk-Off</th>
-            <th>Gap</th>
+            <th>Leverage</th>
+            <th>Slippage</th>
+            <th>Event</th>
+            <th>Shock</th>
           </tr>
         </thead>
         <tbody>
@@ -53,11 +56,14 @@ export function RiskExposureTab({ exposures, reports, selectedSymbol, onSelectSy
               }}
             >
               <td>{row.symbol}</td>
+              <td>{String(row.report.setup_family ?? "setup").replace(/_/g, " ")}</td>
               <td>{row.stop_price.toFixed(2)}</td>
+              <td>{typeof row.report.atr_stop_multiple === "number" ? `${row.report.atr_stop_multiple.toFixed(2)}x` : "n/a"}</td>
               <td>{row.size_band}</td>
-              <td>{row.max_portfolio_risk_pct.toFixed(3)}%</td>
-              <td>{row.scenario_shocks.risk_off_pct?.toFixed(2)}%</td>
-              <td>{row.scenario_shocks.liquidity_gap_pct?.toFixed(2)}%</td>
+              <td>{typeof row.report.leverage_band === "string" ? row.report.leverage_band : "n/a"}</td>
+              <td>{typeof row.report.slippage_expectation_bps === "number" ? `${row.report.slippage_expectation_bps.toFixed(1)}bps` : "n/a"}</td>
+              <td>{row.report.event_lockout ? "lockout" : "clear"}</td>
+              <td>{row.scenario_shocks.risk_off_pct?.toFixed(2) ?? row.scenario_shocks.vol_spike_pct?.toFixed(2) ?? "n/a"}%</td>
             </tr>
           ))}
         </tbody>

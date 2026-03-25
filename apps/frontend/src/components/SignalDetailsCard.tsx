@@ -105,6 +105,14 @@ export function SignalDetailsCard({ context, detail, chart, ribbon: _ribbon, loa
               <span className="metric-label">Selected Market Freshness</span>
               <strong>{selectedMarketFreshnessLabel}</strong>
             </div>
+            <div>
+              <span className="metric-label">Setup Status</span>
+              <strong>{String(signal.features.setup_status ?? "candidate").replace(/_/g, " ")}</strong>
+            </div>
+            <div>
+              <span className="metric-label">Trigger</span>
+              <strong>{String(signal.features.trigger_timeframe ?? "n/a")}</strong>
+            </div>
             {reality ? (
               <div>
                 <span className="metric-label">Reality</span>
@@ -162,7 +170,18 @@ export function SignalDetailsCard({ context, detail, chart, ribbon: _ribbon, loa
               <span className="tag">risk {risk.max_portfolio_risk_pct.toFixed(3)}%</span>
               <span className="tag">{risk.size_band}</span>
               <span className="tag">{risk.exposure_cluster}</span>
+              {typeof risk.report.leverage_band === "string" ? <span className="tag">{risk.report.leverage_band}</span> : null}
               <span className="tag">{chart?.instrument_mapping.trader_symbol ?? context.data_reality?.provenance.tradable_symbol ?? signal.symbol}</span>
+            </div>
+          ) : null}
+          {Array.isArray(signal.features.why_now) || Array.isArray(signal.features.why_not_now) ? (
+            <div className="stack">
+              {Array.isArray(signal.features.why_now) && signal.features.why_now.length > 0 ? (
+                <small>Why now: {String(signal.features.why_now[0])}</small>
+              ) : null}
+              {Array.isArray(signal.features.why_not_now) && signal.features.why_not_now.length > 0 ? (
+                <small>Why not now: {String(signal.features.why_not_now[0])}</small>
+              ) : null}
             </div>
           ) : null}
           {reality && reality.penalties.length > 0 ? (

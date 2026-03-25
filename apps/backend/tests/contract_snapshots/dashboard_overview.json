@@ -1,22 +1,22 @@
 {
-  "macro_regime": "event-risk",
-  "data_freshness_minutes": 2130,
-  "freshness_status": "unusable",
-  "market_data_as_of": "2026-03-14T00:00:00",
-  "system_refresh_minutes": 0,
-  "system_refresh_status": "fresh",
-  "risk_budget_used_pct": 0.008,
-  "risk_budget_total_pct": 2.5,
-  "pipeline_status": "completed",
-  "source_mode": "sample",
-  "market_data_mode": "fixture",
+  "data_freshness_minutes": 15,
   "data_mode_label": "Fixture research data",
   "feed_source_label": "Local sample source family",
-  "mode_explainer": "Fixture mode is active. Feed source describes the source family, not live tradable market truth.",
+  "freshness_status": "fresh",
   "last_refresh": "2026-03-15T11:30:00",
+  "macro_regime": "event-risk",
+  "market_data_as_of": "2026-03-15T11:15:00",
+  "market_data_mode": "fixture",
+  "mode_explainer": "Fixture mode is active. Feed source describes the source family, not live tradable market truth.",
   "next_event": {
-    "title": "US CPI Release",
+    "event_time": "2026-03-15T12:30:00",
     "impact": "high",
-    "event_time": "2026-03-15T12:30:00"
-  }
+    "title": "US CPI Release"
+  },
+  "pipeline_status": "completed",
+  "risk_budget_total_pct": 2.5,
+  "risk_budget_used_pct": 0.272,
+  "source_mode": "sample",
+  "system_refresh_minutes": 0,
+  "system_refresh_status": "fresh"
 }

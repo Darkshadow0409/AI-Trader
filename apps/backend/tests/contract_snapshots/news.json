@@ -1,18 +1,10 @@
 [
   {
-    "source": "EIA",
-    "published_at": "2026-03-10T14:30:00",
-    "freshness_minutes": 7020,
-    "freshness_state": "unusable",
-    "title": "Weekly petroleum status report shows tighter crude inventories",
-    "summary": "The latest release points to a larger-than-expected crude draw, reinforcing cross-asset inflation sensitivity and energy-led macro volatility.",
-    "url": "https://www.eia.gov/petroleum/supply/weekly/",
-    "tags": [
-      "oil",
-      "inventory",
-      "macro",
-      "inflation"
+    "affected_assets": [
+      "VIX",
+      "WTI"
     ],
+    "data_quality": "fixture",
     "entity_tags": [
       "VIX",
       "VIXY",
@@ -22,29 +14,29 @@
       "macro",
       "oil"
     ],
-    "affected_assets": [
-      "VIX",
-      "WTI"
-    ],
-    "primary_asset": "VIX",
     "event_relevance": "medium",
+    "freshness_minutes": 7020,
+    "freshness_state": "unusable",
     "market_data_mode": "fixture",
-    "data_quality": "fixture",
-    "related_polymarket_markets": []
+    "primary_asset": "VIX",
+    "published_at": "2026-03-10T14:30:00",
+    "related_polymarket_markets": [],
+    "source": "EIA",
+    "summary": "The latest release points to a larger-than-expected crude draw, reinforcing cross-asset inflation sensitivity and energy-led macro volatility.",
+    "tags": [
+      "oil",
+      "inventory",
+      "macro",
+      "inflation"
+    ],
+    "title": "Weekly petroleum status report shows tighter crude inventories",
+    "url": "https://www.eia.gov/petroleum/supply/weekly/"
   },
   {
-    "source": "EIA",
-    "published_at": "2026-03-07T13:00:00",
-    "freshness_minutes": 11430,
-    "freshness_state": "unusable",
-    "title": "Short-term energy outlook highlights mixed demand growth",
-    "summary": "EIA's monthly outlook flagged softer global demand assumptions while maintaining a volatile supply baseline.",
-    "url": "https://www.eia.gov/outlooks/steo/",
-    "tags": [
-      "outlook",
-      "demand",
-      "energy"
+    "affected_assets": [
+      "WTI"
     ],
+    "data_quality": "fixture",
     "entity_tags": [
       "USO",
       "USOUSD",
@@ -53,35 +45,23 @@
       "energy",
       "outlook"
     ],
-    "affected_assets": [
-      "WTI"
-    ],
-    "primary_asset": "WTI",
     "event_relevance": "medium",
+    "freshness_minutes": 11430,
+    "freshness_state": "unusable",
     "market_data_mode": "fixture",
-    "data_quality": "fixture",
+    "primary_asset": "WTI",
+    "published_at": "2026-03-07T13:00:00",
     "related_polymarket_markets": [
       {
-        "market_id": "pm_market_wti_85",
-        "event_id": "pm_event_oil",
-        "event_title": "WTI above $85 after next EIA print?",
-        "question": "Will WTI crude settle above $85 after the next EIA inventory report?",
-        "slug": "wti-above-85-after-eia",
-        "status": "active",
         "active": true,
+        "category": "commodities",
         "closed": false,
         "end_date": "2026-04-10T20:00:00",
-        "volume": 265000.0,
+        "event_id": "pm_event_oil",
+        "event_title": "WTI above $85 after next EIA print?",
         "liquidity": 73000.0,
-        "recent_activity": 91000.0,
+        "market_id": "pm_market_wti_85",
         "open_interest": 88000.0,
-        "primary_tag": "Commodities",
-        "tags": [
-          "Commodities",
-          "Energy",
-          "Macro"
-        ],
-        "category": "commodities",
         "outcomes": [
           {
             "label": "Yes",
@@ -92,16 +72,35 @@
             "probability": 0.66
           }
         ],
-        "source_status": "fixture",
-        "source_note": "Sample mode uses seeded Polymarket fixture data.",
+        "primary_tag": "Commodities",
+        "question": "Will WTI crude settle above $85 after the next EIA inventory report?",
+        "recent_activity": 91000.0,
         "related_assets": [
-          "DXY",
           "WTI"
         ],
-        "relevance_score": 14.751,
         "relevance_reason": "Direct wti linkage, asset-specific wording. High volume. Active recent trading",
-        "url": "https://polymarket.com/event/wti-above-85-after-eia"
+        "relevance_score": 14.751,
+        "slug": "wti-above-85-after-eia",
+        "source_note": "Sample mode uses seeded Polymarket fixture data.",
+        "source_status": "fixture",
+        "status": "active",
+        "tags": [
+          "Commodities",
+          "Energy",
+          "Macro"
+        ],
+        "url": "https://polymarket.com/event/wti-above-85-after-eia",
+        "volume": 265000.0
       }
-    ]
+    ],
+    "source": "EIA",
+    "summary": "EIA's monthly outlook flagged softer global demand assumptions while maintaining a volatile supply baseline.",
+    "tags": [
+      "outlook",
+      "demand",
+      "energy"
+    ],
+    "title": "Short-term energy outlook highlights mixed demand growth",
+    "url": "https://www.eia.gov/outlooks/steo/"
   }
 ]

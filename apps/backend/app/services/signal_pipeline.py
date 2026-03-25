@@ -6,7 +6,13 @@ from uuid import NAMESPACE_URL, uuid5
 
 from app.engines.signals.event_driven import build_event_signal
 from app.engines.signals.signal_ranker import rank_signals
-from app.engines.signals.trend_following import build_trend_breakout_signal
+from app.engines.signals.trend_following import (
+    build_cross_asset_divergence_signal,
+    build_pullback_continuation_signal,
+    build_range_reversion_signal,
+    build_squeeze_expansion_signal,
+    build_trend_breakout_signal,
+)
 
 
 def _timestamp_iso(value: Any) -> str:
@@ -39,12 +45,17 @@ def generate_signals(
     signals: list[dict[str, Any]] = []
     corr = correlations.get("btc_eth_corr", 0.0)
     for feature in latest_features:
-        trend_signal = build_trend_breakout_signal(feature, corr)
-        if trend_signal:
-            signals.append(trend_signal)
-        event_signal = build_event_signal(feature, next_event)
-        if event_signal:
-            signals.append(event_signal)
+        for builder in (
+            lambda row: build_trend_breakout_signal(row, corr),
+            lambda row: build_pullback_continuation_signal(row, corr),
+            lambda row: build_squeeze_expansion_signal(row, corr),
+            build_range_reversion_signal,
+            lambda row: build_cross_asset_divergence_signal(row, corr),
+            lambda row: build_event_signal(row, next_event),
+        ):
+            signal = builder(feature)
+            if signal:
+                signals.append(signal)
     ranked = rank_signals(signals)
     for signal in ranked:
         signal["signal_id"] = _build_signal_id(signal)

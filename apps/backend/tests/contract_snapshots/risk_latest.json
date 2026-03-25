@@ -1,190 +1,4934 @@
 [
   {
-    "risk_report_id": "risk_1a1e2265811d5c1999380e5d7e7e2b46",
-    "signal_id": "sig_48a7dc47b61156faad8f882b4ac87cc4",
-    "symbol": "ETH",
-    "as_of": "2026-03-14T00:00:00",
-    "freshness_minutes": 2130,
-    "stop_price": 4203.9781,
-    "size_band": "probe",
-    "max_portfolio_risk_pct": 0.004,
-    "exposure_cluster": "crypto_beta",
-    "uncertainty": 0.42,
+    "as_of": "2026-03-15T11:15:00",
     "data_quality": "fixture",
-    "scenario_shocks": {
-      "risk_off_pct": -10.5,
-      "liquidity_gap_pct": -5.8,
-      "macro_repricing_pct": -7.2
-    },
-    "report": {
-      "entry_reference": 4326.5773,
-      "atr_14": 55.7269,
-      "cross_asset_positive": [],
-      "scenario_shocks": {
-        "risk_off_pct": -10.5,
-        "liquidity_gap_pct": -5.8,
-        "macro_repricing_pct": -7.2
-      },
-      "risk_notes": [
-        "No live execution is enabled in this platform.",
-        "Macro event proximity should reduce conviction when high-impact releases are pending."
-      ]
-    },
     "data_reality": {
-      "provenance": {
-        "symbol": "ETH",
-        "underlying_asset": "ETH",
-        "research_symbol": "ETHUSD",
-        "tradable_symbol": "ETHUSD",
-        "intended_venue": "binance_spot",
-        "intended_instrument": "spot_pair",
-        "source_name": "fixture_bars",
-        "source_type": "fixture",
-        "source_timing": "fixture",
-        "freshness_sla_minutes": 1440,
-        "realism_grade": "B",
-        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
-        "asset_class": "crypto"
-      },
-      "freshness_minutes": 2130,
-      "freshness_state": "aging",
-      "event_recency_minutes": null,
-      "realism_score": 38.0,
-      "ranking_penalty": 48.0,
-      "promotion_blocked": true,
-      "alert_allowed": true,
-      "execution_suitability": "research_only",
-      "news_suitability": "research_only",
-      "ui_warning": "Current context is running in deterministic fixture-first mode. | Freshness policy is aging at 2130 minutes against an SLA of 1440.",
-      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
-      "event_context_note": "",
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 15,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
       "penalties": [
         {
           "code": "fixture_only",
+          "score_penalty": 18.0,
           "severity": "warning",
-          "summary": "Current context is running in deterministic fixture-first mode.",
-          "score_penalty": 14.0
+          "summary": "Current context is running in deterministic fixture-first mode."
         },
         {
-          "code": "fixture_source",
-          "severity": "info",
-          "summary": "Source is fixture-backed rather than exchange-verified.",
-          "score_penalty": 18.0
-        },
-        {
-          "code": "timing_fixture",
-          "severity": "info",
-          "summary": "Fixture timing semantics support deterministic local testing only.",
-          "score_penalty": 6.0
-        },
-        {
-          "code": "freshness_aging",
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
           "severity": "warning",
-          "summary": "Freshness policy is aging at 2130 minutes against an SLA of 1440.",
-          "score_penalty": 4.0
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
         },
         {
           "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
           "severity": "info",
-          "summary": "Cross-asset confirmation is weak or missing in the latest context.",
-          "score_penalty": 6.0
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
         }
       ],
-      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot."
-    }
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 15,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.6299,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 82.3303,
+      "entry_zone": {
+        "high": 82.6768,
+        "low": 81.9838
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.6929,
+      "stop_distance_pct": 0.84
+    },
+    "risk_report_id": "risk_9b8de5c64e1356cc90fed29abaaeeaec",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_71377ba0249a5446ab0134d318703feb",
+    "size_band": "probe",
+    "stop_price": 81.6374,
+    "symbol": "WTI",
+    "uncertainty": 0.42
   },
   {
-    "risk_report_id": "risk_802e39dee96750a1978f3e82777c5968",
-    "signal_id": "sig_dd248b00b1ec5b889a0391c1676e1ae2",
-    "symbol": "BTC",
-    "as_of": "2026-03-14T00:00:00",
-    "freshness_minutes": 2130,
-    "stop_price": 85917.6178,
-    "size_band": "probe",
-    "max_portfolio_risk_pct": 0.004,
-    "exposure_cluster": "crypto_beta",
-    "uncertainty": 0.42,
+    "as_of": "2026-03-15T11:15:00",
     "data_quality": "fixture",
-    "scenario_shocks": {
-      "risk_off_pct": -8.0,
-      "liquidity_gap_pct": -4.5,
-      "macro_repricing_pct": -6.0
-    },
-    "report": {
-      "entry_reference": 88389.1123,
-      "atr_14": 1123.4066,
-      "cross_asset_positive": [],
-      "scenario_shocks": {
-        "risk_off_pct": -8.0,
-        "liquidity_gap_pct": -4.5,
-        "macro_repricing_pct": -6.0
-      },
-      "risk_notes": [
-        "No live execution is enabled in this platform.",
-        "Macro event proximity should reduce conviction when high-impact releases are pending."
-      ]
-    },
     "data_reality": {
-      "provenance": {
-        "symbol": "BTC",
-        "underlying_asset": "BTC",
-        "research_symbol": "BTCUSD",
-        "tradable_symbol": "BTCUSD",
-        "intended_venue": "binance_spot",
-        "intended_instrument": "spot_pair",
-        "source_name": "fixture_bars",
-        "source_type": "fixture",
-        "source_timing": "fixture",
-        "freshness_sla_minutes": 1440,
-        "realism_grade": "B",
-        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
-        "asset_class": "crypto"
-      },
-      "freshness_minutes": 2130,
-      "freshness_state": "aging",
-      "event_recency_minutes": null,
-      "realism_score": 38.0,
-      "ranking_penalty": 48.0,
-      "promotion_blocked": true,
-      "alert_allowed": true,
-      "execution_suitability": "research_only",
-      "news_suitability": "research_only",
-      "ui_warning": "Current context is running in deterministic fixture-first mode. | Freshness policy is aging at 2130 minutes against an SLA of 1440.",
-      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "alert_allowed": false,
       "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 15,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
       "penalties": [
         {
           "code": "fixture_only",
+          "score_penalty": 18.0,
           "severity": "warning",
-          "summary": "Current context is running in deterministic fixture-first mode.",
-          "score_penalty": 14.0
+          "summary": "Current context is running in deterministic fixture-first mode."
         },
         {
-          "code": "fixture_source",
-          "severity": "info",
-          "summary": "Source is fixture-backed rather than exchange-verified.",
-          "score_penalty": 18.0
-        },
-        {
-          "code": "timing_fixture",
-          "severity": "info",
-          "summary": "Fixture timing semantics support deterministic local testing only.",
-          "score_penalty": 6.0
-        },
-        {
-          "code": "freshness_aging",
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
           "severity": "warning",
-          "summary": "Freshness policy is aging at 2130 minutes against an SLA of 1440.",
-          "score_penalty": 4.0
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
         },
         {
           "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
           "severity": "info",
-          "summary": "Cross-asset confirmation is weak or missing in the latest context.",
-          "score_penalty": 6.0
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
         }
       ],
-      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot."
-    }
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 15,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 22.0792,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 2329.3913,
+      "entry_zone": {
+        "high": 2341.5349,
+        "low": 2317.2477
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 24.2872,
+      "stop_distance_pct": 1.04
+    },
+    "risk_report_id": "risk_f601f4d74614564bb4d6ab7cef494a0a",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_ab96e2f27d665cc8a1e49b3de744db24",
+    "size_band": "probe",
+    "stop_price": 2305.1041,
+    "symbol": "GOLD",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T11:15:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 15,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAG_CTX and underlying SILVER are aligned through tradable proxy XAGUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAG_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "SILVER",
+        "tradable_symbol": "XAGUSD",
+        "underlying_asset": "SILVER"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "SILVER research symbol XAG_CTX is mapped to tradable proxy XAGUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 15,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.1776,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 26.3336,
+      "entry_zone": {
+        "high": 26.4313,
+        "low": 26.2359
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.1953,
+      "stop_distance_pct": 0.74
+    },
+    "risk_report_id": "risk_d214e04645c252f0b970a81de236af06",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_be222073b9dd5cc59cf25b885bbc27b0",
+    "size_band": "probe",
+    "stop_price": 26.1383,
+    "symbol": "SILVER",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T11:15:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 15,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 15,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 76.3985,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 3308.0511,
+      "entry_zone": {
+        "high": 3350.0703,
+        "low": 3266.0319
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.13,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 84.0384,
+      "stop_distance_pct": 2.54
+    },
+    "risk_report_id": "risk_568833b1e6255b6ab62cf7c52ade784e",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_85678b41238f534595c3f5485da11888",
+    "size_band": "probe",
+    "stop_price": 3224.0127,
+    "symbol": "ETH",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T11:15:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 15,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 15,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 94.2408,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 237.3271,
+      "entry_zone": {
+        "high": 289.1596,
+        "low": 185.4946
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 139.78,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 103.6649,
+      "stop_distance_pct": 43.68
+    },
+    "risk_report_id": "risk_9898ca23c7295bc8b650ac692fb49f0e",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_0426d30a11b9505e83afb8d7af873b68",
+    "size_band": "probe",
+    "stop_price": 133.6622,
+    "symbol": "BTC",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T11:15:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 15,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 15,
+    "max_portfolio_risk_pct": 0.008,
+    "report": {
+      "atr_14": 76.3985,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 3308.0511,
+      "entry_zone": {
+        "high": 3317.4099,
+        "low": 3281.3116
+      },
+      "event_lockout": false,
+      "expected_holding_window": "15m to 6h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "starter",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: range mean reversion.",
+        "Expected holding window: 15m to 6h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "range_mean_reversion",
+      "setup_status": "candidate",
+      "size_band": "starter",
+      "size_band_note": "starter size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 80.2184,
+      "stop_distance_pct": 2.42
+    },
+    "risk_report_id": "risk_d8b56762fd7f584daa2efa18ce5e74ca",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_4862eaedf6e9516e950fff6ff03d1135",
+    "size_band": "starter",
+    "stop_price": 3227.8327,
+    "symbol": "ETH",
+    "uncertainty": 0.392
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.6029,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 81.5349,
+      "entry_zone": {
+        "high": 81.8665,
+        "low": 81.2033
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.6632,
+      "stop_distance_pct": 0.81
+    },
+    "risk_report_id": "risk_7352ab44a86e5cde8159a1c447f6131c",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_ee44a55d96545e1abf84f4e59f705206",
+    "size_band": "probe",
+    "stop_price": 80.8717,
+    "symbol": "WTI",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 23.2944,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 2330.7667,
+      "entry_zone": {
+        "high": 2343.5786,
+        "low": 2317.9548
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 25.6238,
+      "stop_distance_pct": 1.1
+    },
+    "risk_report_id": "risk_6d729293fff55d28b2ff1df6491091c5",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_14911a78471f5275a541d7715a82d780",
+    "size_band": "probe",
+    "stop_price": 2305.1429,
+    "symbol": "GOLD",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAG_CTX and underlying SILVER are aligned through tradable proxy XAGUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAG_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "SILVER",
+        "tradable_symbol": "XAGUSD",
+        "underlying_asset": "SILVER"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "SILVER research symbol XAG_CTX is mapped to tradable proxy XAGUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.1913,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 26.3373,
+      "entry_zone": {
+        "high": 26.4425,
+        "low": 26.2321
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.2104,
+      "stop_distance_pct": 0.8
+    },
+    "risk_report_id": "risk_6362ae43fe4856d384f72f71b6b5d593",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_ec5b800acd7c5781a9b5c66e9e686bb5",
+    "size_band": "probe",
+    "stop_price": 26.1269,
+    "symbol": "SILVER",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.008,
+    "report": {
+      "atr_14": 0.6029,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 81.5349,
+      "entry_zone": {
+        "high": 81.6088,
+        "low": 81.3239
+      },
+      "event_lockout": false,
+      "expected_holding_window": "15m to 6h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "starter",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: range mean reversion.",
+        "Expected holding window: 15m to 6h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "range_mean_reversion",
+      "setup_status": "candidate",
+      "size_band": "starter",
+      "size_band_note": "starter size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.633,
+      "stop_distance_pct": 0.78
+    },
+    "risk_report_id": "risk_2abd3d5e721f51db8190850ea0f7e940",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_de6cb346acc25f60b68de81a10da6cd0",
+    "size_band": "starter",
+    "stop_price": 80.9019,
+    "symbol": "WTI",
+    "uncertainty": 0.457
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 0.6029,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 81.5349,
+      "entry_zone": {
+        "high": 81.7459,
+        "low": 81.461
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.633,
+      "stop_distance_pct": 0.78
+    },
+    "risk_report_id": "risk_9378d82415045c5b978808fc646a8595",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_a244b16657d95166b442c0e4e8a77def",
+    "size_band": "standard",
+    "stop_price": 82.1679,
+    "symbol": "WTI",
+    "uncertainty": 0.244
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 96.3629,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 190.9203,
+      "entry_zone": {
+        "high": 243.9199,
+        "low": 137.9207
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 177.66,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 105.9992,
+      "stop_distance_pct": 55.52
+    },
+    "risk_report_id": "risk_20ac3d4187d85a15ba0df9d6de3f8156",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_f96ec8f7abd05ab18706811d4b6e6ec4",
+    "size_band": "probe",
+    "stop_price": 84.9211,
+    "symbol": "BTC",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 88.8012,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 3323.3145,
+      "entry_zone": {
+        "high": 3372.1552,
+        "low": 3274.4738
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 9.41,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 97.6814,
+      "stop_distance_pct": 2.94
+    },
+    "risk_report_id": "risk_d85afb7bb07d5b0fa037e06a6d35afa4",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_c2b5f6e8797758f0ab65d5fa8a778885",
+    "size_band": "probe",
+    "stop_price": 3225.6331,
+    "symbol": "ETH",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.008,
+    "report": {
+      "atr_14": 88.8012,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 3323.3145,
+      "entry_zone": {
+        "high": 3334.1927,
+        "low": 3292.2341
+      },
+      "event_lockout": false,
+      "expected_holding_window": "15m to 6h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.98,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "starter",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: range mean reversion.",
+        "Expected holding window: 15m to 6h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "range_mean_reversion",
+      "setup_status": "candidate",
+      "size_band": "starter",
+      "size_band_note": "starter size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 93.2413,
+      "stop_distance_pct": 2.81
+    },
+    "risk_report_id": "risk_2dd3cddadf7958658dd25577c203acab",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_1cd1643647b851f0a41be9cc7f3b42d5",
+    "size_band": "starter",
+    "stop_price": 3230.0732,
+    "symbol": "ETH",
+    "uncertainty": 0.39
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 96.3629,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 190.9203,
+      "entry_zone": {
+        "high": 224.6473,
+        "low": 179.1158
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 169.59,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 101.1811,
+      "stop_distance_pct": 53.0
+    },
+    "risk_report_id": "risk_3ead36e85c475180aa5439c8c9d04d0b",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_1607f99ed06c5ec1b57365daadc97db9",
+    "size_band": "standard",
+    "stop_price": 292.1014,
+    "symbol": "BTC",
+    "uncertainty": 0.164
+  },
+  {
+    "as_of": "2026-03-15T10:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 60,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 60,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 88.8012,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 3323.3145,
+      "entry_zone": {
+        "high": 3354.3949,
+        "low": 3312.4363
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.98,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 93.2413,
+      "stop_distance_pct": 2.81
+    },
+    "risk_report_id": "risk_7da361300a4f507896aa19ac15b91c09",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_f1096a359b4c58e4aecd76405e2713e6",
+    "size_band": "standard",
+    "stop_price": 3416.5558,
+    "symbol": "ETH",
+    "uncertainty": 0.146
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.7958,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 84.1682,
+      "entry_zone": {
+        "high": 84.6059,
+        "low": 83.7305
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.8754,
+      "stop_distance_pct": 1.04
+    },
+    "risk_report_id": "risk_b91fec8ec4705964af547a074689483c",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_a873402eebb95457b2935afb6915b519",
+    "size_band": "probe",
+    "stop_price": 83.2928,
+    "symbol": "WTI",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAG_CTX and underlying SILVER are aligned through tradable proxy XAGUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAG_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "SILVER",
+        "tradable_symbol": "XAGUSD",
+        "underlying_asset": "SILVER"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "SILVER research symbol XAG_CTX is mapped to tradable proxy XAGUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.2598,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 27.5421,
+      "entry_zone": {
+        "high": 27.685,
+        "low": 27.3992
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.2858,
+      "stop_distance_pct": 1.04
+    },
+    "risk_report_id": "risk_2bdf8252f5aa5d3da7ddf78b3c762c8f",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_0630ef1ecdf05d44b8d6224ad8fcf2d4",
+    "size_band": "probe",
+    "stop_price": 27.2563,
+    "symbol": "SILVER",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 53.0533,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 2224.9983,
+      "entry_zone": {
+        "high": 2254.1776,
+        "low": 2195.819
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.39,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 58.3586,
+      "stop_distance_pct": 2.62
+    },
+    "risk_report_id": "risk_234b8fd936d25894abbb8b54da64037e",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_2c49e25db04a5f558897ea3900af06b5",
+    "size_band": "probe",
+    "stop_price": 2166.6397,
+    "symbol": "GOLD",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.008,
+    "report": {
+      "atr_14": 0.7958,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 84.1682,
+      "entry_zone": {
+        "high": 84.4467,
+        "low": 84.0707
+      },
+      "event_lockout": false,
+      "expected_holding_window": "15m to 6h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "starter",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: range mean reversion.",
+        "Expected holding window: 15m to 6h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "range_mean_reversion",
+      "setup_status": "candidate",
+      "size_band": "starter",
+      "size_band_note": "starter size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.8356,
+      "stop_distance_pct": 0.99
+    },
+    "risk_report_id": "risk_ffc2bbbc04fb5f52b692c3b1e3d13fcd",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_17139f320c7e5d20aaf8c25876413512",
+    "size_band": "starter",
+    "stop_price": 85.0038,
+    "symbol": "WTI",
+    "uncertainty": 0.465
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.008,
+    "report": {
+      "atr_14": 53.0533,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 2224.9983,
+      "entry_zone": {
+        "high": 2231.4973,
+        "low": 2206.4297
+      },
+      "event_lockout": false,
+      "expected_holding_window": "1h to 1d",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.01,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "starter",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: pullback continuation.",
+        "Expected holding window: 1h to 1d.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "pullback_continuation",
+      "setup_status": "actionable",
+      "size_band": "starter",
+      "size_band_note": "starter size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 55.7059,
+      "stop_distance_pct": 2.5
+    },
+    "risk_report_id": "risk_00aa53a5b6ee5e6bbdce6127ddad3a40",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_b108f02a480f59a3beb6c5644353a65a",
+    "size_band": "starter",
+    "stop_price": 2169.2924,
+    "symbol": "GOLD",
+    "uncertainty": 0.313
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAG_CTX and underlying SILVER are aligned through tradable proxy XAGUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAG_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "SILVER",
+        "tradable_symbol": "XAGUSD",
+        "underlying_asset": "SILVER"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "SILVER research symbol XAG_CTX is mapped to tradable proxy XAGUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 0.2598,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 27.5421,
+      "entry_zone": {
+        "high": 27.5739,
+        "low": 27.4512
+      },
+      "event_lockout": false,
+      "expected_holding_window": "4h to 2d",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: trend breakout.",
+        "Expected holding window: 4h to 2d.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "trend_breakout",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.2728,
+      "stop_distance_pct": 0.99
+    },
+    "risk_report_id": "risk_cbc123b1766c51c69070a426b598e9d2",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_d0be5ce6efc05add9e736e344f72ee8d",
+    "size_band": "standard",
+    "stop_price": 27.2693,
+    "symbol": "SILVER",
+    "uncertainty": 0.24
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 53.0533,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 2224.9983,
+      "entry_zone": {
+        "high": 2243.5669,
+        "low": 2218.4993
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.01,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 55.7059,
+      "stop_distance_pct": 2.5
+    },
+    "risk_report_id": "risk_8725da38c50251db94c02cd49f521877",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_19cd6a0998295ed09da704a52aa8b3e3",
+    "size_band": "standard",
+    "stop_price": 2280.7042,
+    "symbol": "GOLD",
+    "uncertainty": 0.233
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 375.8901,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 4327.9674,
+      "entry_zone": {
+        "high": 4534.707,
+        "low": 4121.2278
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 30.57,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 413.4792,
+      "stop_distance_pct": 9.55
+    },
+    "risk_report_id": "risk_df565767471954bb84c84b3e19b514a9",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_dab6e0ea15d653ed806133524e672761",
+    "size_band": "probe",
+    "stop_price": 3914.4882,
+    "symbol": "ETH",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 224.6205,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 1312.3936,
+      "entry_zone": {
+        "high": 1435.9349,
+        "low": 1188.8523
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 60.25,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 247.0825,
+      "stop_distance_pct": 18.83
+    },
+    "risk_report_id": "risk_2576d840704958509c78d5af89cb73d2",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_21fc50f8ee7c517d96416b030cb72525",
+    "size_band": "probe",
+    "stop_price": 1065.3111,
+    "symbol": "BTC",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.008,
+    "report": {
+      "atr_14": 224.6205,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 1312.3936,
+      "entry_zone": {
+        "high": 1391.0108,
+        "low": 1284.8776
+      },
+      "event_lockout": false,
+      "expected_holding_window": "15m to 6h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 57.51,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "starter",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: range mean reversion.",
+        "Expected holding window: 15m to 6h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "range_mean_reversion",
+      "setup_status": "candidate",
+      "size_band": "starter",
+      "size_band_note": "starter size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 235.8515,
+      "stop_distance_pct": 17.97
+    },
+    "risk_report_id": "risk_6bdc0475ff8053a69c516b5bedaf7d89",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_4b298bbdf947538faa2ff8cbc97440fd",
+    "size_band": "starter",
+    "stop_price": 1548.2451,
+    "symbol": "BTC",
+    "uncertainty": 0.4
+  },
+  {
+    "as_of": "2026-03-15T07:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 240,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 240,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 224.6205,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 1312.3936,
+      "entry_zone": {
+        "high": 1339.9096,
+        "low": 1233.7764
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 57.51,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 235.8515,
+      "stop_distance_pct": 17.97
+    },
+    "risk_report_id": "risk_9c9473ac61df53ac9cac0212a5c56e51",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_f9d2b41eb087540cbb9b8fcdc9b64e15",
+    "size_band": "standard",
+    "stop_price": 1076.5421,
+    "symbol": "BTC",
+    "uncertainty": 0.161
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 1.268,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 88.0975,
+      "entry_zone": {
+        "high": 88.7949,
+        "low": 87.4001
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 1.3948,
+      "stop_distance_pct": 1.58
+    },
+    "risk_report_id": "risk_c6ce3f71a66a54f5834a00e17098c602",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_9a5ee21263ea5f478c22dac37c65aa1e",
+    "size_band": "probe",
+    "stop_price": 86.7027,
+    "symbol": "WTI",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 23.8695,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 2324.2109,
+      "entry_zone": {
+        "high": 2337.3391,
+        "low": 2311.0827
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 26.2564,
+      "stop_distance_pct": 1.13
+    },
+    "risk_report_id": "risk_b91803fd271b51d19ef81bba2b2f778d",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_efeabffa73dc538da4bf869f20912210",
+    "size_band": "probe",
+    "stop_price": 2297.9545,
+    "symbol": "GOLD",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAG_CTX and underlying SILVER are aligned through tradable proxy XAGUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAG_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "SILVER",
+        "tradable_symbol": "XAGUSD",
+        "underlying_asset": "SILVER"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "SILVER research symbol XAG_CTX is mapped to tradable proxy XAGUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 0.6031,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 29.2062,
+      "entry_zone": {
+        "high": 29.5379,
+        "low": 28.8745
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.6634,
+      "stop_distance_pct": 2.27
+    },
+    "risk_report_id": "risk_839ef39774c855bcbb9bf9148a44f468",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_1a3556c9282650aa91ffc2be3357dfe3",
+    "size_band": "probe",
+    "stop_price": 28.5428,
+    "symbol": "SILVER",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "EIA schedule awareness: weekly petroleum context is anchored to the Wednesday 10:30 ET release window; the latest local EIA item is 7020 minutes old and is outside the immediate oil release window.",
+      "event_recency_minutes": 7020,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "macro_context",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol WTI_CTX and underlying WTI are aligned through tradable proxy USOUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_oil_realism",
+          "score_penalty": 20.0,
+          "severity": "critical",
+          "summary": "Oil context is materially weaker than direct venue-grade futures data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_cfd_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing.",
+        "realism_grade": "E",
+        "research_symbol": "WTI_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "WTI",
+        "tradable_symbol": "USOUSD",
+        "underlying_asset": "WTI"
+      },
+      "ranking_penalty": 104.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "WTI research symbol WTI_CTX is mapped to tradable proxy USOUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | WTI research uses contextual proxy bars and is mapped toward USOUSD as a broker-style reference, not direct broker-truth oil pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 1.268,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 88.0975,
+      "entry_zone": {
+        "high": 88.2528,
+        "low": 87.6537
+      },
+      "event_lockout": false,
+      "expected_holding_window": "4h to 2d",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: trend breakout.",
+        "Expected holding window: 4h to 2d.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "trend_breakout",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 1.3314,
+      "stop_distance_pct": 1.51
+    },
+    "risk_report_id": "risk_ff0489490956562781c58483dba2c9b8",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_bfe0c04e2823588880a00a2d9d5cf773",
+    "size_band": "standard",
+    "stop_price": 86.7661,
+    "symbol": "WTI",
+    "uncertainty": 0.198
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAG_CTX and underlying SILVER are aligned through tradable proxy XAGUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAG_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "SILVER",
+        "tradable_symbol": "XAGUSD",
+        "underlying_asset": "SILVER"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "SILVER research symbol XAG_CTX is mapped to tradable proxy XAGUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Silver research is mapped toward XAGUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 0.6031,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 29.2062,
+      "entry_zone": {
+        "high": 29.2801,
+        "low": 28.9951
+      },
+      "event_lockout": false,
+      "expected_holding_window": "4h to 2d",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: trend breakout.",
+        "Expected holding window: 4h to 2d.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "trend_breakout",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 0.6332,
+      "stop_distance_pct": 2.17
+    },
+    "risk_report_id": "risk_615c45009581560689f760ca955d2648",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_f23ee99a548552fc8740e85661ece5d3",
+    "size_band": "standard",
+    "stop_price": 28.573,
+    "symbol": "SILVER",
+    "uncertainty": 0.187
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": false,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "context_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "context_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 18.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "proxy_grade_mapping",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing."
+        },
+        {
+          "code": "timing_end_of_day",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "End-of-day timing semantics support swing research but not intraday execution claims."
+        },
+        {
+          "code": "tradable_mismatch",
+          "score_penalty": 12.0,
+          "severity": "warning",
+          "summary": "Research symbol XAU_CTX and underlying GOLD are aligned through tradable proxy XAUUSD."
+        },
+        {
+          "code": "contextual_price_only",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Current series is suitable for contextual research, not direct execution benchmarking."
+        },
+        {
+          "code": "timing_too_weak_for_intraday",
+          "score_penalty": 10.0,
+          "severity": "warning",
+          "summary": "Price timing is too weak for intraday-style execution claims on this asset class."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        },
+        {
+          "code": "weak_metals_realism",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Metals context is proxy-backed and should be treated more conservatively than crypto spot data."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "commodity",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_metal_proxy",
+        "intended_venue": "pu_prime_mt5",
+        "proxy_mapping_notes": "Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing.",
+        "realism_grade": "D",
+        "research_symbol": "XAU_CTX",
+        "source_name": "macro_fixture_proxy",
+        "source_timing": "end_of_day",
+        "source_type": "proxy",
+        "symbol": "GOLD",
+        "tradable_symbol": "XAUUSD",
+        "underlying_asset": "GOLD"
+      },
+      "ranking_penalty": 98.0,
+      "realism_score": 0.0,
+      "timing_semantics_note": "End-of-day timing semantics support swing research but not intraday execution claims.",
+      "tradable_alignment_note": "GOLD research symbol XAU_CTX is mapped to tradable proxy XAUUSD on pu_prime_mt5.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode. | Gold research is mapped toward XAUUSD for broker alignment, but current public or fixture context remains proxy-grade rather than broker-truth bullion pricing. | End-of-day timing semantics support swing research but not intraday execution claims."
+    },
+    "exposure_cluster": "macro_context",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 23.8695,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 2324.2109,
+      "entry_zone": {
+        "high": 2327.1349,
+        "low": 2315.8566
+      },
+      "event_lockout": false,
+      "expected_holding_window": "4h to 2d",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 8.0,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: trend breakout.",
+        "Expected holding window: 4h to 2d.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -3.00%",
+        "liquidity gap pct -1.50%",
+        "macro repricing pct -2.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -1.5,
+        "macro_repricing_pct": -2.0,
+        "risk_off_pct": -3.0
+      },
+      "setup_family": "trend_breakout",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under macro context exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 25.063,
+      "stop_distance_pct": 1.08
+    },
+    "risk_report_id": "risk_9c69c604be9b59349425ecdecfa0d96d",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -1.5,
+      "macro_repricing_pct": -2.0,
+      "risk_off_pct": -3.0
+    },
+    "signal_id": "sig_33c5d34ebf485607a370888c8c2e32b6",
+    "size_band": "standard",
+    "stop_price": 2299.1479,
+    "symbol": "GOLD",
+    "uncertainty": 0.174
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 265.435,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 933.4339,
+      "entry_zone": {
+        "high": 1079.4232,
+        "low": 787.4446
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 100.1,
+      "mae_estimate_r": 0.93,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 291.9785,
+      "stop_distance_pct": 31.28
+    },
+    "risk_report_id": "risk_e253e62a290157bd88d28ec9359d0847",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_c91e1d30374b51b4bd315a25386b9081",
+    "size_band": "probe",
+    "stop_price": 641.4554,
+    "symbol": "BTC",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.004,
+    "report": {
+      "atr_14": 125.0633,
+      "atr_stop_multiple": 1.1,
+      "cross_asset_positive": [],
+      "entry_reference": 4542.4882,
+      "entry_zone": {
+        "high": 4611.273,
+        "low": 4473.7034
+      },
+      "event_lockout": true,
+      "expected_holding_window": "15m to 8h",
+      "expected_r_multiple": 1.14,
+      "leverage_band": "0.25x to 0.75x",
+      "leverage_cap": 0.75,
+      "liquidation_buffer_estimate_pct": 9.69,
+      "mae_estimate_r": 0.94,
+      "mfe_estimate_r": 1.25,
+      "risk_band": "probe",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: macro event reaction.",
+        "Expected holding window: 15m to 8h.",
+        "Event lockout applies. Treat the setup as reduced-size until the release clears.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "macro_event_reaction",
+      "setup_status": "candidate",
+      "size_band": "probe",
+      "size_band_note": "probe size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 137.5697,
+      "stop_distance_pct": 3.03
+    },
+    "risk_report_id": "risk_8ecb0b4e925755f9b1267a31c0f826ef",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_d6a30d77fc575c3b874f0de4908e5cf2",
+    "size_band": "probe",
+    "stop_price": 4404.9185,
+    "symbol": "ETH",
+    "uncertainty": 0.42
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 125.0633,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 4542.4882,
+      "entry_zone": {
+        "high": 4557.8085,
+        "low": 4498.716
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 9.25,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 131.3165,
+      "stop_distance_pct": 2.89
+    },
+    "risk_report_id": "risk_892e1ba6cbc05438a42ccde242cb3566",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_950092e5db6d5787bdfded7874b7552e",
+    "size_band": "standard",
+    "stop_price": 4411.1717,
+    "symbol": "ETH",
+    "uncertainty": 0.191
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "BTCUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "BTC",
+        "tradable_symbol": "BTCUSD",
+        "underlying_asset": "BTC"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 265.435,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 933.4339,
+      "entry_zone": {
+        "high": 1026.3362,
+        "low": 900.9181
+      },
+      "event_lockout": false,
+      "expected_holding_window": "30m to 8h",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 95.55,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: squeeze expansion.",
+        "Expected holding window: 30m to 8h.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -8.00%",
+        "liquidity gap pct -4.50%",
+        "macro repricing pct -6.00%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -4.5,
+        "macro_repricing_pct": -6.0,
+        "risk_off_pct": -8.0
+      },
+      "setup_family": "squeeze_expansion",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 278.7068,
+      "stop_distance_pct": 29.86
+    },
+    "risk_report_id": "risk_c9932d61b8285c2d894eb31a10caf003",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -4.5,
+      "macro_repricing_pct": -6.0,
+      "risk_off_pct": -8.0
+    },
+    "signal_id": "sig_87e6535a9c555a1ab4376e2fce3a54b2",
+    "size_band": "standard",
+    "stop_price": 1212.1407,
+    "symbol": "BTC",
+    "uncertainty": 0.139
+  },
+  {
+    "as_of": "2026-03-14T11:30:00",
+    "data_quality": "fixture",
+    "data_reality": {
+      "alert_allowed": true,
+      "event_context_note": "",
+      "event_recency_minutes": null,
+      "execution_suitability": "research_only",
+      "freshness_minutes": 1440,
+      "freshness_state": "fresh",
+      "news_suitability": "research_only",
+      "penalties": [
+        {
+          "code": "fixture_only",
+          "score_penalty": 14.0,
+          "severity": "warning",
+          "summary": "Current context is running in deterministic fixture-first mode."
+        },
+        {
+          "code": "fixture_source",
+          "score_penalty": 18.0,
+          "severity": "info",
+          "summary": "Source is fixture-backed rather than exchange-verified."
+        },
+        {
+          "code": "timing_fixture",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Fixture timing semantics support deterministic local testing only."
+        },
+        {
+          "code": "missing_cross_asset_confirmation",
+          "score_penalty": 6.0,
+          "severity": "info",
+          "summary": "Cross-asset confirmation is weak or missing in the latest context."
+        }
+      ],
+      "promotion_blocked": true,
+      "provenance": {
+        "asset_class": "crypto",
+        "freshness_sla_minutes": 1440,
+        "intended_instrument": "spot_pair",
+        "intended_venue": "binance_spot",
+        "proxy_mapping_notes": "Direct crypto spot mapping in fixture mode.",
+        "realism_grade": "B",
+        "research_symbol": "ETHUSD",
+        "source_name": "fixture_bars",
+        "source_timing": "fixture",
+        "source_type": "fixture",
+        "symbol": "ETH",
+        "tradable_symbol": "ETHUSD",
+        "underlying_asset": "ETH"
+      },
+      "ranking_penalty": 44.0,
+      "realism_score": 42.0,
+      "timing_semantics_note": "Fixture timing semantics support deterministic local testing only.",
+      "tradable_alignment_note": "ETH research symbol ETHUSD aligns directly with ETHUSD on binance_spot.",
+      "ui_warning": "Current context is running in deterministic fixture-first mode."
+    },
+    "exposure_cluster": "crypto_beta",
+    "freshness_minutes": 1440,
+    "max_portfolio_risk_pct": 0.012,
+    "report": {
+      "atr_14": 125.0633,
+      "atr_stop_multiple": 1.05,
+      "cross_asset_positive": [],
+      "entry_reference": 4542.4882,
+      "entry_zone": {
+        "high": 4557.8085,
+        "low": 4498.716
+      },
+      "event_lockout": false,
+      "expected_holding_window": "4h to 2d",
+      "expected_r_multiple": 1.29,
+      "leverage_band": "0.5x to 1.0x",
+      "leverage_cap": 1.0,
+      "liquidation_buffer_estimate_pct": 9.25,
+      "mae_estimate_r": 0.89,
+      "mfe_estimate_r": 1.42,
+      "risk_band": "standard",
+      "risk_notes": [
+        "Paper execution only. No broker order placement is available.",
+        "Signal family: trend breakout.",
+        "Expected holding window: 4h to 2d.",
+        "Current setup uses degraded or proxy-grade context. Keep conviction below live-broker assumptions."
+      ],
+      "scenario_notes": [
+        "risk off pct -10.50%",
+        "liquidity gap pct -5.80%",
+        "macro repricing pct -7.20%"
+      ],
+      "scenario_shocks": {
+        "liquidity_gap_pct": -5.8,
+        "macro_repricing_pct": -7.2,
+        "risk_off_pct": -10.5
+      },
+      "setup_family": "trend_breakout",
+      "setup_status": "actionable",
+      "size_band": "standard",
+      "size_band_note": "standard size band under crypto beta exposure.",
+      "slippage_expectation_bps": 10,
+      "stop_distance": 131.3165,
+      "stop_distance_pct": 2.89
+    },
+    "risk_report_id": "risk_1f7c1d8355cd5b149605973f69d5dc1b",
+    "scenario_shocks": {
+      "liquidity_gap_pct": -5.8,
+      "macro_repricing_pct": -7.2,
+      "risk_off_pct": -10.5
+    },
+    "signal_id": "sig_d147217402015dfba673e96dee48b353",
+    "size_band": "standard",
+    "stop_price": 4411.1717,
+    "symbol": "ETH",
+    "uncertainty": 0.12
   }
 ]

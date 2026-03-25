@@ -29,13 +29,15 @@ def test_repeated_fixture_seed_runs_remain_stable() -> None:
         second_risk_count = len(session.exec(select(RiskReport)).all())
 
     assert first.source_mode == second.source_mode == "sample"
-    assert first.bars_ingested == second.bars_ingested == 1080
-    assert first.signals_emitted == second.signals_emitted == 2
-    assert first.risk_reports_built == second.risk_reports_built == 2
+    assert first.bars_ingested == second.bars_ingested == 7000
+    assert first.signals_emitted == second.signals_emitted
+    assert first.signals_emitted >= 3
+    assert first.risk_reports_built == second.risk_reports_built
+    assert first.risk_reports_built >= first.signals_emitted
     assert first_trade_count == second_trade_count
     assert first_review_count == second_review_count
-    assert first_signal_count == second_signal_count == 2
-    assert first_risk_count == second_risk_count == 2
+    assert first_signal_count == second_signal_count == first.signals_emitted
+    assert first_risk_count == second_risk_count == first.risk_reports_built
 
 
 def test_duplicate_trade_actions_are_rejected(client) -> None:

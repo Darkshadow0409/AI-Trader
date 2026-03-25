@@ -215,6 +215,16 @@ def _signal_view(row: SignalRecord, risk_map: dict[str, RiskReport]) -> SignalVi
     )
 
 
+def _signal_sort_key(row: SignalView) -> tuple[int, int, float, int]:
+    setup_status = str(row.features.get("setup_status") or "candidate")
+    return (
+        terminal_focus_priority(row.symbol),
+        {"actionable": 0, "candidate": 1, "stale": 2, "invalidated": 3}.get(setup_status, 4),
+        -row.score,
+        row.freshness_minutes,
+    )
+
+
 def _trend_state_from_history(rows: list[MarketBar]) -> str:
     if len(rows) < 2:
         return "unknown"
@@ -294,14 +304,14 @@ def list_signal_views(session: Session) -> list[SignalView]:
             data_quality=row.data_quality,
             features=row.features,
         )
-    return payload
+    return sorted(payload, key=_signal_sort_key)
 
 
 def list_high_risk_signal_views(session: Session) -> list[SignalView]:
     return [
         row
         for row in list_signal_views(session)
-        if row.noise_probability >= 0.35 or row.uncertainty >= 0.33 or row.signal_type == "event_driven"
+        if row.noise_probability >= 0.28 or row.uncertainty >= 0.28 or row.signal_type in {"event_driven", "cross_asset_divergence"}
     ]
 
 

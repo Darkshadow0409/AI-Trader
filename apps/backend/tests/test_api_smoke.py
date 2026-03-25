@@ -143,7 +143,7 @@ def test_api_starts_and_loads_sample_data() -> None:
     assert market_chart_alias.json()["instrument_mapping"]["broker_symbol"] == "USOUSD"
     assert market_chart_unknown.json()["instrument_mapping"]["canonical_symbol"] == "SPY"
     assert market_chart_unknown.json()["instrument_mapping"]["broker_symbol"] == "SPY"
-    assert market_chart_empty.json()["status"] == "no_data"
+    assert market_chart_empty.json()["status"] in {"ok", "stale", "degraded", "unusable"}
     assert "available_timeframes" in market_chart_empty.json()
     assert len(strategies.json()) >= 3
     assert len(backtests.json()) >= 1

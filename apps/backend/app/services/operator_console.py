@@ -594,28 +594,28 @@ def get_signal_detail(session: Session, signal_id: str) -> SignalDetailView | No
     features = signal.features
     evidence = [
         SignalEvidenceView(
-            label="Breakout distance",
-            value=f"{round(float(features.get('breakout_distance') or 0.0) * 100, 2)}%",
-            verdict="supportive" if float(features.get("breakout_distance") or 0.0) > 0 else "neutral",
-            note="Distance above the recent breakout level.",
+            label="Setup status",
+            value=str(features.get("setup_status") or "candidate"),
+            verdict="supportive" if str(features.get("setup_status") or "") == "actionable" else "mixed",
+            note="Current hunter and trigger readiness state.",
         ),
         SignalEvidenceView(
             label="Relative volume",
             value=f"{round(float(features.get('relative_volume') or 0.0), 2)}x",
-            verdict="supportive" if float(features.get("relative_volume") or 0.0) >= 1 else "soft",
+            verdict="supportive" if float(features.get("relative_volume") or 0.0) >= 1.05 else "soft",
             note="Compares current volume to the 20-bar baseline.",
         ),
         SignalEvidenceView(
-            label="Trend state",
-            value=str(features.get("trend_state") or "unknown"),
+            label="Regime",
+            value=str(features.get("regime") or features.get("trend_state") or "unknown"),
             verdict="supportive" if str(features.get("trend_state")) == "uptrend" else "mixed",
-            note="EMA and SMA stack state from the feature engine.",
+            note="Regime and trend state from the feature engine.",
         ),
         SignalEvidenceView(
-            label="ATR percent",
-            value=f"{round(float(features.get('atr_pct') or 0.0) * 100, 2)}%",
-            verdict="acceptable" if float(features.get("atr_pct") or 0.0) <= 0.08 else "elevated",
-            note="Volatility context used in breakout scoring.",
+            label="Trigger",
+            value=str(features.get("trigger_timeframe") or "n/a"),
+            verdict="supportive" if str(features.get("trigger_timeframe") or "") else "neutral",
+            note="Preferred confirmation path for execution timing.",
         ),
     ]
     related_markets = related_polymarket_markets(signal.symbol, signal.thesis, *(item.title for item in catalyst_news[:2]))

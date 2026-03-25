@@ -25,7 +25,13 @@ describe("SignalTable", () => {
             uncertainty: 0.21,
             data_quality: "fixture",
             affected_assets: ["BTC"],
-            features: {},
+            features: {
+              setup_family: "trend_breakout",
+              setup_status: "actionable",
+              regime: "trend_breakout",
+              entry_zone: { low: 70220, high: 70610 },
+              why_now: ["Relative volume is expanding into the breakout."],
+            },
             data_reality: null,
           },
         ]}
@@ -37,6 +43,10 @@ describe("SignalTable", () => {
     expect(btcCells.length).toBeGreaterThan(0);
     expect(screen.getByText("74.6")).toBeInTheDocument();
     expect(screen.getByText("79%")).toBeInTheDocument();
+    expect(screen.getByText("actionable")).toBeInTheDocument();
+    expect(screen.getAllByText("trend breakout")).toHaveLength(2);
+    expect(screen.getByText("70220.00 / 68450.00")).toBeInTheDocument();
+    expect(screen.getByText("Relative volume is expanding into the breakout.")).toBeInTheDocument();
     fireEvent.click(btcCells[btcCells.length - 1]);
     expect(onSelectSymbol).toHaveBeenCalledWith("BTC");
   });

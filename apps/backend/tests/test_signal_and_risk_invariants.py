@@ -76,3 +76,17 @@ def test_risk_exposure_rows_remain_sane(client, seeded_summary) -> None:
         assert isfinite(row["gross_risk_pct"])
         assert row["gross_risk_pct"] >= 0
         assert isfinite(row["worst_scenario_pct"])
+
+
+def test_seeded_pipeline_surfaces_commodity_signals_and_risk_rows(client, seeded_summary) -> None:
+    assert seeded_summary.signals_emitted >= 3
+    assert seeded_summary.risk_reports_built >= seeded_summary.signals_emitted
+
+    signals = client.get("/api/signals").json()
+    risk_rows = client.get("/api/risk/latest").json()
+
+    signal_symbols = {row["symbol"] for row in signals}
+    risk_symbols = {row["symbol"] for row in risk_rows}
+
+    assert {"WTI", "GOLD", "SILVER"} & signal_symbols
+    assert {"WTI", "GOLD", "SILVER"} & risk_symbols

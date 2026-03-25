@@ -8,7 +8,8 @@ def test_strategy_spec_parses_real_fixture() -> None:
         Path("apps/backend/fixtures/strategy_specs/trend_breakout_v1.yaml")
     )
     assert spec.name == "trend_breakout_v1"
-    assert spec.execution.fees_bps == 8
+    assert spec.execution.fees_bps == 10
+    assert spec.tradable_symbol == "USOUSD"
     assert spec.validation.walk_forward_required is True
 
 

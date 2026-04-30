@@ -11,7 +11,7 @@ describe("apiClient", () => {
 
     const payload = await apiClient.overview();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/dashboard/overview", {
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/dashboard/overview?symbol=USOUSD", {
       headers: { "Content-Type": "application/json" },
       signal: expect.any(AbortSignal),
     });
@@ -72,6 +72,32 @@ describe("apiClient", () => {
       signal: expect.any(AbortSignal),
     });
     expect(payload.signal_id).toBe("sig_test");
+  });
+
+  it("loads selected signal workspace context from the lightweight hydration route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        signal: { signal_id: "sig_test", symbol: "WTI" },
+        risk: { risk_report_id: "risk_test", symbol: "WTI" },
+        chart: { symbol: "USOUSD", timeframe: "1h" },
+        asset_context: { symbol: "USOUSD" },
+        proposal_ready: true,
+        proposal_note: "ready",
+        selected_symbol: "USOUSD",
+        timeframe: "1h",
+        data_truth_note: "proxy-aware",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = await apiClient.selectedSignalWorkspace("sig_test", "1h");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/signals/sig_test/workspace-context?timeframe=1h", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(payload.selected_symbol).toBe("USOUSD");
   });
 
   it("uses trader-facing commodity aliases for asset context and chart requests", async () => {
@@ -237,7 +263,7 @@ describe("apiClient", () => {
     const runtimeClient = await import("./client");
     const payload = await runtimeClient.apiClient.overview();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8011/api/dashboard/overview", {
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8011/api/dashboard/overview?symbol=USOUSD", {
       headers: { "Content-Type": "application/json" },
       signal: expect.any(AbortSignal),
     });

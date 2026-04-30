@@ -14,7 +14,8 @@ describe("LeftRail", () => {
         activeTab="desk"
         backlog={mockOperationalBacklog}
         executionGate={mockExecutionGate}
-        navItems={[{ key: "desk", label: "Desk", tone: "active" }]}
+        hotkeyHints={[{ key: "desk", label: "Desk", shortcut: "1" }]}
+        navGroups={[{ title: "Primary Workspace", items: [{ key: "desk", label: "Desk", tone: "active" }] }]}
         onSelectSymbol={onSelectSymbol}
         onSelectTab={vi.fn()}
         research={mockResearch}
@@ -23,9 +24,12 @@ describe("LeftRail", () => {
       />,
     );
 
+    expect(screen.getByTestId("left-rail")).toBeInTheDocument();
+    expect(screen.getAllByText("Desk").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("rail-hotkeys")).toBeInTheDocument();
     expect(screen.getByText("71880.00 / +3.07%")).toBeInTheDocument();
-    expect(screen.getAllByText("5m / fresh").length).toBeGreaterThan(0);
-    expect(screen.getByText("Reality B / fixture / trend breakout")).toBeInTheDocument();
+    expect(screen.getAllByText(/Reality B \/ 5m fresh/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Reality B / 5m fresh / trend breakout")).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: /ETH/i })[0]);
     expect(onSelectSymbol).toHaveBeenCalledWith("ETH");

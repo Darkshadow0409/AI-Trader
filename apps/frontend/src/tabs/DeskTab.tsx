@@ -1,13 +1,42 @@
 import { useState } from "react";
+import { AssetReadinessBanner } from "../components/AssetReadinessBanner";
+import type { AssetReadinessView } from "../lib/assetReadiness";
 import { formatDateTimeIST } from "../lib/time";
-import { gateStatusLabel } from "../lib/uiLabels";
-import type { DeskSummaryView, ExecutionGateView, HomeOperatorSummaryView, OperationalBacklogView } from "../types/api";
+import {
+  commodityTruthIsReadyCurrent,
+  commodityTruthStateLabel,
+  commodityTruthSummaryLabel,
+  gateStatusLabel,
+  operatorWireCategoryLabel,
+  operatorWireFreshnessLabel,
+  proposalStateLabel,
+  recoveryReasonLabel,
+  recoveryStatusLabel,
+  titleCase,
+  traderFreshnessStateLabel,
+} from "../lib/uiLabels";
+import type {
+  CommodityTruthStatusView,
+  DeskSummaryView,
+  ExecutionGateView,
+  HomeOperatorSummaryView,
+  OperationalBacklogView,
+  ReviewSummaryView,
+} from "../types/api";
 
 interface DeskTabProps {
   desk: DeskSummaryView;
   homeSummary: HomeOperatorSummaryView;
   executionGate: ExecutionGateView;
   operationalBacklog: OperationalBacklogView;
+  reviewSummary?: ReviewSummaryView | null;
+  commodityTruth?: CommodityTruthStatusView | null;
+  selectedAssetReadiness: AssetReadinessView;
+  selectedInstrumentLabel: string;
+  selectedUnderlyingLabel?: string | null;
+  selectedMappingNote?: string | null;
+  selectedHasSignal: boolean;
+  selectedHasRisk: boolean;
   onNavigate: (tab: string) => void;
   onOpenSignal: (signalId: string) => void;
   onOpenRisk: (riskReportId: string) => void;
@@ -36,10 +65,28 @@ function compact(value: number | null | undefined): string {
   return value.toFixed(2);
 }
 
-function sectionLabel(value: string): string {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+function sumCounts(counts: Record<string, number> | null | undefined): number {
+  return Object.values(counts ?? {}).reduce((sum, value) => sum + value, 0);
+}
+
+function recoveryTimestamp(value: string | null | undefined): string {
+  const formatted = formatDateTimeIST(value);
+  return formatted === "n/a" ? "not scheduled" : formatted;
+}
+
+function blockerCategoryLabel(category: string | null | undefined): string {
+  switch (category) {
+    case "review":
+      return "review";
+    case "baseline":
+      return "baseline";
+    case "data":
+      return "data";
+    case "performance":
+      return "path quality";
+    default:
+      return category ? category.replace(/_/g, " ") : "operator";
+  }
 }
 
 export function DeskTab({
@@ -47,187 +94,452 @@ export function DeskTab({
   homeSummary,
   executionGate,
   operationalBacklog,
+  reviewSummary = null,
+  commodityTruth = null,
+  selectedAssetReadiness,
+  selectedInstrumentLabel,
+  selectedUnderlyingLabel = null,
+  selectedMappingNote = null,
+  selectedHasSignal,
+  selectedHasRisk,
   onNavigate,
   onOpenSignal,
-  onOpenRisk,
   onOpenCommandCenter,
   onSelectSymbol,
   onSelectTicket,
   onSelectTrade,
   paperCapitalSummary,
 }: DeskTabProps) {
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
   const gateLabel = gateStatusLabel(executionGate.status);
-  const degradedDeskNotes = Object.entries(desk.section_notes).filter(([, note]) => note.trim().length > 0);
-  const gateGuidance = executionGate.status === "review_required"
-    ? `Review is blocking promotion or execution. Resolve ${Math.max(executionGate.blockers.length, 1)} outstanding review item(s) in Review Queue.`
-    : executionGate.status === "execution_candidate"
-      ? "Execution gate is clear enough for paper/pilot progression."
-      : "Gate status reflects the current discipline and readiness checks.";
+  const openTicketCount = homeSummary.operator_state_summary?.open_tickets ?? sumCounts(homeSummary.open_ticket_counts);
+  const openTradeCount = homeSummary.operator_state_summary?.active_trades ?? sumCounts(homeSummary.active_trade_counts);
+  const openReviewCount = homeSummary.operator_state_summary?.open_review_items ?? homeSummary.review_backlog_counts.open_reviews ?? desk.review_tasks.length;
+  const snapshotNote = desk.runtime_snapshot?.using_last_good_snapshot
+    ? `Using the last good operator snapshot from ${desk.runtime_snapshot.age_minutes}m ago while refresh completes.`
+    : null;
+  const rankedGateBlockers = [...executionGate.blocker_details].sort((left, right) => left.rank - right.rank || left.code.localeCompare(right.code));
+  const topGateBlocker = rankedGateBlockers[0] ?? null;
+  const selectedAssetHeading = selectedUnderlyingLabel ? `${selectedInstrumentLabel} using ${selectedUnderlyingLabel} context` : selectedInstrumentLabel;
+  const recovery = desk.recovery_telemetry;
+  const operatorWire = desk.operator_wire?.items ?? [];
+  const topReviewTasks = desk.review_tasks.slice(0, 3);
+  const topSignals = desk.high_priority_signals.slice(0, 4);
+  const accountabilityMetrics = reviewSummary?.accountability_metrics ?? null;
+  const gateImpact = reviewSummary?.gate_impact ?? null;
+  const clearTheseFirst = gateImpact?.clear_these_first.slice(0, 2) ?? [];
+  const reviewQueueBlocking = (gateImpact?.gate_blocking_count ?? 0) > 0 || topGateBlocker?.category === "review";
+  const baselineOrDataBlocking = !reviewQueueBlocking && executionGate.status !== "execution_candidate" && topGateBlocker !== null;
+  const nextActionHeading =
+    reviewQueueBlocking
+      ? "Review Queue first"
+      : baselineOrDataBlocking
+        ? "Resolve gate blockers first"
+      : selectedAssetReadiness.kind === "research_only_today"
+        ? `Research ${selectedInstrumentLabel} first`
+        : selectedAssetReadiness.kind === "no_actionable_setup"
+          ? `Load a setup for ${selectedInstrumentLabel}`
+          : `Advance ${selectedInstrumentLabel} into risk or tickets`;
+  const nextActionSummary =
+    reviewQueueBlocking
+      ? topGateBlocker?.next_step ?? "Review pressure is explicitly blocking promotion or execution. Clear that queue before widening workflow."
+      : baselineOrDataBlocking
+        ? topGateBlocker?.next_step ?? "Resolve the current gate blocker before widening ticket or trade workflow."
+      : selectedAssetReadiness.kind === "research_only_today"
+        ? "Keep the selected asset chart-first and research-first until truth and risk posture improve."
+        : selectedAssetReadiness.kind === "no_actionable_setup"
+          ? "There is no current setup/risk frame pinned, so stay in the board and signals flow instead of pretending the ticket path is ready."
+          : selectedHasRisk
+            ? "The asset is already carrying risk context, so the next move should stay in the same operator thread."
+            : "The asset is the clearest current path, but it still needs a confirmed setup or risk frame before ticket work.";
+  const reviewHeadline =
+    reviewQueueBlocking
+      ? `${operationalBacklog.overdue_count} overdue review item(s) are blocking progression.`
+      : openReviewCount > 0
+        ? `${openReviewCount} review item(s) remain open, but the desk is still usable.`
+        : "Review pressure is currently contained.";
+  const helpCopy = [
+    "Desk is the chart-first operator surface. Use it to decide what matters, then move into Signals, Risk, Tickets, Review, and AI Desk without losing the selected asset thread.",
+    "USOUSD is the trader-facing oil board. WTI remains research-only context. XAGUSD is the trader-facing silver board.",
+    "Truth, freshness, degraded state, and paper-only workflow framing remain explicit because they are part of the operator discipline, not decorative metadata.",
+  ];
+  const primaryActionIsTickets = !reviewQueueBlocking && !baselineOrDataBlocking && selectedAssetReadiness.kind === "primary_path" && selectedHasRisk;
 
   return (
-    <section className="desk-grid">
-      {showOnboarding ? (
-        <article className="panel compact-panel" data-testid="desk-onboarding">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">Demo Start</p>
-              <h3>Start Here</h3>
-            </div>
-            <button className="text-button" onClick={() => setShowOnboarding(false)} type="button">
-              Dismiss
-            </button>
-          </div>
-        <div className="stack">
-          <small>Use Desk as the commodity handoff surface, then move through Signals, Risk, Tickets, Journal, and Pilot Ops.</small>
-          <small>Start with USOUSD, XAUUSD, and XAGUSD. BTC and ETH remain secondary cross-asset confirmation, not the main product story.</small>
-          <small>Command Center handles safe operational actions like refresh, fast verify, pilot export, and review bundle generation.</small>
-          <small>This console is paper-trading and pilot mode only. No live broker execution is available here.</small>
-          <small>For oil: click USOUSD in the left rail, inspect the chart, then use Related News, Risk Context, Crowd Narrative, and AI Desk before drafting a paper ticket.</small>
-        </div>
-      </article>
-      ) : null}
+    <section className="desk-grid desk-terminal-grid">
+      <AssetReadinessBanner readiness={selectedAssetReadiness} title={selectedAssetHeading} />
+      {selectedMappingNote ? <small>{selectedMappingNote}</small> : null}
 
-      <article className="panel compact-panel hero-panel">
+      <article className="panel compact-panel terminal-subpanel desk-what-matters">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Commodity Runbook</p>
-            <h3>Board {"->"} Chart {"->"} Risk {"->"} Ticket {"->"} Review</h3>
+            <p className="eyebrow">Desk Focus</p>
+            <h3>What Matters Now</h3>
           </div>
-          <span className="tag">showcase-safe</span>
+          <div className="inline-tags">
+            <span className="tag">{gateLabel}</span>
+            <span className="tag">{operationalBacklog.overdue_count} overdue</span>
+            <span className="tag">{homeSummary.degraded_source_count} degraded</span>
+          </div>
         </div>
-        <div className="command-grid">
-          <button className="action-button" onClick={() => onNavigate("watchlist")} type="button">
-            1. Commodity Board
-          </button>
-          <button className="action-button" onClick={() => onNavigate("signals")} type="button">
-            2. Signals
-          </button>
-          <button className="action-button" onClick={() => onNavigate("risk")} type="button">
-            3. Risk
-          </button>
-          <button className="action-button" onClick={() => onNavigate("trade_tickets")} type="button">
-            4. Tickets
-          </button>
-          <button className="action-button" onClick={() => onNavigate("session")} type="button">
-            5. Review
-          </button>
-          <button className="action-button" onClick={() => onNavigate("ai_desk")} type="button">
-            6. AI Desk
-          </button>
-        </div>
-        <div className="stack">
-          <small>Keep the chart as the main narrative surface, then confirm catalysts, invalidation, and risk before moving into ticket and review discipline.</small>
-          <small>Data Reality, tradable alignment, proxy/live honesty, and 10k paper-account framing stay visible because they are part of the operator workflow, not hidden metadata.</small>
-        </div>
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>What Matters Now</h3>
-        <div className="metric-grid">
+        {commodityTruth && !commodityTruthIsReadyCurrent(commodityTruth) ? (
+          <div className="state-block">
+            <strong>{commodityTruthStateLabel(commodityTruth)}</strong>
+            <div>{commodityTruthSummaryLabel(commodityTruth)}</div>
+          </div>
+        ) : null}
+        {recovery ? (
+          <div className="state-block" data-testid="desk-recovery-telemetry">
+            <strong>{recoveryStatusLabel(recovery)}</strong>
+            <div>{recovery.truth_label}</div>
+            <small>
+              Attempts {recovery.recovery_attempt_count ?? 0} / Last {recoveryTimestamp(recovery.recovery_last_attempt_at)} / Next {recoveryTimestamp(recovery.recovery_next_attempt_at)}
+            </small>
+            <small>{recoveryReasonLabel(recovery.recovery_reason)}</small>
+          </div>
+        ) : null}
+        <div className="metric-grid desk-priority-grid">
           <div>
             <span className="metric-label">Gate</span>
             <strong>{gateLabel}</strong>
           </div>
           <div>
-            <span className="metric-label">Backlog</span>
-            <strong>{operationalBacklog.overdue_count} overdue</strong>
+            <span className="metric-label">Review Queue</span>
+            <strong>{openReviewCount}</strong>
           </div>
           <div>
             <span className="metric-label">Open Tickets</span>
-            <strong>{desk.open_tickets.length}</strong>
+            <strong>{openTicketCount}</strong>
           </div>
           <div>
             <span className="metric-label">Open Trades</span>
-            <strong>{desk.active_paper_trades.length}</strong>
+            <strong>{openTradeCount}</strong>
           </div>
           <div>
-            <span className="metric-label">Degraded Sources</span>
-            <strong>{homeSummary.degraded_source_count}</strong>
+            <span className="metric-label">Paper Risk</span>
+            <strong>{compact(paperCapitalSummary.riskPct)}%</strong>
           </div>
-        </div>
-        <div className="stack">
-          <small>{gateGuidance}</small>
-          {(executionGate.blockers.length ? executionGate.blockers : ["No active execution-gate blockers."]).map((item) => (
-            <small key={item}>{item}</small>
-          ))}
-          {executionGate.status === "review_required" ? (
-            <button className="text-button" onClick={() => onNavigate("session")} type="button">
-              Open Review Queue
-            </button>
-          ) : null}
-        </div>
-      </article>
-
-      {degradedDeskNotes.length > 0 ? (
-        <article className="panel compact-panel">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">Desk Readiness</p>
-              <h3>Degraded But Usable</h3>
-            </div>
-            <span className="tag">partial</span>
-          </div>
-          <div className="stack">
-            {degradedDeskNotes.slice(0, 3).map(([section, note]) => (
-              <small key={section}>
-                {sectionLabel(section)}: {note}
-              </small>
-            ))}
-          </div>
-        </article>
-      ) : null}
-
-      <article className="panel compact-panel">
-        <h3>10k Paper Capital</h3>
-        <div className="metric-grid">
           <div>
             <span className="metric-label">Paper Equity</span>
             <strong>{compact(paperCapitalSummary.equity)}</strong>
           </div>
-          <div>
-            <span className="metric-label">Allocated</span>
-            <strong>{compact(paperCapitalSummary.allocated)}</strong>
-          </div>
-          <div>
-            <span className="metric-label">Open Risk</span>
-            <strong>{compact(paperCapitalSummary.openRisk)}</strong>
-          </div>
-          <div>
-            <span className="metric-label">% at Risk</span>
-            <strong>{compact(paperCapitalSummary.riskPct)}%</strong>
-          </div>
-          <div>
-            <span className="metric-label">Base Target</span>
-            <strong>{compact(paperCapitalSummary.targetPnl)}</strong>
-          </div>
-          <div>
-            <span className="metric-label">Stretch / Stop</span>
-            <strong>{compact(paperCapitalSummary.stretchPnl)} / {compact(paperCapitalSummary.stopLoss)}</strong>
-          </div>
         </div>
         <div className="stack">
-          <small>Account context: {paperCapitalSummary.accountSize.toFixed(0)} demo account / {paperCapitalSummary.openExposureCount} active exposures</small>
-          {paperCapitalSummary.overAllocated ? (
-            <small>Allocated capital is above the 10k paper account. This view reflects overlapping open paper positions and should be treated as an over-allocation warning, not available buying power.</small>
-          ) : null}
-          <small>Use this panel to explain risk per trade and portfolio-level open exposure in paper mode.</small>
+          <small>{reviewHeadline}</small>
+          {snapshotNote ? <small>{snapshotNote}</small> : null}
+          {executionGate.blockers.slice(0, 2).map((item) => (
+            <small key={item}>{item}</small>
+          ))}
         </div>
       </article>
 
-      <article className="panel compact-panel">
-        <h3>Next Actions</h3>
-        <div className="command-grid">
-          <button
-            className="action-button"
-            onClick={() => {
-              onSelectTicket(desk.open_tickets[0]?.ticket_id ?? null);
-              onNavigate("trade_tickets");
-            }}
-            type="button"
-          >
-            Review Tickets
+      <article className="panel compact-panel terminal-subpanel desk-wire-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Terminal Wire</p>
+            <h3>Priority Wire</h3>
+          </div>
+          <span className="tag">{operatorWire.length} items</span>
+        </div>
+        {operatorWire.length === 0 ? (
+          <div className="showcase-note">
+            <strong className="showcase-note-title">Priority wire is calm</strong>
+            <small className="showcase-note-body">No priority wire items are published for this desk snapshot yet.</small>
+          </div>
+        ) : (
+          <div className="stack wire-list">
+            {operatorWire.map((item, index) => (
+              <button
+                className="news-item wire-row"
+                key={`${item.category}-${item.headline}-${index}`}
+                onClick={() => {
+                  if (item.symbol) {
+                    onSelectSymbol(item.symbol);
+                  }
+                  if (item.signal_id) {
+                    onOpenSignal(item.signal_id);
+                  }
+                  if (item.trade_id) {
+                    onSelectTrade(item.trade_id);
+                  }
+                  if (item.target_tab) {
+                    onNavigate(item.target_tab);
+                  }
+                }}
+                type="button"
+              >
+                <div className="metric-row compact-row">
+                  <strong>{item.headline}</strong>
+                  <span>{operatorWireCategoryLabel(item.category)}</span>
+                </div>
+                <small>{item.summary}</small>
+                <div className="metric-row compact-row">
+                  <span>{item.symbol ?? "desk-wide"}</span>
+                  <span>{operatorWireFreshnessLabel(item)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <article className="panel compact-panel terminal-subpanel desk-gate-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Gate Resolution</p>
+            <h3>What Clears Next</h3>
+          </div>
+          <button className="text-button" onClick={() => onNavigate(topGateBlocker?.category === "review" ? "session" : "pilot_ops")} type="button">
+            {topGateBlocker?.category === "review" ? "Open Review Queue" : "Open Pilot Ops"}
           </button>
+        </div>
+        <div className="metric-grid desk-review-grid">
+          <div>
+            <span className="metric-label">Gate</span>
+            <strong>{gateLabel}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Ranked blockers</span>
+            <strong>{rankedGateBlockers.length}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Clears next</span>
+            <strong>{topGateBlocker ? blockerCategoryLabel(topGateBlocker.category) : "clear"}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Gate-blocking reviews</span>
+            <strong>{accountabilityMetrics?.gate_blocking_count ?? gateImpact?.gate_blocking_count ?? 0}</strong>
+          </div>
+        </div>
+        {rankedGateBlockers.length === 0 ? (
+          <div className="showcase-note">
+            <strong className="showcase-note-title">Gate is clear</strong>
+            <small className="showcase-note-body">No structured gate blockers are active right now.</small>
+          </div>
+        ) : (
+          <div className="stack">
+            {rankedGateBlockers.slice(0, 3).map((blocker) => (
+              <div className="news-item wire-row" key={blocker.code}>
+                <div className="metric-row compact-row">
+                  <strong>{blocker.code.replace(/_/g, " ")}</strong>
+                  <span>{blocker.severity}</span>
+                  <span>{blockerCategoryLabel(blocker.category)}</span>
+                </div>
+                <small>{blocker.next_step}</small>
+              </div>
+            ))}
+            {clearTheseFirst.length > 0 ? (
+              <div className="stack">
+                {clearTheseFirst.map((item) => (
+                  <div className="news-item wire-row" key={item.task_id}>
+                    <div className="metric-row compact-row">
+                      <strong>{item.title}</strong>
+                      <span>{item.family.replace(/_/g, " ")}</span>
+                    </div>
+                    <small>{item.display_symbol ?? "desk-wide"} / {item.reason}</small>
+                    <small>{item.next_step}</small>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )}
+      </article>
+
+      <article className="panel compact-panel terminal-subpanel desk-review-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Review Pressure</p>
+            <h3>Queue Pressure</h3>
+          </div>
+          <button className="text-button" onClick={() => onNavigate("session")} type="button">
+            Open Review Queue
+          </button>
+        </div>
+        <div className="metric-grid desk-review-grid">
+          <div>
+            <span className="metric-label">Overdue</span>
+            <strong>{operationalBacklog.overdue_count}</strong>
+          </div>
+          <div>
+            <span className="metric-label">High Priority</span>
+            <strong>{operationalBacklog.high_priority_count}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Open Reviews</span>
+            <strong>{openReviewCount}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Oldest overdue</span>
+            <strong>{accountabilityMetrics?.oldest_overdue_hours !== null && accountabilityMetrics?.oldest_overdue_hours !== undefined ? `${accountabilityMetrics.oldest_overdue_hours}h` : "n/a"}</strong>
+          </div>
+          <div>
+            <span className="metric-label">Clearance</span>
+            <strong>{accountabilityMetrics?.clearance_status ?? "clear"}</strong>
+          </div>
+        </div>
+        {topReviewTasks.length === 0 ? (
+          <div className="showcase-note">
+            <strong className="showcase-note-title">Review queue is quiet</strong>
+            <small className="showcase-note-body">No detailed review rows are loaded right now.</small>
+          </div>
+        ) : (
+          <div className="stack">
+            {topReviewTasks.map((task) => (
+              <button className="news-item wire-row" key={task.task_id} onClick={() => onNavigate("session")} type="button">
+                <div className="metric-row compact-row">
+                  <strong>{task.title}</strong>
+                  <span>{task.priority}</span>
+                </div>
+                <small>{task.display_symbol || task.linked_symbol || "desk-wide"} / {task.session_state.replace(/_/g, " ")} / due {formatDateTimeIST(task.due_at)}</small>
+              </button>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <article className="panel compact-panel terminal-subpanel desk-signals-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Signal Surface</p>
+            <h3>High-Priority Signals</h3>
+          </div>
+          <button className="text-button" onClick={() => onNavigate("signals")} type="button">
+            Open Signals
+          </button>
+        </div>
+        {topSignals.length === 0 ? (
+          <div className="showcase-note">
+            <strong className="showcase-note-title">No live setup pressure</strong>
+            <small className="showcase-note-body">No high-priority desk setups are in scope right now.</small>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Family</th>
+                <th>Score</th>
+                <th>Reality</th>
+                <th>Freshness</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topSignals.map((signal) => (
+                <tr
+                  key={signal.signal_id}
+                  onClick={() => {
+                    onSelectSymbol(signal.symbol);
+                    onOpenSignal(signal.signal_id);
+                  }}
+                >
+                  <td>{signal.display_symbol ?? signal.data_reality?.provenance.tradable_symbol ?? signal.symbol}</td>
+                  <td>{titleCase(String(signal.features.setup_family ?? signal.signal_type))}</td>
+                  <td>{signal.score.toFixed(1)}</td>
+                  <td>{signal.data_reality?.provenance.realism_grade ?? "n/a"}</td>
+                  <td>{traderFreshnessStateLabel(signal.data_reality?.freshness_state, signal.data_reality?.execution_grade_allowed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </article>
+
+      <article className="panel compact-panel terminal-subpanel desk-next-actions-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Next Action</p>
+            <h3>{nextActionHeading}</h3>
+          </div>
+          <button className="text-button" onClick={() => setShowHelp((current) => !current)} type="button">
+            {showHelp ? "Hide Help" : "Help / Workflow"}
+          </button>
+        </div>
+        <div className="stack">
+          <small>{nextActionSummary}</small>
+          <small>{selectedAssetReadiness.nextStep}</small>
+          <small>
+            Paper account {paperCapitalSummary.accountSize.toFixed(0)} / {paperCapitalSummary.openExposureCount} active exposures / open risk {compact(paperCapitalSummary.openRisk)}
+          </small>
+          {paperCapitalSummary.overAllocated ? <small>Allocated capital is above the 10k paper account. Treat this as an over-allocation warning, not available buying power.</small> : null}
+          <small>Advisory-only. Paper workflow only.</small>
+        </div>
+        <div className="command-grid">
+          {reviewQueueBlocking ? (
+            <button className="action-button" onClick={() => onNavigate("session")} type="button">
+              Open Review Queue
+            </button>
+          ) : baselineOrDataBlocking ? (
+            <button className="action-button" onClick={() => onNavigate("pilot_ops")} type="button">
+              Open Pilot Ops
+            </button>
+          ) : selectedAssetReadiness.kind === "research_only_today" ? (
+            <>
+              <button className="action-button" onClick={() => onNavigate("research")} type="button">
+                Open Research
+              </button>
+              <button className="action-button" onClick={() => onNavigate("watchlist")} type="button">
+                Open Commodity Board
+              </button>
+            </>
+          ) : selectedAssetReadiness.kind === "no_actionable_setup" ? (
+            <>
+              <button className="action-button" onClick={() => onNavigate("watchlist")} type="button">
+                Open Commodity Board
+              </button>
+              <button
+                className="action-button"
+                onClick={() => {
+                  const signalId = desk.high_priority_signals[0]?.signal_id;
+                  if (signalId) {
+                    onNavigate("signals");
+                    onOpenSignal(signalId);
+                  } else {
+                    onNavigate("signals");
+                  }
+                }}
+                type="button"
+              >
+                Review Selected Setup
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="action-button" onClick={() => onNavigate(selectedHasRisk ? "trade_tickets" : "risk")} type="button">
+                {selectedHasRisk ? "Open Tickets" : "Open Risk"}
+              </button>
+              <button
+                className="action-button"
+                onClick={() => {
+                  const signalId = desk.high_priority_signals[0]?.signal_id;
+                  if (signalId) {
+                    onNavigate("signals");
+                    onOpenSignal(signalId);
+                  } else {
+                    onNavigate("signals");
+                  }
+                }}
+                type="button"
+              >
+                Review Selected Setup
+              </button>
+            </>
+          )}
+          <button className="action-button" onClick={onOpenCommandCenter} type="button">
+            Open Ops Console
+          </button>
+          {!primaryActionIsTickets ? (
+            <button
+              className="action-button"
+              onClick={() => {
+                onSelectTicket(desk.open_tickets[0]?.ticket_id ?? null);
+                onNavigate("trade_tickets");
+              }}
+              type="button"
+            >
+              Open Tickets
+            </button>
+          ) : null}
           <button
             className="action-button"
             onClick={() => {
@@ -238,228 +550,25 @@ export function DeskTab({
           >
             Open Active Trades
           </button>
-          <button
-            className="action-button"
-            onClick={() => {
-              const signalId = desk.high_priority_signals[0]?.signal_id;
-              if (signalId) {
-                onNavigate("signals");
-                onOpenSignal(signalId);
-              }
-            }}
-            type="button"
-          >
-            Open Lead Signal
-          </button>
-          <button className="action-button" onClick={onOpenCommandCenter} type="button">
-            Open Ops Console
-          </button>
-        </div>
-        <div className="stack">
-          <small>Session focus: {homeSummary.session_state}</small>
-          <small>
-            Shadow divergence: {String(homeSummary.shadow_divergence_summary.count ?? 0)} / adapter health:
-            {" "}
-            {Object.entries(homeSummary.adapter_health_summary)
-              .map(([key, value]) => `${key} ${value}`)
-              .join(", ") || "n/a"}
-          </small>
         </div>
       </article>
 
-      <article className="panel compact-panel">
-        <h3>Review Queue</h3>
-        {desk.review_tasks.length === 0 ? (
-          <p className="muted-copy">No open review tasks.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Priority</th>
-                <th>Symbol</th>
-                <th>Due</th>
-              </tr>
-            </thead>
-            <tbody>
-              {desk.review_tasks.map((task) => (
-                <tr key={task.task_id}>
-                  <td>{task.title}</td>
-                  <td>{task.priority}</td>
-                  <td>{task.linked_symbol || "-"}</td>
-                  <td>{formatDateTimeIST(task.due_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>High-Priority Signals</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Asset</th>
-              <th>Family</th>
-              <th>Score</th>
-              <th>Reality</th>
-              <th>Freshness</th>
-            </tr>
-          </thead>
-          <tbody>
-            {desk.high_priority_signals.map((signal) => (
-              <tr
-                key={signal.signal_id}
-                onClick={() => {
-                  onSelectSymbol(signal.symbol);
-                  onOpenSignal(signal.signal_id);
-                }}
-              >
-                <td>{signal.symbol}</td>
-                <td>{signal.signal_type}</td>
-                <td>{signal.score.toFixed(1)}</td>
-                <td>{signal.data_reality?.provenance.realism_grade ?? "n/a"}</td>
-                <td>{signal.data_reality?.freshness_state ?? "n/a"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>Open Tickets</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Ticket</th>
-              <th>State</th>
-              <th>Approval</th>
-              <th>Checklist</th>
-            </tr>
-          </thead>
-          <tbody>
-            {desk.open_tickets.map((ticket) => (
-              <tr key={ticket.ticket_id} onClick={() => onSelectTicket(ticket.ticket_id)}>
-                <td>{ticket.symbol}</td>
-                <td>{ticket.status}</td>
-                <td>{ticket.approval_status}</td>
-                <td>{ticket.checklist_status.completed ? "clear" : "blocked"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>Open Trades</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Trade</th>
-              <th>State</th>
-              <th>Review</th>
-              <th>PnL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {desk.active_paper_trades.map((trade) => (
-              <tr key={trade.trade_id} onClick={() => onSelectTrade(trade.trade_id)}>
-                <td>{trade.symbol}</td>
-                <td>{trade.status}</td>
-                <td>{trade.review_due ? "due" : "clear"}</td>
-                <td>{compact(trade.outcome?.realized_pnl_pct)}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>Degraded Sources</h3>
-        {desk.degraded_sources.length === 0 ? (
-          <p className="muted-copy">No degraded sources in the current view.</p>
-        ) : (
+      {showHelp ? (
+        <article className="panel compact-panel terminal-subpanel desk-help-panel" data-testid="desk-help-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Operator Help</p>
+              <h3>Workflow Notes</h3>
+            </div>
+            <span className="tag">collapsed by default</span>
+          </div>
           <div className="stack">
-            {desk.degraded_sources.map((item) => (
-              <button className="news-item" key={`${item.symbol}-${item.source_type}`} onClick={() => onSelectSymbol(item.symbol)} type="button">
-                <strong>{item.symbol}</strong>
-                <small>{item.source_type} / {item.source_timing} / {item.freshness_state}</small>
-                <small>{item.warning}</small>
-              </button>
+            {helpCopy.map((item) => (
+              <small key={item}>{item}</small>
             ))}
           </div>
-        )}
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>Shadow Divergence</h3>
-        {desk.shadow_divergence.length === 0 ? (
-          <p className="muted-copy">No active shadow divergence hotspots.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Ticket</th>
-                <th>Asset</th>
-                <th>Reason</th>
-                <th>Gap</th>
-              </tr>
-            </thead>
-            <tbody>
-              {desk.shadow_divergence.map((item, index) => (
-                <tr key={`${String(item.ticket_id)}-${index}`} onClick={() => onSelectTicket(String(item.ticket_id))}>
-                  <td>{String(item.ticket_id)}</td>
-                  <td>{String(item.symbol)}</td>
-                  <td>{String(item.reason)}</td>
-                  <td>{compact(Number(item.observed_vs_plan_pct))}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>Focus Queue</h3>
-        <div className="stack">
-          {desk.focus_opportunities.map((item) => (
-            <button
-              className="news-item"
-              key={`${item.symbol}-${item.queue}`}
-              onClick={() => {
-                onSelectSymbol(item.symbol);
-                if (item.signal_id) {
-                  onOpenSignal(item.signal_id);
-                }
-                if (item.risk_report_id) {
-                  onOpenRisk(item.risk_report_id);
-                }
-              }}
-              type="button"
-            >
-              <strong>{item.symbol}</strong>
-              <small>{item.queue} / score {item.score.toFixed(1)} / {item.data_reality?.provenance.realism_grade ?? "n/a"}</small>
-              <small>{item.promotion_reasons.join(" / ")}</small>
-            </button>
-          ))}
-        </div>
-      </article>
-
-      <article className="panel compact-panel">
-        <h3>Adapter Health + Audit</h3>
-        <div className="stack">
-          {desk.adapter_health.map((item) => (
-            <div className="metric-row compact-row" key={item.health_id}>
-              <span>{item.adapter_name}</span>
-              <span>{item.status}</span>
-            </div>
-          ))}
-          {desk.audit_log_tail.map((item) => (
-            <small key={item.audit_id}>{item.event_type} / {item.entity_id}</small>
-          ))}
-        </div>
-      </article>
+        </article>
+      ) : null}
     </section>
   );
 }

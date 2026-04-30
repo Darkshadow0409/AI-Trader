@@ -10,8 +10,8 @@ describe("SignalTable", () => {
         onSelectSymbol={onSelectSymbol}
         rows={[
           {
-            signal_id: "sig_test_btc",
-            symbol: "BTC",
+            signal_id: "sig_test_wti",
+            symbol: "WTI",
             signal_type: "trend_breakout",
             timestamp: "2026-03-15T11:25:00Z",
             freshness_minutes: 5,
@@ -24,7 +24,7 @@ describe("SignalTable", () => {
             targets: { base: 73120, stretch: 74840 },
             uncertainty: 0.21,
             data_quality: "fixture",
-            affected_assets: ["BTC"],
+            affected_assets: ["WTI", "USOUSD"],
             features: {
               setup_family: "trend_breakout",
               setup_status: "actionable",
@@ -39,15 +39,15 @@ describe("SignalTable", () => {
       />,
     );
 
-    const btcCells = screen.getAllByText("BTC");
-    expect(btcCells.length).toBeGreaterThan(0);
+    const wtiCells = screen.getAllByText("WTI");
+    expect(wtiCells.length).toBeGreaterThan(0);
     expect(screen.getByText("74.6")).toBeInTheDocument();
     expect(screen.getByText("79%")).toBeInTheDocument();
     expect(screen.getByText("actionable")).toBeInTheDocument();
     expect(screen.getAllByText("trend breakout")).toHaveLength(2);
     expect(screen.getByText("70220.00 / 68450.00")).toBeInTheDocument();
     expect(screen.getByText("Relative volume is expanding into the breakout.")).toBeInTheDocument();
-    fireEvent.click(btcCells[btcCells.length - 1]);
-    expect(onSelectSymbol).toHaveBeenCalledWith("BTC");
+    fireEvent.click(wtiCells[wtiCells.length - 1]);
+    expect(onSelectSymbol).toHaveBeenCalledWith("WTI");
   });
 });

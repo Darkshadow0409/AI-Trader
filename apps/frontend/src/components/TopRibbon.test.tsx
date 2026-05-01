@@ -3,10 +3,22 @@ import { describe, expect, it } from "vitest";
 import { TopRibbon } from "./TopRibbon";
 
 describe("TopRibbon", () => {
-  it("renders macro, freshness, risk budget, and pipeline blocks", () => {
+  it("renders compact operator shell status cells without losing core truth signals", () => {
     render(
       <TopRibbon
         health={{ status: "ok", sqlite_path: "db", duckdb_path: "duck", parquet_dir: "parquet" }}
+        selectedAssetTruth={{
+          symbol: "USOUSD",
+          trader_facing_symbol: "USOUSD",
+          research_symbol_if_any: "WTI_CTX",
+          as_of: "2026-03-15T10:42:00Z",
+          freshness_minutes: 18,
+          source_mode: "delayed_public",
+          route_readiness: "ready_current",
+          degraded_reason: "delayed_public_context",
+          is_proxy: true,
+          confidence: 0.76,
+        }}
         ribbon={{
           macro_regime: "risk-on",
           data_freshness_minutes: 18,
@@ -28,15 +40,19 @@ describe("TopRibbon", () => {
       />,
     );
 
-    expect(screen.getByText("risk-on")).toBeInTheDocument();
+    expect(screen.getByText(/risk-on is the current desk posture/i)).toBeInTheDocument();
     expect(screen.getByText("18m / fresh")).toBeInTheDocument();
-    expect(screen.getByText("1.10 / 2.50%")).toBeInTheDocument();
-    expect(screen.getByText("12m ago / recent check")).toBeInTheDocument();
-    expect(screen.getByText(/Fixture mode is active/i)).toBeInTheDocument();
+    expect(screen.getByText("12m ago")).toBeInTheDocument();
+    expect(screen.getByText("recent check")).toBeInTheDocument();
+    expect(screen.getByText("Market Data")).toBeInTheDocument();
+    expect(screen.getByText("Last Update")).toBeInTheDocument();
+    expect(screen.getByText("Review Status")).toBeInTheDocument();
+    expect(screen.getByText("System Refresh")).toBeInTheDocument();
     expect(screen.getByTestId("backend-connection-badge")).toHaveTextContent("backend connected");
-    expect(screen.getByTestId("source-mode-badge")).toHaveTextContent("data mode Fixture research data");
-    expect(screen.getByTestId("pipeline-status-badge")).toHaveTextContent("pipeline completed");
-    expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("market freshness fresh");
+    expect(screen.getByTestId("source-mode-badge")).toHaveTextContent("Delayed/public");
+    expect(screen.getByTestId("commodity-truth-badge")).toHaveTextContent("Commodity truth status unknown");
+    expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("Current");
+    expect(screen.getByText("Proxy active")).toBeInTheDocument();
     expect(screen.getAllByText(/IST/i).length).toBeGreaterThan(0);
   });
 
@@ -44,6 +60,18 @@ describe("TopRibbon", () => {
     render(
       <TopRibbon
         health={{ status: "mock", sqlite_path: "db", duckdb_path: "duck", parquet_dir: "parquet" }}
+        selectedAssetTruth={{
+          symbol: "USOUSD",
+          trader_facing_symbol: "USOUSD",
+          research_symbol_if_any: "WTI_CTX",
+          as_of: null,
+          freshness_minutes: null,
+          source_mode: "last_verified",
+          route_readiness: "ready_fallback",
+          degraded_reason: "last_verified_fallback_active",
+          is_proxy: true,
+          confidence: 0.5,
+        }}
         ribbon={{
           macro_regime: "defensive",
           data_freshness_minutes: 1600,
@@ -66,10 +94,12 @@ describe("TopRibbon", () => {
     );
 
     expect(screen.getByText("1600m / stale")).toBeInTheDocument();
-    expect(screen.getByText("none")).toBeInTheDocument();
     expect(screen.getAllByText("n/a").length).toBeGreaterThan(0);
+    expect(screen.getByText("unknown check")).toBeInTheDocument();
+    expect(screen.getByText(/defensive is the current desk posture/i)).toBeInTheDocument();
     expect(screen.getByTestId("backend-connection-badge")).toHaveTextContent("backend mock");
-    expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("market freshness stale");
+    expect(screen.getByTestId("freshness-status-badge")).toHaveTextContent("Fallback");
+    expect(screen.getByText("Fallback active")).toBeInTheDocument();
   });
 
   it("shows a calm boot state before the first hydrated snapshot arrives", () => {
@@ -98,7 +128,7 @@ describe("TopRibbon", () => {
       />,
     );
 
-    expect(screen.getByText("Syncing operator snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Syncing workspace snapshot")).toBeInTheDocument();
     expect(screen.queryByText(/Syncing market-data truth/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/market freshness unknown/i)).not.toBeInTheDocument();
   });

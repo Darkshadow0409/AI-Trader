@@ -1,5 +1,13 @@
-import type { AssetContextView, MarketChartView, RibbonView, SignalDetailView } from "../types/api";
-import { dataQualityLabel } from "../lib/uiLabels";
+import { instrumentMappingExplainer } from "../lib/assetReadiness";
+import type { AssetContextView, MarketChartView, PaperTradeDetailView, RibbonView, SignalDetailView, TradeTicketDetailView } from "../types/api";
+import {
+  chartStateLabel,
+  commodityTruthIsReadyCurrent,
+  penaltyCodeLabel,
+  plainStatusLabel,
+  signalAgeLabel,
+  traderFreshnessLabel,
+} from "../lib/uiLabels";
 import { Panel } from "./Panel";
 import { StateBlock } from "./StateBlock";
 
@@ -10,6 +18,8 @@ interface SignalDetailsCardProps {
   ribbon: RibbonView;
   loading?: boolean;
   error?: string | null;
+  selectedTicket?: TradeTicketDetailView | null;
+  selectedTrade?: PaperTradeDetailView | null;
   onRetry?: () => void;
 }
 
@@ -46,174 +56,256 @@ function topRelevantMarkets(symbol: string, markets: NonNullable<SignalDetailVie
     .slice(0, 3);
 }
 
-export function SignalDetailsCard({ context, detail, chart, ribbon: _ribbon, loading, error, onRetry }: SignalDetailsCardProps) {
+export function SignalDetailsCard({
+  context,
+  detail,
+  chart,
+  ribbon: _ribbon,
+  loading,
+  error,
+  selectedTicket = null,
+  selectedTrade = null,
+  onRetry,
+}: SignalDetailsCardProps) {
   const signal = detail ?? context.latest_signal;
   const risk = detail?.related_risk ?? context.latest_risk;
   const signalDetail = detail;
+  const hasFallbackContext = Boolean(signal || risk || selectedTicket || selectedTrade);
+  const hasRouteLevelContext = Boolean(chart || context.symbol || context.data_reality || context.commodity_truth);
+  const showBlockingLoad = Boolean(loading) && !hasFallbackContext && !hasRouteLevelContext;
   const reality = chart?.data_reality ?? signalDetail?.data_reality ?? signal?.data_reality ?? context.data_reality;
+  const commodityTruth = chart?.commodity_truth ?? context.commodity_truth ?? null;
+  const commodityTruthReady = commodityTruthIsReadyCurrent(commodityTruth);
   const friendlyError = signalErrorLabel(error, Boolean(signal));
   const relevantCrowdMarkets = signal && signalDetail?.related_polymarket_markets
     ? topRelevantMarkets(signal.symbol, signalDetail.related_polymarket_markets)
     : [];
   const selectedMarketFreshnessMinutes = chart?.freshness_minutes ?? reality?.freshness_minutes ?? context.data_reality?.freshness_minutes ?? null;
   const selectedMarketFreshnessState = chart?.freshness_state ?? reality?.freshness_state ?? context.data_reality?.freshness_state ?? "unknown";
-  const selectedMarketFreshnessLabel =
-    selectedMarketFreshnessMinutes === null ? "unknown" : `${selectedMarketFreshnessMinutes}m / ${selectedMarketFreshnessState}`;
+  const selectedMarketFreshnessLabel = traderFreshnessLabel(
+    selectedMarketFreshnessMinutes,
+    selectedMarketFreshnessState,
+    reality?.execution_grade_allowed,
+  );
+  const signalAge = signal ? signalAgeLabel(signal.freshness_minutes) : "unknown";
+  const chartTruth = chartStateLabel(chart?.status ?? reality?.execution_suitability ?? "unknown");
+  const mappingExplainer = instrumentMappingExplainer(chart?.instrument_mapping ?? null);
+  const displaySymbol =
+    signal?.display_symbol
+    ?? chart?.instrument_mapping.trader_symbol
+    ?? reality?.provenance.tradable_symbol
+    ?? context.symbol;
+  const setupStatus = signal ? String(signal.features.setup_status ?? "candidate").replace(/_/g, " ") : "no signal";
+  const triggerTimeframe = signal ? String(signal.features.trigger_timeframe ?? "n/a") : "n/a";
+  const whyNow = Array.isArray(signal?.features.why_now) && signal.features.why_now.length > 0 ? String(signal.features.why_now[0]) : null;
+  const whyNotNow = Array.isArray(signal?.features.why_not_now) && signal.features.why_not_now.length > 0 ? String(signal.features.why_not_now[0]) : null;
+  const actionHeadline = !signal
+    ? "No live or seeded setup is loaded for the selected asset."
+    : !commodityTruthReady
+      ? `${displaySymbol} is still on delayed or recovering commodity truth, so the next step stays research-first.`
+      : chart && ["stale", "degraded", "unusable", "no_data", "loading"].includes(chart.status)
+        ? `${displaySymbol} still has an active setup, but the chart lane is ${chart.status.replace(/_/g, " ")}. Review freshness before promoting the setup.`
+        : reality && !reality.execution_grade_allowed
+          ? `${displaySymbol} has a live setup, but current timing remains non-execution-grade. Keep it in paper/review workflow.`
+          : `${displaySymbol} is the active setup lane. Confirm risk and catalysts, then carry it into tickets or review.`;
 
   return (
     <Panel
-      title={context.symbol}
-      eyebrow="Signal Detail"
+      title={`${displaySymbol} Setup`}
+      eyebrow="Action / Risk Companion"
       extra={<span className={signal ? `direction ${signal.direction}` : "muted-copy"}>{signal?.direction ?? "no signal"}</span>}
+      className="terminal-subpanel terminal-signal-companion"
     >
-      <StateBlock actionLabel={friendlyError ? "Retry signal context" : undefined} error={friendlyError} loading={loading} onAction={friendlyError ? onRetry : undefined} />
+      <StateBlock
+        actionLabel={friendlyError ? "Retry signal context" : undefined}
+        error={friendlyError}
+        loading={showBlockingLoad}
+        onAction={friendlyError ? onRetry : undefined}
+      />
+      {Boolean(loading) && hasFallbackContext ? (
+        <small className="muted-copy">Refreshing detailed signal context. Showing the last known setup and risk frame in the meantime.</small>
+      ) : null}
+      {Boolean(loading) && !hasFallbackContext && !showBlockingLoad ? (
+        <small className="muted-copy">Signal detail is still syncing. Use the chart lane while setup and risk context catch up.</small>
+      ) : null}
       {signal ? (
         <>
-          <p className="compact-copy">{signal.thesis}</p>
-          <div className="metric-strip compact-metrics">
-            <div>
-              <span className="metric-label">Score</span>
-              <strong>{signal.score.toFixed(1)}</strong>
+          <div className="signal-companion-section signal-companion-summary">
+            <p className="compact-copy signal-companion-headline">{actionHeadline}</p>
+            <p className="compact-copy">{signal.thesis}</p>
+            <div className="inline-tags">
+              <span className="tag">score {signal.score.toFixed(1)}</span>
+              <span className="tag">confidence {(signal.confidence * 100).toFixed(0)}%</span>
+              <span className="tag">noise {(signal.noise_probability * 100).toFixed(0)}%</span>
+              <span className="tag">{setupStatus}</span>
+              <span className="tag">trigger {triggerTimeframe}</span>
+              <span className="tag">signal {signalAge}</span>
             </div>
-            <div>
-              <span className="metric-label">Confidence</span>
-              <strong>{(signal.confidence * 100).toFixed(0)}%</strong>
+              <small>
+                Chart {chartTruth} / use the chart lane and freshness rail for timing, then use this panel for setup, risk, and catalyst detail.
+              </small>
+          </div>
+          <div className="detail-columns signal-companion-grid">
+            <div className="signal-companion-section">
+              <div className="panel-header">
+                <div>
+                  <p className="eyebrow">Risk Frame</p>
+                  <h4>Inval / target / sizing</h4>
+                </div>
+              </div>
+              <div className="metric-strip compact-metrics">
+                <div>
+                  <span className="metric-label">Invalidation</span>
+                  <strong>{signal.invalidation.toFixed(2)}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Target / Stretch</span>
+                  <strong>
+                    {signal.targets.base?.toFixed(2)} / {signal.targets.stretch?.toFixed(2)}
+                  </strong>
+                </div>
+                {risk ? (
+                  <>
+                    <div>
+                      <span className="metric-label">Stop</span>
+                      <strong>{risk.stop_price.toFixed(2)}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Risk Budget</span>
+                      <strong>{risk.max_portfolio_risk_pct.toFixed(3)}%</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Size Band</span>
+                      <strong>{plainStatusLabel(risk.size_band)}</strong>
+                    </div>
+                    <div>
+                      <span className="metric-label">Cluster</span>
+                      <strong>{plainStatusLabel(risk.exposure_cluster)}</strong>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+              {risk ? (
+                <small>
+                  Risk {risk.max_portfolio_risk_pct.toFixed(3)}% / {plainStatusLabel(risk.size_band)} / {plainStatusLabel(risk.exposure_cluster)}
+                  {typeof risk.report.leverage_band === "string" ? ` / ${plainStatusLabel(risk.report.leverage_band)}` : ""}
+                </small>
+              ) : null}
             </div>
-            <div>
-              <span className="metric-label">Noise</span>
-              <strong>{(signal.noise_probability * 100).toFixed(0)}%</strong>
+            <div className="signal-companion-section">
+              <div className="panel-header">
+                <div>
+                  <p className="eyebrow">Catalyst Detail</p>
+                  <h4>News / evidence / crowd</h4>
+                </div>
+              </div>
+              {signalDetail ? (
+                <div className="stack">
+                  {signalDetail.evidence.slice(0, 3).map((item) => (
+                    <div className="metric-row compact-row wire-row" key={item.label}>
+                      <span>
+                        {item.label}: {item.value}
+                      </span>
+                      <span>{item.verdict}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {signalDetail && signalDetail.catalyst_news.length > 0 ? (
+                <div className="stack">
+                  {signalDetail.catalyst_news.slice(0, 2).map((item) => (
+                    <div className="metric-row compact-row wire-row" key={`${item.source}-${item.title}`}>
+                      <span>{item.title}</span>
+                      <span>{item.freshness_minutes}m</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {signalDetail?.crowd_implied_narrative ? <small>{signalDetail.crowd_implied_narrative}</small> : null}
+              {signalDetail && relevantCrowdMarkets.length > 0 ? (
+                <div className="stack">
+                  {relevantCrowdMarkets.map((item) => (
+                    <div className="stack wire-row" key={item.market_id}>
+                      <div className="metric-row compact-row">
+                        <span>{item.question}</span>
+                        <span>{item.outcomes[0] ? `${item.outcomes[0].label} ${(item.outcomes[0].probability * 100).toFixed(0)}%` : item.primary_tag}</span>
+                      </div>
+                      <small>{item.relevance_reason}</small>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            <div>
-              <span className="metric-label">Invalidation</span>
-              <strong>{signal.invalidation.toFixed(2)}</strong>
-            </div>
-            <div>
-              <span className="metric-label">Target / Stretch</span>
-              <strong>
-                {signal.targets.base?.toFixed(2)} / {signal.targets.stretch?.toFixed(2)}
-              </strong>
-            </div>
-            <div>
-              <span className="metric-label">Data Quality</span>
-              <strong>{dataQualityLabel(signal.data_quality)}</strong>
-            </div>
-            <div>
-              <span className="metric-label">Signal Age</span>
-              <strong>{signal.freshness_minutes}m old</strong>
-            </div>
-            <div>
-              <span className="metric-label">Selected Market Freshness</span>
-              <strong>{selectedMarketFreshnessLabel}</strong>
-            </div>
-            <div>
-              <span className="metric-label">Setup Status</span>
-              <strong>{String(signal.features.setup_status ?? "candidate").replace(/_/g, " ")}</strong>
-            </div>
-            <div>
-              <span className="metric-label">Trigger</span>
-              <strong>{String(signal.features.trigger_timeframe ?? "n/a")}</strong>
-            </div>
-            {reality ? (
-              <div>
-                <span className="metric-label">Reality</span>
-                <strong>
-                  {reality.provenance.realism_grade} / {reality.freshness_state}
-                </strong>
+            {(selectedTicket || selectedTrade) ? (
+              <div className="signal-companion-section">
+                <div className="panel-header">
+                  <div>
+                    <p className="eyebrow">Trade Carry</p>
+                    <h4>Ticket / trade thread</h4>
+                  </div>
+                </div>
+                <div className="metric-strip compact-metrics">
+                  <div>
+                    <span className="metric-label">Ticket</span>
+                    <strong>{selectedTicket ? selectedTicket.status.replace(/_/g, " ") : "none"}</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Trade</span>
+                    <strong>{selectedTrade ? selectedTrade.status.replace(/_/g, " ") : "none"}</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Review</span>
+                    <strong>{selectedTrade ? (selectedTrade.review_due ? "due" : "tracked") : "pending"}</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Symbol</span>
+                    <strong>{displaySymbol}</strong>
+                  </div>
+                </div>
+                {selectedTicket ? (
+                  <small>
+                    Ticket zone {selectedTicket.proposed_entry_zone.low.toFixed(2)}-{selectedTicket.proposed_entry_zone.high.toFixed(2)} / stop {selectedTicket.planned_stop.toFixed(2)}
+                  </small>
+                ) : null}
+                {selectedTrade ? (
+                  <small>
+                    Trade stop {selectedTrade.stop.toFixed(2)} / target base {selectedTrade.targets.base.toFixed(2)} / review {selectedTrade.review_due ? "due" : "tracked"}
+                  </small>
+                ) : null}
+                <small>
+                  Next operator step: {selectedTrade?.review_due ? "clear review before extending the trade thread." : selectedTicket ? "finish the ticket checklist, then advance or archive the ticket." : "carry the setup into risk, tickets, or observation without losing the review thread."}
+                </small>
               </div>
             ) : null}
           </div>
           {reality ? (
-            <div className="stack">
-              <div className="metric-row compact-row">
-                <span>
-                  {reality.provenance.source_type} via {reality.provenance.source_name}
-                </span>
-                <span>score {reality.realism_score.toFixed(1)}</span>
-              </div>
-              <div className="metric-row compact-row">
-                <span>
-                  {reality.provenance.tradable_symbol} trader flow / {reality.provenance.research_symbol} research context
-                </span>
-                <span>{chart?.status ? `chart ${chart.status}` : reality.provenance.intended_venue}</span>
-              </div>
-              <div className="metric-row compact-row">
-                <span>{reality.provenance.source_timing}</span>
-                <span>{reality.execution_suitability}</span>
-              </div>
-              <div className="metric-row compact-row">
-                <span>{reality.news_suitability}</span>
-                <span>SLA {reality.provenance.freshness_sla_minutes}m</span>
-              </div>
-              <small>{reality.tradable_alignment_note}</small>
-              <small>{reality.timing_semantics_note}</small>
-              {reality.provenance.tradable_symbol === "USOUSD" ? (
-                <small>Oil research here means: chart first, then EIA/macro/news, then risk and ticket framing. Intraday claims are only valid if the current timeframe is truly available.</small>
-              ) : null}
-              {reality.event_context_note ? <small>{reality.event_context_note}</small> : null}
-              {reality.ui_warning ? <small>{reality.ui_warning}</small> : null}
-            </div>
-          ) : null}
-          {signalDetail ? (
-            <div className="stack">
-              {signalDetail.evidence.slice(0, 4).map((item) => (
-                <div className="metric-row compact-row" key={item.label}>
-                  <span>
-                    {item.label}: {item.value}
-                  </span>
-                  <span>{item.verdict}</span>
+            <div className="signal-companion-section">
+              <div className="panel-header">
+                <div>
+                  <p className="eyebrow">Truth Caveat</p>
+                  <h4>Supplemental note</h4>
                 </div>
-              ))}
-            </div>
-          ) : null}
-          {risk ? (
-            <div className="inline-tags">
-              <span className="tag">risk {risk.max_portfolio_risk_pct.toFixed(3)}%</span>
-              <span className="tag">{risk.size_band}</span>
-              <span className="tag">{risk.exposure_cluster}</span>
-              {typeof risk.report.leverage_band === "string" ? <span className="tag">{risk.report.leverage_band}</span> : null}
-              <span className="tag">{chart?.instrument_mapping.trader_symbol ?? context.data_reality?.provenance.tradable_symbol ?? signal.symbol}</span>
-            </div>
-          ) : null}
-          {Array.isArray(signal.features.why_now) || Array.isArray(signal.features.why_not_now) ? (
-            <div className="stack">
-              {Array.isArray(signal.features.why_now) && signal.features.why_now.length > 0 ? (
-                <small>Why now: {String(signal.features.why_now[0])}</small>
-              ) : null}
-              {Array.isArray(signal.features.why_not_now) && signal.features.why_not_now.length > 0 ? (
-                <small>Why not now: {String(signal.features.why_not_now[0])}</small>
-              ) : null}
+              </div>
+              <div className="stack">
+                <small>
+                  {reality.ui_warning
+                    ?? mappingExplainer
+                    ?? reality.tradable_alignment_note
+                    ?? reality.timing_semantics_note
+                    ?? reality.event_context_note
+                    ?? `${displaySymbol} still uses ${reality.provenance.research_symbol} as research context while the chart strip carries the current truth lane.`}
+                </small>
+                {whyNow ? <small>Why now: {whyNow}</small> : null}
+                {whyNotNow ? <small>Why not now: {whyNotNow}</small> : null}
+              </div>
             </div>
           ) : null}
           {reality && reality.penalties.length > 0 ? (
             <div className="inline-tags">
               {reality.penalties.slice(0, 3).map((penalty) => (
                 <span className="tag" key={penalty.code}>
-                  {penalty.code}
+                  {penaltyCodeLabel(penalty.code)}
                 </span>
-              ))}
-            </div>
-          ) : null}
-          {signalDetail && signalDetail.catalyst_news.length > 0 ? (
-            <div className="stack">
-              {signalDetail.catalyst_news.slice(0, 2).map((item) => (
-                <div className="metric-row compact-row" key={`${item.source}-${item.title}`}>
-                  <span>{item.title}</span>
-                  <span>{item.freshness_minutes}m</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {signalDetail?.crowd_implied_narrative ? <small>{signalDetail.crowd_implied_narrative}</small> : null}
-          {signalDetail && relevantCrowdMarkets.length > 0 ? (
-            <div className="stack">
-              {relevantCrowdMarkets.map((item) => (
-                <div className="stack" key={item.market_id}>
-                  <div className="metric-row compact-row">
-                    <span>{item.question}</span>
-                    <span>{item.outcomes[0] ? `${item.outcomes[0].label} ${(item.outcomes[0].probability * 100).toFixed(0)}%` : item.primary_tag}</span>
-                  </div>
-                  <small>{item.relevance_reason}</small>
-                </div>
               ))}
             </div>
           ) : null}

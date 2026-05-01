@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import type { ExecutionGateView, HealthView, OperationalBacklogView, RibbonView } from "../types/api";
+import type { ExecutionGateView, HealthView, OperationalBacklogView, RibbonView, SelectedAssetTruthView } from "../types/api";
+import {
+  selectedAssetTruthFallbackLabel,
+  selectedAssetTruthFreshnessLabel,
+  selectedAssetTruthSourceFamilyLabel,
+  selectedAssetTruthStateLabel,
+} from "../lib/selectedAssetTruth";
 import { formatDateTimeIST, formatTimeIST } from "../lib/time";
-import { gateStatusLabel, systemRefreshLabel } from "../lib/uiLabels";
+import { commodityTruthStateLabel, gateStatusLabel, marketFreshnessLabel, systemRefreshLabel } from "../lib/uiLabels";
 
 interface TopRibbonProps {
   health: HealthView;
@@ -10,17 +16,43 @@ interface TopRibbonProps {
   executionGate?: ExecutionGateView | null;
   loading?: boolean;
   error?: string | null;
+  shellBootstrapPending?: boolean;
+  selectedAssetTruth?: SelectedAssetTruthView | null;
 }
 
-export function TopRibbon({ health, ribbon, backlog, executionGate, loading = false, error = null }: TopRibbonProps) {
+function reviewPressureLabel(backlog: OperationalBacklogView | null | undefined): string {
+  const overdue = backlog?.overdue_count ?? 0;
+  const high = backlog?.high_priority_count ?? 0;
+  if (overdue > 0) {
+    return `${overdue} overdue`;
+  }
+  if (high > 0) {
+    return `${high} high`;
+  }
+  return "contained";
+}
+
+export function TopRibbon({
+  health,
+  ribbon,
+  backlog,
+  executionGate,
+  loading = false,
+  error = null,
+  shellBootstrapPending,
+  selectedAssetTruth = null,
+}: TopRibbonProps) {
   const [now, setNow] = useState(() => new Date().toISOString());
-  const nextEvent = ribbon.next_event as { title?: string; impact?: string } | null;
-  const backendBadge = health.status === "ok" ? "backend connected" : `backend ${health.status}`;
-  const sourceBadge = `data mode ${ribbon.data_mode_label}`;
-  const provenanceBadge = `feed source ${ribbon.feed_source_label}`;
-  const pipelineBadge = `pipeline ${ribbon.pipeline_status}`;
-  const freshnessBadge = `market freshness ${ribbon.freshness_status}`;
+  const commodityTruth = ribbon.commodity_truth ?? health.commodity_truth ?? null;
   const gateLabel = gateStatusLabel(executionGate?.status);
+  const reviewPressure = reviewPressureLabel(backlog);
+  const backendBadge = health.status === "ok" ? "backend connected" : `backend ${health.status}`;
+  const nextPriority =
+    executionGate?.status === "review_required"
+      ? "Review queue is the first stop before any trade progression."
+      : backlog && backlog.overdue_count > 0
+        ? "Backlog pressure is elevated. Clear overdue review work before expanding workflow."
+        : `${ribbon.macro_regime} is the current desk posture.`;
   const hasHydratedSnapshot = Boolean(
     ribbon.last_refresh
       || ribbon.market_data_as_of
@@ -32,17 +64,22 @@ export function TopRibbon({ health, ribbon, backlog, executionGate, loading = fa
     return () => window.clearInterval(timer);
   }, []);
 
-  if (!hasHydratedSnapshot && loading) {
+  const showBootstrapShell = shellBootstrapPending ?? (!hasHydratedSnapshot && loading);
+
+  if (showBootstrapShell) {
     return (
-      <header className="top-ribbon" data-testid="top-ribbon">
-        <div className="ribbon-block ribbon-primary">
-          <span className="ribbon-label">Commodities Desk</span>
-          <strong>Syncing operator snapshot</strong>
-          <small className="compact-copy">
-            Pulling the current market-data truth, board state, and system health from the active local backend.
-          </small>
+      <header className="top-ribbon showcase-top-ribbon top-ribbon-bootstrap" data-testid="top-ribbon" data-shell-bootstrap="true">
+        <div className="ribbon-block ribbon-primary top-ribbon-shell ribbon-shell-primary ribbon-shell-boot">
+          <div className="top-ribbon-title-row">
+            <div>
+              <span className="ribbon-label">Workspace Status</span>
+              <strong>Syncing workspace snapshot</strong>
+            </div>
+            <span className="status-pill">initializing</span>
+          </div>
+          <div className="top-ribbon-priority top-ribbon-priority-note">Pulling desk truth, backlog pressure, and route-ready runtime posture.</div>
         </div>
-        <div className="ribbon-block">
+        <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
           <span className="ribbon-label">Now</span>
           <strong>{formatTimeIST(now)}</strong>
         </div>
@@ -52,15 +89,18 @@ export function TopRibbon({ health, ribbon, backlog, executionGate, loading = fa
 
   if (!hasHydratedSnapshot && error) {
     return (
-      <header className="top-ribbon" data-testid="top-ribbon">
-        <div className="ribbon-block ribbon-primary">
-          <span className="ribbon-label">Commodities Desk</span>
-          <strong>Operator snapshot unavailable</strong>
-          <small className="compact-copy">
-            The shell is reconnecting to the active backend. Last-known workspace context stays usable while it recovers.
-          </small>
+      <header className="top-ribbon showcase-top-ribbon top-ribbon-bootstrap" data-testid="top-ribbon" data-shell-bootstrap="true">
+        <div className="ribbon-block ribbon-primary top-ribbon-shell ribbon-shell-primary ribbon-shell-boot">
+          <div className="top-ribbon-title-row">
+            <div>
+              <span className="ribbon-label">Workspace Status</span>
+              <strong>Workspace snapshot unavailable</strong>
+            </div>
+            <span className="status-pill warning">reconnecting</span>
+          </div>
+          <div className="top-ribbon-priority top-ribbon-priority-note">Last-known shell context stays usable while the local backend reconnects.</div>
         </div>
-        <div className="ribbon-block">
+        <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
           <span className="ribbon-label">Now</span>
           <strong>{formatTimeIST(now)}</strong>
         </div>
@@ -69,68 +109,51 @@ export function TopRibbon({ health, ribbon, backlog, executionGate, loading = fa
   }
 
   return (
-    <header className="top-ribbon" data-testid="top-ribbon">
-      <div className="ribbon-block ribbon-primary">
-        <span className="ribbon-label">Commodities Desk</span>
-        <strong>{backendBadge}</strong>
-        <div className="inline-tags" data-testid="top-ribbon-status-badges">
+    <header className="top-ribbon showcase-top-ribbon" data-testid="top-ribbon" data-shell-bootstrap="false">
+      <div className="ribbon-block ribbon-primary top-ribbon-shell ribbon-shell-primary">
+        <div className="top-ribbon-title-row">
+          <div>
+            <span className="ribbon-label">Workspace Status</span>
+            <strong>Trader Operations Desk</strong>
+          </div>
           <span className="status-pill active" data-testid="backend-connection-badge">{backendBadge}</span>
-          <span className="status-pill" data-testid="source-mode-badge">{sourceBadge}</span>
-          <span className="status-pill">{provenanceBadge}</span>
-          <span className="status-pill" data-testid="pipeline-status-badge">{pipelineBadge}</span>
-          <span className="status-pill" data-testid="freshness-status-badge">{freshnessBadge}</span>
         </div>
-        <small className="compact-copy">Primary board: USOUSD, XAUUSD, XAGUSD. BTC and ETH remain secondary context inside the same shell.</small>
-        <small className="compact-copy">{ribbon.mode_explainer}</small>
+        <div className="inline-tags top-ribbon-badge-row" data-testid="top-ribbon-status-badges">
+          <span className="status-pill" data-testid="commodity-truth-badge">{commodityTruthStateLabel(commodityTruth)}</span>
+          <span className="status-pill" data-testid="source-mode-badge">{selectedAssetTruthSourceFamilyLabel(selectedAssetTruth)}</span>
+          <span className="status-pill">{selectedAssetTruthFallbackLabel(selectedAssetTruth)}</span>
+        </div>
+        <div className="top-ribbon-priority top-ribbon-priority-note">{nextPriority}</div>
       </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Regime</span>
-        <strong>{ribbon.macro_regime}</strong>
+
+      <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
+        <span className="ribbon-label">Market Data</span>
+        <strong data-testid="freshness-status-badge">{selectedAssetTruthStateLabel(selectedAssetTruth)}</strong>
+        <small>{selectedAssetTruthFreshnessLabel(selectedAssetTruth)}</small>
       </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Market Freshness</span>
-        <strong>
-          {ribbon.data_freshness_minutes}m / {ribbon.freshness_status}
-        </strong>
+
+      <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
+        <span className="ribbon-label">Last Update</span>
+        <strong>{formatDateTimeIST(selectedAssetTruth?.as_of ?? ribbon.market_data_as_of)}</strong>
+        <small>{marketFreshnessLabel(ribbon.data_freshness_minutes, ribbon.freshness_status)}</small>
       </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Market As Of</span>
-        <strong>{formatDateTimeIST(ribbon.market_data_as_of)}</strong>
+
+      <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
+        <span className="ribbon-label">Review Status</span>
+        <strong>{gateLabel}</strong>
+        <small>{reviewPressure}</small>
       </div>
-      <div className="ribbon-block">
+
+      <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
         <span className="ribbon-label">System Refresh</span>
-        <strong>{formatDateTimeIST(ribbon.last_refresh)}</strong>
-        <small className="compact-copy">
-          {ribbon.system_refresh_minutes === null
-            ? "n/a"
-            : `${ribbon.system_refresh_minutes}m ago / ${systemRefreshLabel(ribbon.system_refresh_status)}`}
-        </small>
+        <strong>{ribbon.system_refresh_minutes === null ? "n/a" : `${ribbon.system_refresh_minutes}m ago`}</strong>
+        <small>{systemRefreshLabel(ribbon.system_refresh_status)}</small>
       </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Risk Budget</span>
-        <strong>
-          {ribbon.risk_budget_used_pct.toFixed(2)} / {ribbon.risk_budget_total_pct.toFixed(2)}%
-        </strong>
-      </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Review Queue</span>
-        <strong>
-          {backlog?.overdue_count ?? 0} overdue / {backlog?.high_priority_count ?? 0} high
-        </strong>
-      </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Gate</span>
-        <strong>
-          {gateLabel} / {executionGate?.blockers.length ?? 0} blockers
-        </strong>
-      </div>
-      <div className="ribbon-block">
-        <span className="ribbon-label">Next Event</span>
-        <strong>{nextEvent?.title ?? "none"}</strong>
-      </div>
-      <div className="ribbon-block">
+
+      <div className="ribbon-block top-ribbon-cell ribbon-shell-support">
         <span className="ribbon-label">Now</span>
         <strong>{formatTimeIST(now)}</strong>
+        <small>{ribbon.pipeline_status}</small>
       </div>
     </header>
   );

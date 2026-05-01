@@ -3,6 +3,47 @@ export interface HealthView {
   sqlite_path: string;
   duckdb_path: string;
   parquet_dir: string;
+  backend_pid?: number;
+  runtime_instance_id?: string;
+  runtime_started_at?: string;
+  warmup_status?: string;
+  commodity_truth_ready?: boolean;
+  truth_state?: string | null;
+  truth_label?: string | null;
+  truth_note?: string | null;
+  commodity_truth_last_verified_at?: string | null;
+  commodity_truth_last_verified_age_minutes?: number | null;
+  commodity_truth_recovery_in_progress?: boolean;
+  commodity_truth_blocking_reason?: string | null;
+  commodity_truth_recovery_active?: boolean;
+  commodity_truth_recovery_attempt_count?: number;
+  commodity_truth_last_recovery_attempt_at?: string | null;
+  commodity_truth_next_recovery_attempt_at?: string | null;
+  commodity_truth_recovery_reason?: string | null;
+  source_mode?: string | null;
+  market_data_mode?: string | null;
+  commodity_truth?: CommodityTruthStatusView | null;
+}
+
+export interface CommodityTruthStatusView {
+  truth_state: string;
+  truth_label: string;
+  truth_note: string;
+  last_verified_at?: string | null;
+  last_verified_age_minutes?: number | null;
+  recovery_in_progress?: boolean;
+  blocking_reason?: string;
+}
+
+export interface RecoveryTelemetryView {
+  truth_state: string;
+  truth_label: string;
+  recovery_active?: boolean;
+  recovery_attempt_count?: number;
+  recovery_last_attempt_at?: string | null;
+  recovery_next_attempt_at?: string | null;
+  recovery_reason?: string | null;
+  blocking_reason?: string | null;
 }
 
 export interface BarView {
@@ -44,9 +85,19 @@ export interface ChartOverlayLineView {
   tone: string;
 }
 
+export interface ChartOverlayZoneView {
+  zone_id: string;
+  label: string;
+  low: number;
+  high: number;
+  kind: string;
+  tone: string;
+}
+
 export interface ChartOverlayView {
   markers: ChartOverlayMarkerView[];
   price_lines: ChartOverlayLineView[];
+  zones: ChartOverlayZoneView[];
 }
 
 export interface InstrumentMappingView {
@@ -61,6 +112,19 @@ export interface InstrumentMappingView {
   broker_symbol: string;
   broker_truth: boolean;
   mapping_notes: string;
+}
+
+export interface SelectedAssetTruthView {
+  symbol: string;
+  trader_facing_symbol: string;
+  research_symbol_if_any?: string | null;
+  as_of?: string | null;
+  freshness_minutes?: number | null;
+  source_mode: string;
+  route_readiness: string;
+  degraded_reason?: string | null;
+  is_proxy: boolean;
+  confidence: number;
 }
 
 export interface MarketChartView {
@@ -80,6 +144,67 @@ export interface MarketChartView {
   overlays: ChartOverlayView;
   instrument_mapping: InstrumentMappingView;
   data_reality: DataRealityView | null;
+  commodity_truth?: CommodityTruthStatusView | null;
+  selected_asset_truth?: SelectedAssetTruthView | null;
+  runtime_snapshot?: RuntimeSnapshotMetaView | null;
+}
+
+export interface ChartTailReplaceView<T> {
+  mode: "tail_replace";
+  start_index: number;
+  items: T[];
+}
+
+export interface MarketChartDeltaMetaView {
+  status: string;
+  status_note: string;
+  source_mode: string;
+  market_data_mode: string;
+  freshness_minutes: number;
+  freshness_state: string;
+  data_quality: string;
+  is_fixture_mode: boolean;
+  available_timeframes: string[];
+  instrument_mapping: InstrumentMappingView;
+  data_reality: DataRealityView | null;
+  commodity_truth?: CommodityTruthStatusView | null;
+  selected_asset_truth?: SelectedAssetTruthView | null;
+  runtime_snapshot?: RuntimeSnapshotMetaView | null;
+}
+
+export interface MarketChartDeltaView {
+  bars?: ChartTailReplaceView<BarView>;
+  indicators?: Partial<Record<keyof ChartIndicatorSetView, ChartTailReplaceView<ChartIndicatorPointView>>>;
+  overlays?: Partial<ChartOverlayView>;
+}
+
+export interface MarketChartTransportView {
+  event_kind: "baseline" | "delta" | "probe_delta" | "probe_invalid_delta" | "resync_full";
+  event_id: string;
+  emitted_at: string;
+  version: number;
+  proof_nonce?: string | null;
+  reason: "subscription" | "payload_change" | "verification_probe" | "verification_probe_invalid" | "delta_rejected_resync";
+}
+
+export interface MarketChartStreamMessage {
+  type: "market_chart";
+  symbol: string;
+  timeframe: string;
+  version: number;
+  payload: MarketChartView;
+  transport?: MarketChartTransportView;
+}
+
+export interface MarketChartDeltaMessage {
+  type: "market_chart_delta";
+  symbol: string;
+  timeframe: string;
+  base_version: number;
+  version: number;
+  meta: MarketChartDeltaMetaView;
+  delta: MarketChartDeltaView;
+  transport?: MarketChartTransportView;
 }
 
 export interface DataRealismPenaltyView {
@@ -114,6 +239,7 @@ export interface DataRealityView {
   ranking_penalty: number;
   promotion_blocked: boolean;
   alert_allowed: boolean;
+  execution_grade_allowed?: boolean;
   execution_suitability: string;
   news_suitability: string;
   ui_warning: string;
@@ -126,6 +252,7 @@ export interface DataRealityView {
 export interface SignalView {
   signal_id: string;
   symbol: string;
+  display_symbol?: string;
   signal_type: string;
   timestamp: string;
   freshness_minutes: number;
@@ -232,6 +359,29 @@ export interface NewsView {
   related_polymarket_markets?: PolymarketMarketView[];
 }
 
+export interface OperatorWireItemView {
+  category: string;
+  headline: string;
+  summary: string;
+  symbol?: string | null;
+  target_tab?: string | null;
+  signal_id?: string | null;
+  risk_report_id?: string | null;
+  trade_id?: string | null;
+  freshness_minutes?: number | null;
+  freshness_state: string;
+  published_at?: string | null;
+  truth_state?: string | null;
+  recovery_active: boolean;
+  tone: string;
+  action_label?: string | null;
+}
+
+export interface OperatorWireView {
+  generated_at: string;
+  items: OperatorWireItemView[];
+}
+
 export interface WatchlistView {
   symbol: string;
   label: string;
@@ -252,18 +402,22 @@ export interface WatchlistSummaryView {
   change_pct: number;
   freshness_minutes: number;
   freshness_state: string;
+  execution_grade_allowed?: boolean;
   realism_grade: string;
   market_data_mode: string;
   source_label: string;
   top_setup_tag: string;
   sparkline: number[];
   instrument_mapping: InstrumentMappingView;
+  commodity_truth?: CommodityTruthStatusView | null;
 }
 
 export interface OpportunityView {
   symbol: string;
+  display_symbol?: string;
   label: string;
   queue: string;
+  gate_score?: number;
   score: number;
   score_decomposition: Record<string, number>;
   promotion_reasons: string[];
@@ -279,12 +433,14 @@ export interface OpportunityHunterView {
   generated_at: string;
   focus_queue: OpportunityView[];
   scout_queue: OpportunityView[];
+  runtime_snapshot?: RuntimeSnapshotMetaView | null;
 }
 
 export interface RiskView {
   risk_report_id: string;
   signal_id: string;
   symbol: string;
+  display_symbol?: string;
   as_of: string;
   freshness_minutes: number;
   stop_price: number;
@@ -327,6 +483,10 @@ export interface RibbonView {
   data_freshness_minutes: number;
   freshness_status: string;
   market_data_as_of: string | null;
+  secondary_context_freshness_minutes?: number | null;
+  secondary_context_freshness_status?: string;
+  secondary_context_as_of?: string | null;
+  freshness_scope_note?: string;
   system_refresh_minutes: number | null;
   system_refresh_status: string;
   risk_budget_used_pct: number;
@@ -339,6 +499,8 @@ export interface RibbonView {
   mode_explainer: string;
   last_refresh: string | null;
   next_event: Record<string, unknown> | null;
+  commodity_truth?: CommodityTruthStatusView | null;
+  selected_asset_truth?: SelectedAssetTruthView | null;
 }
 
 export interface ResearchView {
@@ -357,6 +519,28 @@ export interface ResearchView {
   data_reality: DataRealityView | null;
   related_polymarket_markets?: PolymarketMarketView[];
   crowd_implied_narrative?: string;
+  commodity_truth?: CommodityTruthStatusView | null;
+}
+
+export interface ScenarioCaseView {
+  title: string;
+  summary: string;
+}
+
+export interface ScenarioResearchView {
+  symbol: string;
+  timeframe: string;
+  provider: string;
+  source_label: string;
+  source_status: string;
+  generated_at: string | null;
+  base_case: ScenarioCaseView | null;
+  bull_case: ScenarioCaseView | null;
+  bear_case: ScenarioCaseView | null;
+  catalyst_chain: string[];
+  invalidation_triggers: string[];
+  confidence_notes: string[];
+  availability_note: string;
 }
 
 export interface StrategyListView {
@@ -555,11 +739,27 @@ export interface AssetContextView {
   data_reality: DataRealityView | null;
   related_polymarket_markets?: PolymarketMarketView[];
   crowd_implied_narrative?: string;
+  runtime_snapshot?: RuntimeSnapshotMetaView | null;
+  commodity_truth?: CommodityTruthStatusView | null;
+  selected_asset_truth?: SelectedAssetTruthView | null;
+}
+
+export interface SelectedSignalWorkspaceView {
+  signal: SignalDetailView;
+  risk: RiskDetailView | null;
+  chart: MarketChartView;
+  asset_context: AssetContextView;
+  proposal_ready: boolean;
+  proposal_note: string;
+  selected_symbol: string;
+  timeframe: string;
+  data_truth_note: string;
 }
 
 export interface ActiveTradeView {
   trade_id: string;
   symbol: string;
+  display_symbol?: string;
   strategy_name: string;
   side: string;
   entry_time: string;
@@ -751,6 +951,8 @@ export interface PaperTradeView {
   risk_report_id: string | null;
   strategy_id: string | null;
   symbol: string;
+  display_symbol?: string;
+  linked_signal_family?: string | null;
   side: string;
   proposed_entry_zone: Record<string, number>;
   actual_entry: number | null;
@@ -772,6 +974,8 @@ export interface PaperTradeView {
   execution_quality: ExecutionQualityView | null;
   adherence: PaperTradeAdherenceView | null;
   review_due: boolean;
+  integrity_state?: string | null;
+  integrity_note?: string | null;
   paper_account: PaperAccountSummaryView | null;
   data_reality: DataRealityView | null;
 }
@@ -872,6 +1076,19 @@ export interface BrokerAdapterSnapshotView {
   fill_imports: BrokerFillImportView[];
 }
 
+export interface ExecutionGateBlockerDetailView {
+  code: string;
+  severity: string;
+  category: string;
+  rank: number;
+  metric_value: number;
+  threshold: number;
+  scope_count: number;
+  excluded_count: number;
+  explanation: string;
+  next_step: string;
+}
+
 export interface TradeTicketView {
   ticket_id: string;
   signal_id: string | null;
@@ -879,6 +1096,7 @@ export interface TradeTicketView {
   trade_id: string | null;
   strategy_id: string | null;
   symbol: string;
+  display_symbol?: string;
   side: string;
   proposed_entry_zone: Record<string, number>;
   planned_stop: number;
@@ -894,9 +1112,14 @@ export interface TradeTicketView {
   expires_at: string | null;
   notes: string;
   freshness_minutes: number;
+  history_only?: boolean;
   linked_signal_family: string;
   paper_account: PaperAccountSummaryView | null;
   data_reality: DataRealityView | null;
+  integrity_state: string;
+  integrity_note: string;
+  promotable: boolean;
+  operator_guidance: string[];
 }
 
 export interface TradeTicketDetailView extends TradeTicketView {
@@ -1077,6 +1300,11 @@ export interface WalletBalanceView {
 export interface JournalReviewView {
   journal_id: string;
   symbol: string;
+  display_symbol?: string;
+  linked_signal_family?: string | null;
+  side?: string | null;
+  trade_status?: string | null;
+  accountability_state?: string | null;
   entered_at: string;
   entry_type: string;
   note: string;
@@ -1093,6 +1321,7 @@ export interface JournalReviewView {
   review_status: string;
   updated_at: string;
   freshness_minutes: number;
+  truth_note?: string;
 }
 
 export interface JournalEntryCreateRequest {
@@ -1158,6 +1387,7 @@ export interface ReviewTaskView {
   linked_entity_type: string;
   linked_entity_id: string;
   linked_symbol: string;
+  display_symbol?: string;
   signal_id: string | null;
   risk_report_id: string | null;
   trade_id: string | null;
@@ -1173,7 +1403,9 @@ export interface ReviewTaskView {
 }
 
 export interface ReviewTaskUpdateRequest {
-  state: string;
+  state?: string | null;
+  action?: string | null;
+  snooze_minutes?: number | null;
   notes?: string;
 }
 
@@ -1189,6 +1421,7 @@ export interface BriefingTradeAttentionView {
 
 export interface DegradedSourceView {
   symbol: string;
+  tradable_symbol?: string;
   source_type: string;
   source_timing: string;
   freshness_state: string;
@@ -1267,6 +1500,10 @@ export interface SessionOverviewView {
 
 export interface DeskSummaryView {
   generated_at: string;
+  runtime_snapshot?: RuntimeSnapshotMetaView | null;
+  recovery_telemetry?: RecoveryTelemetryView | null;
+  operator_state_summary?: OperatorStateSummaryView | null;
+  operator_wire?: OperatorWireView | null;
   session_states: SessionStateView[];
   execution_gate: ExecutionGateView;
   operational_backlog: OperationalBacklogView;
@@ -1302,6 +1539,7 @@ export interface ExecutionGateView {
   thresholds: Record<string, number>;
   metrics: Record<string, number>;
   rationale: string[];
+  blocker_details: ExecutionGateBlockerDetailView[];
 }
 
 export interface AdapterHealthView {
@@ -1375,6 +1613,7 @@ export interface AIProviderStatusView {
   auth_mode: string;
   status: string;
   connected: boolean;
+  available_providers: string[];
   oauth_enabled: boolean;
   oauth_connect_url: string | null;
   oauth_callback_url: string | null;
@@ -1385,6 +1624,8 @@ export interface AIProviderStatusView {
   guidance: string;
   warning: string | null;
   session_expires_at: string | null;
+  endpoint_origin?: string | null;
+  endpoint_target?: string | null;
 }
 
 export interface AIAgentResultView {
@@ -1400,10 +1641,94 @@ export interface AIAdvisorRequest {
   query: string;
   symbol: string;
   timeframe?: string;
+  provider?: string | null;
   model?: string | null;
   active_tab?: string | null;
   selected_signal_id?: string | null;
   selected_risk_report_id?: string | null;
+  selected_trade_id?: string | null;
+}
+
+export interface ResearchPlanStepView {
+  key: string;
+  label: string;
+  status: string;
+  summary: string;
+  required: boolean;
+}
+
+export interface ResearchEvidenceItemView {
+  label: string;
+  source_type: string;
+  status: string;
+  summary: string;
+  truth_note: string | null;
+}
+
+export interface ResearchValidationView {
+  signal_present: boolean;
+  risk_present: boolean;
+  chart_truth_state: string;
+  chart_freshness_state: string;
+  trade_context_present: boolean;
+  catalyst_context_state: string;
+  crowd_context_state: string;
+  scenario_context_state: string;
+  validation_status: string;
+  confidence_label: string;
+  notes: string[];
+}
+
+export interface RunStageEventView {
+  stage: string;
+  status_note?: string | null;
+  at: string;
+}
+
+export interface ResearchRunCreateRequest {
+  query: string;
+  symbol: string;
+  timeframe?: string;
+  provider?: string | null;
+  model?: string | null;
+  mode?: string;
+  active_tab?: string | null;
+  selected_signal_id?: string | null;
+  selected_risk_report_id?: string | null;
+  selected_trade_id?: string | null;
+}
+
+export interface ResearchRunView {
+  run_id: string;
+  query: string;
+  selected_symbol: string;
+  selected_signal_id: string | null;
+  selected_risk_report_id: string | null;
+  trade_context_id: string | null;
+  retry_of_run_id?: string | null;
+  restart_family_id?: string | null;
+  mode: string;
+  provider: string;
+  selected_model: string;
+  answer_source: string;
+  run_mode?: string | null;
+  run_stage?: string | null;
+  latency_ms?: number | null;
+  status_note?: string | null;
+  validation_summary_note?: string | null;
+  error_message?: string | null;
+  validation_status: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  stage_history: RunStageEventView[];
+  validation: ResearchValidationView;
+  plan_steps: ResearchPlanStepView[];
+  evidence_summary: ResearchEvidenceItemView[];
+  provenance: string[];
+  final_summary: string;
+  final_answer: string;
 }
 
 export interface AIActionStepView {
@@ -1420,8 +1745,10 @@ export interface AIDeskContextSnapshotView {
   data_mode_label: string;
   feed_source_label: string;
   truth_note: string;
+  selected_asset_truth?: SelectedAssetTruthView | null;
   signal_focus: string | null;
   risk_focus: string | null;
+  trade_focus?: string | null;
   watchlist_board: string[];
   catalyst_headlines: string[];
   crowd_markets: string[];
@@ -1433,6 +1760,16 @@ export interface AIAdvisorResponseView {
   timeframe: string;
   requested_query: string;
   provider_status: AIProviderStatusView;
+  answer_source: string;
+  run_mode?: string | null;
+  run_stage?: string | null;
+  latency_ms?: number | null;
+  status_note?: string | null;
+  validation_summary_note?: string | null;
+  stage_history: RunStageEventView[];
+  research_run: ResearchRunView;
+  validation: ResearchValidationView;
+  evidence_summary: ResearchEvidenceItemView[];
   market_data_mode: string;
   context_summary: string;
   final_answer: string;
@@ -1451,11 +1788,62 @@ export interface AIAdvisorResponseView {
   next_actions: AIActionStepView[];
 }
 
+export interface ResearchRunStatusView {
+  run_id: string;
+  mode: string;
+  provider: string;
+  selected_model: string;
+  answer_source?: string | null;
+  retry_of_run_id?: string | null;
+  restart_family_id?: string | null;
+  run_mode?: string | null;
+  run_stage: string;
+  latency_ms?: number | null;
+  status_note?: string | null;
+  validation_summary_note?: string | null;
+  error_message?: string | null;
+  recovery_state?: string | null;
+  recovery_note?: string | null;
+  can_retry?: boolean;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  updated_at: string;
+  stage_history: RunStageEventView[];
+  research_run?: ResearchRunView | null;
+}
+
+export interface AIAdvisorRunStatusView {
+  run_id: string;
+  provider: string;
+  selected_model: string;
+  answer_source?: string | null;
+  retry_of_run_id?: string | null;
+  restart_family_id?: string | null;
+  run_mode?: string | null;
+  run_stage: string;
+  latency_ms?: number | null;
+  status_note?: string | null;
+  validation_summary_note?: string | null;
+  error_message?: string | null;
+  recovery_state?: string | null;
+  recovery_note?: string | null;
+  can_retry?: boolean;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  updated_at: string;
+  stage_history: RunStageEventView[];
+  response?: AIAdvisorResponseView | null;
+}
+
 export interface CommandCenterStatusView {
   generated_at: string;
   runtime_status: string;
   backend_health: string;
   frontend_runtime_status: string;
+  recovery_telemetry?: RecoveryTelemetryView | null;
+  priority_wire?: OperatorWireView | null;
   source_mode: string;
   pipeline_status: string;
   pipeline_freshness_minutes: number;
@@ -1491,6 +1879,8 @@ export interface PilotExportResponse {
 
 export interface HomeOperatorSummaryView {
   generated_at: string;
+  runtime_snapshot?: RuntimeSnapshotMetaView | null;
+  operator_state_summary?: OperatorStateSummaryView | null;
   session_states: SessionStateView[];
   session_state: string;
   pilot_gate_state: string;
@@ -1511,6 +1901,22 @@ export interface SignalsSummaryView {
   warning_counts: Record<string, number>;
 }
 
+export interface RuntimeSnapshotMetaView {
+  source_status: string;
+  generated_at: string;
+  age_minutes: number;
+  using_last_good_snapshot: boolean;
+}
+
+export interface OperatorStateSummaryView {
+  open_review_items: number;
+  overdue_review_items: number;
+  open_tickets: number;
+  ready_for_review_tickets: number;
+  proposed_trades: number;
+  active_trades: number;
+}
+
 export interface TicketSummaryView {
   generated_at: string;
   counts_by_state: Record<string, number>;
@@ -1527,6 +1933,107 @@ export interface ReviewSummaryView {
   failure_attribution_summary: Record<string, number>;
   realism_warning_violations: number;
   review_completion_trend: Record<string, number>;
+  task_counts: {
+    rendered_open: number;
+    overdue: number;
+    high_priority: number;
+    in_progress: number;
+    done: number;
+    archived: number;
+    resolved_hidden: number;
+  };
+  accountability_metrics: ReviewAccountabilityMetricsView;
+  gate_impact: ReviewGateImpactView;
+  review_family_counts: ReviewFamilyCountView[];
+  history_buckets: ReviewHistoryBucketView[];
+  discipline_loop_proof: DisciplineLoopProofView;
+  review_chain_analytics: ReviewChainAnalyticsView;
+}
+
+export interface ReviewFamilyCountView {
+  family: string;
+  count: number;
+  gate_blocking_count: number;
+}
+
+export interface ReviewClearNextItemView {
+  task_id: string;
+  title: string;
+  family: string;
+  display_symbol: string | null;
+  next_step: string;
+  reason: string;
+  rank: number;
+}
+
+export interface ReviewGateImpactView {
+  gate_blocking_task_ids: string[];
+  gate_blocking_count: number;
+  blocker_counts: Record<string, number>;
+  clear_these_first: ReviewClearNextItemView[];
+}
+
+export interface ReviewHistoryBucketView {
+  bucket: string;
+  label: string;
+  count: number;
+}
+
+export interface ReviewAccountabilityMetricsView {
+  overdue_count: number;
+  oldest_overdue_hours: number | null;
+  gate_blocking_count: number;
+  in_progress_count: number;
+  archived_count: number;
+  completed_recent_count: number;
+  completion_rate_7d: number;
+  clearance_velocity_7d: number;
+  stale_open_count: number;
+  clearance_status: string;
+}
+
+export interface DisciplineLoopProofView {
+  latest_completed_loop_at: string | null;
+  latest_reviewed_trade_symbol: string | null;
+  latest_review_chain_summary: string;
+  loop_completion_state: string;
+  selection_policy: string;
+  trade_id: string | null;
+  ticket_id: string | null;
+  display_symbol: string | null;
+  signal_family: string | null;
+  side: string | null;
+  trade_status: string | null;
+  review_status: string | null;
+  journal_id: string | null;
+  journal_attached: boolean;
+}
+
+export interface ReviewChainAnalyticsView {
+  review_due_closed_trade_count: number;
+  reviewed_trade_count: number;
+  reviewed_without_ticket_count: number;
+  reviewed_without_journal_count: number;
+  fully_linked_completed_loop_count: number;
+  partially_linked_reviewed_loop_count: number;
+  reopened_after_review_count: number;
+  archived_without_completion_count: number;
+  latest_loop_linkage_state: string;
+  quality_state: string;
+  quality_note: string;
+  debt_examples: ReviewChainDebtItemView[];
+}
+
+export interface ReviewChainDebtItemView {
+  trade_id: string;
+  display_symbol: string;
+  family: string;
+  side: string;
+  trade_status: string;
+  missing_ticket: boolean;
+  missing_journal: boolean;
+  reason: string;
+  next_step: string;
 }
 
 export interface PilotSummaryView {

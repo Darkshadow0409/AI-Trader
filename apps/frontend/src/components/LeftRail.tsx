@@ -1,4 +1,5 @@
-import type { ExecutionGateView, OperationalBacklogView, ResearchView, WatchlistSummaryView } from "../types/api";
+import type { ExecutionGateView, OperationalBacklogView, ResearchView, SelectedAssetTruthView, WatchlistSummaryView } from "../types/api";
+import { selectedAssetTruthFallbackLabel, selectedAssetTruthSourceFamilyLabel } from "../lib/selectedAssetTruth";
 import { terminalFocusPriority } from "../lib/terminalFocus";
 import { gateStatusLabel } from "../lib/uiLabels";
 
@@ -9,14 +10,27 @@ export interface NavItem {
   tone?: "default" | "warning" | "critical" | "active";
 }
 
+export interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+interface HotkeyHint {
+  key: string;
+  label: string;
+  shortcut: string;
+}
+
 interface LeftRailProps {
   activeTab: string;
   backlog: OperationalBacklogView;
   executionGate: ExecutionGateView | null;
-  navItems: NavItem[];
+  hotkeyHints?: HotkeyHint[];
+  navGroups: NavGroup[];
   onSelectSymbol: (symbol: string) => void;
   onSelectTab: (key: string) => void;
   research: ResearchView[];
+  selectedAssetTruth?: SelectedAssetTruthView | null;
   selectedSymbol: string;
   watchlist: WatchlistSummaryView[];
 }
@@ -57,7 +71,7 @@ function Sparkline({ points }: { points: number[] }) {
 
 function watchlistPriceLabel(item: WatchlistSummaryView): string {
   if (item.freshness_state === "unusable" || item.last_price === 0) {
-    return "No live price in current mode";
+    return "No live price";
   }
   return `${item.last_price.toFixed(2)} / ${item.change_pct >= 0 ? "+" : ""}${item.change_pct.toFixed(2)}%`;
 }
@@ -65,19 +79,25 @@ function watchlistPriceLabel(item: WatchlistSummaryView): string {
 function watchlistTruthLine(item: WatchlistSummaryView): string {
   const reality = `Reality ${item.realism_grade}`;
   if (!item.instrument_mapping.broker_truth) {
-    return `${reality} / ${item.market_data_mode} / proxy via ${item.instrument_mapping.broker_symbol}`;
+    return `${reality} / ${item.freshness_minutes}m ${item.freshness_state} / proxy via ${item.instrument_mapping.broker_symbol}`;
   }
-  return `${reality} / ${item.market_data_mode} / ${item.top_setup_tag.replace(/_/g, " ")}`;
+  return `${reality} / ${item.freshness_minutes}m ${item.freshness_state} / ${item.top_setup_tag.replace(/_/g, " ")}`;
+}
+
+function postureLabel(item: WatchlistSummaryView): string {
+  return item.top_setup_tag.replace(/_/g, " ");
 }
 
 export function LeftRail({
   activeTab,
   backlog,
   executionGate,
-  navItems,
+  hotkeyHints = [],
+  navGroups,
   onSelectSymbol,
   onSelectTab,
   research,
+  selectedAssetTruth = null,
   selectedSymbol,
   watchlist,
 }: LeftRailProps) {
@@ -86,42 +106,62 @@ export function LeftRail({
   const gateLabel = gateStatusLabel(executionGate?.status);
 
   return (
-    <aside className="left-rail">
-      <section className="rail-panel nav-panel">
+    <aside className="left-rail showcase-left-rail shell-scroll-region" data-testid="left-rail">
+      <section className="rail-panel nav-panel left-rail-shell-panel rail-panel-primary shell-scroll-region">
         <div className="rail-header">
           <div>
-            <span className="eyebrow">Terminal</span>
-            <strong>Commodity Operator Surface</strong>
+            <span className="eyebrow">Workspace Status</span>
+            <strong className="left-rail-shell-name">Trader Workspace</strong>
           </div>
           <small className={`status-pill ${gateTone}`}>{gateLabel}</small>
         </div>
-        <div className="nav-list">
-          {navItems.map((item) => (
-            <button
-              className={activeTab === item.key ? "nav-item active" : `nav-item ${item.tone ?? "default"}`}
-              key={item.key}
-              onClick={() => onSelectTab(item.key)}
-              type="button"
-            >
-              <span>{item.label}</span>
-              {item.badge ? <small>{item.badge}</small> : null}
-            </button>
-          ))}
-        </div>
+        <small className="compact-copy rail-intro-copy">Core routes stay grouped by the operator’s next decision, while market rotation stays secondary.</small>
+        {navGroups.map((group) => (
+          <div className="nav-group" key={group.title}>
+            <small className="eyebrow">{group.title}</small>
+            <div className="nav-list">
+              {group.items.map((item) => (
+                <button
+                  className={activeTab === item.key ? "nav-item active" : `nav-item ${item.tone ?? "default"}`}
+                  key={item.key}
+                  onClick={() => onSelectTab(item.key)}
+                  type="button"
+                >
+                  <span className="nav-item-label">{item.label}</span>
+                  {item.badge ? <small className="nav-item-badge">{item.badge}</small> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {hotkeyHints.length > 0 ? (
+          <div className="rail-hotkey-strip" data-testid="rail-hotkeys">
+            <small className="eyebrow">Quick Keys</small>
+            <div className="rail-hotkey-list">
+              {hotkeyHints.map((item) => (
+                <span className="rail-hotkey-chip" key={item.key}>
+                  <strong>{item.shortcut}</strong>
+                  <span>{item.label}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="rail-meta">
           <small>{backlog.overdue_count} overdue</small>
           <small>{backlog.high_priority_count} high priority</small>
+          <small>{watchlist.length} tracked</small>
         </div>
       </section>
 
-      <section className="rail-panel">
+      <section className="rail-panel left-rail-market-panel rail-panel-support">
         <div className="rail-header">
           <div>
-            <span className="eyebrow">Primary Board</span>
-            <strong>Oil / Gold / Silver First</strong>
+            <span className="eyebrow">Market Watch</span>
+            <strong>Lead Markets</strong>
           </div>
         </div>
-        <small className="compact-copy">Click an asset to load its chart. USOUSD, XAUUSD, and XAGUSD are the lead operator board; BTC and ETH stay available as secondary context.</small>
+        <small className="compact-copy rail-intro-copy">USOUSD leads the oil view. Gold and silver stay nearby, with posture first and quote second.</small>
         {watchlist.map((item) => (
           <button
             className={selectedSymbol === item.symbol ? "rail-item active" : "rail-item"}
@@ -129,33 +169,37 @@ export function LeftRail({
             onClick={() => onSelectSymbol(item.symbol)}
             type="button"
           >
-            <div className="stack compact-stack">
-              <div className="rail-header">
+            <div className="stack compact-stack rail-item-main">
+              <div className="rail-header rail-item-head">
                 <div className="stack compact-stack">
                   <strong>{item.instrument_mapping.trader_symbol}</strong>
                   <small>{item.instrument_mapping.display_name}</small>
                 </div>
-                <div className="stack compact-stack">
-                  <strong>{watchlistPriceLabel(item)}</strong>
-                  <small>{item.freshness_minutes}m / {item.freshness_state}</small>
-                </div>
+                <span className="tag subtle-tag rail-posture-tag">{postureLabel(item)}</span>
               </div>
               <small title={item.instrument_mapping.mapping_notes}>{watchlistTruthLine(item)}</small>
+              <div className="metric-row compact-row rail-item-context">
+                <span>{watchlistPriceLabel(item)}</span>
+                <span>
+                  {selectedSymbol === item.symbol && selectedAssetTruth
+                    ? `${selectedAssetTruthSourceFamilyLabel(selectedAssetTruth)} / ${selectedAssetTruthFallbackLabel(selectedAssetTruth)}`
+                    : item.source_label}
+                </span>
+              </div>
             </div>
             <Sparkline points={item.sparkline} />
-            <small>{item.source_label}</small>
           </button>
         ))}
       </section>
 
-      <section className="rail-panel">
+      <section className="rail-panel left-rail-scout-panel rail-panel-support">
         <div className="rail-header">
           <div>
-            <span className="eyebrow">Scout Queue</span>
-            <strong>Commodity Breakout Scan</strong>
+            <span className="eyebrow">Next Markets</span>
+            <strong>Rotation Queue</strong>
           </div>
         </div>
-        <small className="compact-copy">This queue stays compact and commodities-led so the operator can jump from chart to signal context without scanning a generic dashboard list.</small>
+        <small className="compact-copy rail-intro-copy">Compact rotation context for the next market to review when the lead board goes quiet.</small>
         {scout.map((item) => (
           <button
             className={selectedSymbol === item.symbol ? "rail-item active" : "rail-item"}

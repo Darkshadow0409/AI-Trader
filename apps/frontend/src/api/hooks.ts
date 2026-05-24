@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiClient } from "./client";
+import { applyMarketChartDelta } from "../lib/marketChartDelta";
+import { sameTerminalFocusSymbol } from "../lib/terminalFocus";
 import type {
   ActiveTradeView,
   AlertEnvelope,
@@ -7,6 +9,8 @@ import type {
   BacktestListView,
   BarView,
   MarketChartView,
+  MarketChartDeltaMessage,
+  MarketChartStreamMessage,
   BrokerAdapterSnapshotView,
   CommandCenterStatusView,
   DailyBriefingView,
@@ -28,14 +32,17 @@ import type {
   PaperTradeView,
   PilotSummaryView,
   ResearchView,
+  ResearchRunView,
   ReviewSummaryView,
   ReviewTaskView,
   RibbonView,
   RiskDetailView,
   RiskExposureView,
   RiskView,
+  ScenarioResearchView,
   ScenarioStressItemView,
   ScenarioStressSummaryView,
+  SelectedSignalWorkspaceView,
   SessionOverviewView,
   ExecutionGateView,
   AdapterHealthView,
@@ -49,14 +56,68 @@ import type {
   TradeTicketView,
   WalletBalanceView,
   WatchlistView,
+  SelectedAssetTruthView,
   WatchlistSummaryView,
 } from "../types/api";
 
 export interface ResourceState<T> {
   data: T;
   loading: boolean;
+  hydrated: boolean;
+  refreshing: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+}
+
+export interface LiveMarketChartState extends ResourceState<MarketChartView> {
+  streamStatus: "connecting" | "live" | "reconnecting" | "fallback_polling" | null;
+  awaitingLiveUpdate: boolean;
+  transportDebug: ChartTransportDebugState;
+}
+
+interface LoadChartFromRestOptions {
+  markLoading: boolean;
+  source: "initial" | "fallback" | "manual" | "resync";
+}
+
+type ChartTransportEventKind = "baseline" | "delta" | "probe_delta" | "probe_invalid_delta" | "resync_full" | null;
+type ChartTransportRejectReason = ReturnType<typeof applyMarketChartDelta>["reason"] | null;
+
+export interface ChartTransportDebugState {
+  baselineReceivedCount: number;
+  deltaReceivedCount: number;
+  deltaAppliedCount: number;
+  deltaRejectedCount: number;
+  restResyncRequestedCount: number;
+  restResyncCompletedCount: number;
+  lastEventKind: ChartTransportEventKind;
+  lastVersion: number | null;
+  lastProbeNonce: string | null;
+  lastRejectReason: ChartTransportRejectReason;
+}
+
+interface ChartTransportDebugApi extends ChartTransportDebugState {
+  requestDeltaProbe: () => boolean;
+  requestRejectedDeltaProbe: () => boolean;
+}
+
+const EMPTY_CHART_TRANSPORT_DEBUG_STATE: ChartTransportDebugState = {
+  baselineReceivedCount: 0,
+  deltaReceivedCount: 0,
+  deltaAppliedCount: 0,
+  deltaRejectedCount: 0,
+  restResyncRequestedCount: 0,
+  restResyncCompletedCount: 0,
+  lastEventKind: null,
+  lastVersion: null,
+  lastProbeNonce: null,
+  lastRejectReason: null,
+};
+
+declare global {
+  interface Window {
+    __AI_TRADER_CHART_DEBUG__?: ChartTransportDebugApi;
+  }
 }
 
 interface PollingOptions {
@@ -70,6 +131,7 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
   const { deps = [], intervalMs = 30000, enabled = true, preserveData = false } = options;
   const [data, setData] = useState<T>(initialData);
   const [loading, setLoading] = useState(enabled);
+  const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,6 +147,7 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
         const nextData = await loader();
         if (!cancelled) {
           setData(nextData);
+          setHydrated(true);
           setError(null);
         }
       } catch (loadError) {
@@ -108,6 +171,7 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
 
     if (!preserveData) {
       setData(initialData);
+      setHydrated(false);
     }
     setError(null);
     setLoading(true);
@@ -125,15 +189,612 @@ export function usePollingResource<T>(loader: () => Promise<T>, initialData: T, 
   return {
     data,
     loading,
+    hydrated,
+    refreshing: loading && hydrated,
     error,
     refresh: async () => {
       setLoading(true);
       try {
         const nextData = await loader();
         setData(nextData);
+        setHydrated(true);
         setError(null);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Request failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+  };
+}
+
+export function useSelectedAssetTruth(
+  symbol: string,
+  enabled = true,
+): ResourceState<SelectedAssetTruthView | null> {
+  const [data, setData] = useState<SelectedAssetTruthView | null>(null);
+  const [loading, setLoading] = useState(enabled && Boolean(symbol));
+  const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+
+    async function loadInitial() {
+      if (!enabled || !symbol) {
+        setLoading(false);
+        setHydrated(false);
+        setData(null);
+        return;
+      }
+      setLoading(true);
+      try {
+        const nextData = await apiClient.selectedAssetTruth(symbol);
+        if (!cancelled) {
+          setData(nextData);
+          setHydrated(true);
+          setError(null);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "Selected asset truth request failed");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    function connectSocket() {
+      if (!enabled || !symbol || cancelled) {
+        return;
+      }
+      try {
+        socket = new WebSocket(apiClient.selectedAssetTruthSocketUrl());
+      } catch (socketError) {
+        if (!cancelled) {
+          setError(socketError instanceof Error ? socketError.message : "Selected asset truth stream unavailable");
+        }
+        return;
+      }
+
+      socket.onopen = () => {
+        socket?.send(
+          JSON.stringify({
+            type: "subscribe_selected_asset_truth",
+            symbol,
+          }),
+        );
+      };
+
+      socket.onmessage = (event) => {
+        if (cancelled) {
+          return;
+        }
+        try {
+          const message = JSON.parse(event.data) as {
+            type?: string;
+            payload?: SelectedAssetTruthView;
+          };
+          if (message.type === "selected_asset_truth" && message.payload) {
+            setData(message.payload);
+            setHydrated(true);
+            setLoading(false);
+            setError(null);
+          }
+        } catch {
+          // Ignore malformed stream messages and keep the last truthful snapshot.
+        }
+      };
+
+      socket.onclose = () => {
+        if (cancelled || !enabled) {
+          return;
+        }
+        reconnectTimer = window.setTimeout(() => {
+          connectSocket();
+        }, 2000);
+      };
+    }
+
+    void loadInitial();
+    connectSocket();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
+      socket?.close();
+    };
+  }, [enabled, symbol]);
+
+  return {
+    data,
+    loading,
+    hydrated,
+    refreshing: loading && hydrated,
+    error,
+    refresh: async () => {
+      if (!enabled || !symbol) {
+        setData(null);
+        setHydrated(false);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const nextData = await apiClient.selectedAssetTruth(symbol);
+        setData(nextData);
+        setHydrated(true);
+        setError(null);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Selected asset truth request failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+  };
+}
+
+function emptyMarketChart(symbol: string, timeframe: string): MarketChartView {
+  return {
+    symbol,
+    timeframe,
+    available_timeframes: [],
+    status: "loading",
+    status_note: "Loading chart data…",
+    source_mode: "loading",
+    market_data_mode: "fixture",
+    freshness_minutes: 0,
+    freshness_state: "loading",
+    data_quality: "loading",
+    is_fixture_mode: false,
+    bars: [],
+    indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
+    overlays: { markers: [], price_lines: [], zones: [] },
+    instrument_mapping: {
+      requested_symbol: symbol,
+      canonical_symbol: symbol,
+      trader_symbol: symbol,
+      display_symbol: symbol,
+      display_name: symbol,
+      underlying_asset: symbol,
+      research_symbol: symbol,
+      public_symbol: symbol,
+      broker_symbol: symbol,
+      broker_truth: true,
+      mapping_notes: "Loading symbol mapping…",
+    },
+    data_reality: null,
+  };
+}
+
+function chartTransportDebugEnabled(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const { hostname, protocol } = window.location;
+  const localHost = hostname === "127.0.0.1" || hostname === "localhost";
+  return localHost && (protocol === "http:" || protocol === "https:");
+}
+
+function chartTransportDebugSnapshot(
+  state: ChartTransportDebugState,
+  requestDeltaProbe: () => boolean,
+  requestRejectedDeltaProbe: () => boolean,
+): ChartTransportDebugApi {
+  return {
+    ...state,
+    requestDeltaProbe,
+    requestRejectedDeltaProbe,
+  };
+}
+
+export function useLiveMarketChart(
+  symbol: string,
+  timeframe: string,
+  enabled = true,
+): LiveMarketChartState {
+  const [data, setData] = useState<MarketChartView>(() => emptyMarketChart(symbol, timeframe));
+  const [loading, setLoading] = useState(enabled && Boolean(symbol));
+  const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<"connecting" | "live" | "reconnecting" | "fallback_polling" | null>(
+    enabled && Boolean(symbol) ? "connecting" : null,
+  );
+  const [awaitingLiveUpdate, setAwaitingLiveUpdate] = useState(false);
+  const [transportDebug, setTransportDebug] = useState<ChartTransportDebugState>(EMPTY_CHART_TRANSPORT_DEBUG_STATE);
+  const dataRef = useRef(data);
+  const hydratedRef = useRef(hydrated);
+  const transportDebugRef = useRef(transportDebug);
+  const chartVersionRef = useRef<number | null>(null);
+  const resyncScheduledRef = useRef(false);
+  const socketRef = useRef<WebSocket | null>(null);
+  const chartSubscriptionRef = useRef<{ symbol: string; timeframe: string } | null>(null);
+  const debugEnabled = chartTransportDebugEnabled();
+
+  const updateTransportDebug = (updater: (current: ChartTransportDebugState) => ChartTransportDebugState) => {
+    setTransportDebug((current) => {
+      const next = updater(current);
+      transportDebugRef.current = next;
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    dataRef.current = data;
+    hydratedRef.current = hydrated;
+    transportDebugRef.current = transportDebug;
+  }, [data, hydrated, transportDebug]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (!debugEnabled) {
+      delete window.__AI_TRADER_CHART_DEBUG__;
+      return;
+    }
+    const requestProbe = (probeKind: "accepted" | "rejected_stale_version") => {
+      const socket = socketRef.current;
+      const subscription = chartSubscriptionRef.current;
+      if (!socket || !subscription) {
+        return false;
+      }
+      if (socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      socket.send(JSON.stringify({
+        type: "verify_market_chart_delta",
+        symbol: subscription.symbol,
+        timeframe: subscription.timeframe,
+        probe_kind: probeKind,
+      }));
+      return true;
+    };
+    const requestDeltaProbe = () => requestProbe("accepted");
+    const requestRejectedDeltaProbe = () => requestProbe("rejected_stale_version");
+    window.__AI_TRADER_CHART_DEBUG__ = chartTransportDebugSnapshot(
+      transportDebug,
+      requestDeltaProbe,
+      requestRejectedDeltaProbe,
+    );
+    return () => {
+      if (
+        window.__AI_TRADER_CHART_DEBUG__?.requestDeltaProbe === requestDeltaProbe
+        && window.__AI_TRADER_CHART_DEBUG__?.requestRejectedDeltaProbe === requestRejectedDeltaProbe
+      ) {
+        delete window.__AI_TRADER_CHART_DEBUG__;
+      }
+    };
+  }, [debugEnabled, transportDebug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+    let fallbackTimer: number | null = null;
+    let livePayloadSeen = false;
+    const requestedSymbol = symbol.toUpperCase();
+    const requestedTimeframe = timeframe.toLowerCase();
+
+    function scheduleRestResync(reason: ChartTransportRejectReason) {
+      if (cancelled || resyncScheduledRef.current) {
+        return;
+      }
+      resyncScheduledRef.current = true;
+      updateTransportDebug((current) => ({
+        ...current,
+        restResyncRequestedCount: current.restResyncRequestedCount + 1,
+        lastRejectReason: reason,
+      }));
+      window.setTimeout(() => {
+        if (cancelled) {
+          return;
+        }
+        void loadChartFromRest({ markLoading: false, source: "resync" });
+      }, 0);
+    }
+
+    async function loadChartFromRest({ markLoading, source }: LoadChartFromRestOptions) {
+      if (!enabled || !requestedSymbol || cancelled) {
+        return;
+      }
+      if (markLoading) {
+        setLoading(true);
+      }
+      try {
+        const nextData = await apiClient.marketChart(
+          requestedSymbol,
+          requestedTimeframe,
+          source === "resync"
+            ? {
+                resyncNonce: `${Date.now()}`,
+              }
+            : undefined,
+        );
+        if (cancelled) {
+          return;
+        }
+        if (source === "initial" && livePayloadSeen) {
+          setLoading(false);
+          return;
+        }
+        if (!sameTerminalFocusSymbol(nextData.instrument_mapping.trader_symbol ?? nextData.symbol, requestedSymbol)) {
+          return;
+        }
+        if (nextData.timeframe.toLowerCase() !== requestedTimeframe) {
+          return;
+        }
+        setData(nextData);
+        setHydrated(true);
+        chartVersionRef.current = null;
+        if (source === "resync" && resyncScheduledRef.current) {
+          updateTransportDebug((current) => ({
+            ...current,
+            restResyncCompletedCount: current.restResyncCompletedCount + 1,
+          }));
+          resyncScheduledRef.current = false;
+        }
+        setError(null);
+        setLoading(false);
+        if (source !== "fallback") {
+          setStreamStatus((current) => (current === "live" ? current : "connecting"));
+        }
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+        setError(loadError instanceof Error ? loadError.message : "Chart request failed");
+        setLoading(false);
+      }
+    }
+
+    function stopFallbackPolling() {
+      if (fallbackTimer !== null) {
+        window.clearInterval(fallbackTimer);
+        fallbackTimer = null;
+      }
+    }
+
+    function startFallbackPolling() {
+      if (fallbackTimer !== null || cancelled || !enabled || !requestedSymbol) {
+        return;
+      }
+      setStreamStatus("fallback_polling");
+      fallbackTimer = window.setInterval(() => {
+        void loadChartFromRest({ markLoading: false, source: "fallback" });
+      }, 60000);
+    }
+
+    function connectSocket() {
+      if (!enabled || !requestedSymbol || cancelled) {
+        return;
+      }
+      setStreamStatus((current) => (hydratedRef.current || current === "live" ? "reconnecting" : "connecting"));
+      try {
+        socket = new WebSocket(apiClient.marketChartSocketUrl());
+      } catch (socketError) {
+        if (!cancelled) {
+          setError(socketError instanceof Error ? socketError.message : "Chart stream unavailable");
+          startFallbackPolling();
+        }
+        return;
+      }
+
+      socket.onopen = () => {
+        if (cancelled) {
+          return;
+        }
+        socketRef.current = socket;
+        chartSubscriptionRef.current = { symbol: requestedSymbol, timeframe: requestedTimeframe };
+        stopFallbackPolling();
+        setError(null);
+        setStreamStatus("live");
+        socket?.send(
+          JSON.stringify({
+            type: "subscribe_market_chart",
+            symbol: requestedSymbol,
+            timeframe: requestedTimeframe,
+          }),
+        );
+      };
+
+        socket.onmessage = (event) => {
+          if (cancelled) {
+            return;
+          }
+          try {
+            const message = JSON.parse(event.data) as MarketChartStreamMessage | MarketChartDeltaMessage;
+            if (message.type === "market_chart" && message.payload) {
+              const payloadSymbol = String(message.symbol ?? message.payload.instrument_mapping?.trader_symbol ?? message.payload.symbol ?? "").toUpperCase();
+              const payloadTimeframe = String(message.timeframe ?? message.payload.timeframe ?? "").toLowerCase();
+              if (!sameTerminalFocusSymbol(payloadSymbol, requestedSymbol) || payloadTimeframe !== requestedTimeframe) {
+                return;
+              }
+              livePayloadSeen = true;
+              chartVersionRef.current = message.version;
+              updateTransportDebug((current) => ({
+                ...current,
+                baselineReceivedCount: current.baselineReceivedCount + 1,
+                restResyncCompletedCount: resyncScheduledRef.current
+                  ? current.restResyncCompletedCount + 1
+                  : current.restResyncCompletedCount,
+                lastEventKind: message.transport?.event_kind ?? "baseline",
+                lastVersion: message.version,
+                lastProbeNonce: message.transport?.proof_nonce ?? null,
+                lastRejectReason: null,
+              }));
+              resyncScheduledRef.current = false;
+              setData(message.payload);
+              setHydrated(true);
+              setLoading(false);
+              setError(null);
+              setStreamStatus("live");
+              setAwaitingLiveUpdate(false);
+              return;
+            }
+            if (message.type !== "market_chart_delta") {
+              return;
+            }
+            updateTransportDebug((current) => ({
+              ...current,
+              deltaReceivedCount: current.deltaReceivedCount + 1,
+              lastEventKind: message.transport?.event_kind ?? "delta",
+              lastVersion: message.version,
+              lastProbeNonce: message.transport?.proof_nonce ?? null,
+            }));
+            const applyResult = applyMarketChartDelta({
+              currentChart: dataRef.current,
+              currentVersion: chartVersionRef.current,
+              message,
+              requestedSymbol,
+              requestedTimeframe,
+            });
+            if (!applyResult.accepted) {
+              updateTransportDebug((current) => ({
+                ...current,
+                deltaRejectedCount: current.deltaRejectedCount + 1,
+                lastRejectReason: applyResult.reason ?? null,
+              }));
+              if (applyResult.shouldResync) {
+                scheduleRestResync(applyResult.reason ?? null);
+              }
+              return;
+            }
+            livePayloadSeen = true;
+            chartVersionRef.current = applyResult.version ?? chartVersionRef.current;
+            resyncScheduledRef.current = false;
+            updateTransportDebug((current) => ({
+              ...current,
+              deltaAppliedCount: current.deltaAppliedCount + 1,
+              lastVersion: applyResult.version ?? current.lastVersion,
+              lastRejectReason: null,
+            }));
+            setData(applyResult.chart ?? dataRef.current);
+            setHydrated(true);
+            setLoading(false);
+            setError(null);
+            setStreamStatus("live");
+            setAwaitingLiveUpdate(false);
+          } catch {
+            // Keep the last truthful chart payload if a stream message is malformed.
+          }
+        };
+
+      const handleSocketUnavailable = () => {
+        if (cancelled || !enabled) {
+          return;
+        }
+        socketRef.current = null;
+        startFallbackPolling();
+        setStreamStatus("reconnecting");
+        reconnectTimer = window.setTimeout(() => {
+          connectSocket();
+        }, 2000);
+      };
+
+      socket.onerror = () => {
+        handleSocketUnavailable();
+      };
+
+      socket.onclose = () => {
+        handleSocketUnavailable();
+      };
+    }
+
+    if (!requestedSymbol) {
+      socketRef.current = null;
+      chartSubscriptionRef.current = null;
+      setData(emptyMarketChart(symbol, timeframe));
+      setLoading(false);
+      setHydrated(false);
+      chartVersionRef.current = null;
+      resyncScheduledRef.current = false;
+      setError(null);
+      setStreamStatus(null);
+      setAwaitingLiveUpdate(false);
+      setTransportDebug(EMPTY_CHART_TRANSPORT_DEBUG_STATE);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!enabled) {
+      socketRef.current = null;
+      chartSubscriptionRef.current = null;
+      setLoading(false);
+      chartVersionRef.current = null;
+      resyncScheduledRef.current = false;
+      setStreamStatus(null);
+      setAwaitingLiveUpdate(false);
+      setTransportDebug(EMPTY_CHART_TRANSPORT_DEBUG_STATE);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const currentData = dataRef.current;
+    const preservingRenderableChart =
+      sameTerminalFocusSymbol(currentData.instrument_mapping.trader_symbol ?? currentData.symbol, requestedSymbol)
+      && currentData.bars.length > 0
+      && currentData.timeframe.toLowerCase() !== requestedTimeframe;
+    setError(null);
+    setLoading(true);
+    chartVersionRef.current = null;
+    resyncScheduledRef.current = false;
+    setStreamStatus("connecting");
+    setAwaitingLiveUpdate(preservingRenderableChart);
+    setTransportDebug(EMPTY_CHART_TRANSPORT_DEBUG_STATE);
+    void loadChartFromRest({ markLoading: true, source: "initial" });
+    connectSocket();
+
+    return () => {
+      cancelled = true;
+      socketRef.current = null;
+      chartSubscriptionRef.current = null;
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
+      stopFallbackPolling();
+      socket?.close();
+    };
+  }, [enabled, symbol, timeframe]);
+
+  return {
+    data,
+    loading,
+    hydrated,
+    refreshing: loading && hydrated,
+    error,
+    streamStatus,
+    awaitingLiveUpdate,
+    transportDebug,
+    refresh: async () => {
+      if (!enabled || !symbol) {
+        setData(emptyMarketChart(symbol, timeframe));
+        setHydrated(false);
+        setLoading(false);
+        chartVersionRef.current = null;
+        resyncScheduledRef.current = false;
+        setStreamStatus(null);
+        setAwaitingLiveUpdate(false);
+        setTransportDebug(EMPTY_CHART_TRANSPORT_DEBUG_STATE);
+        return;
+      }
+      setLoading(true);
+      try {
+        const nextData = await apiClient.marketChart(symbol.toUpperCase(), timeframe.toLowerCase());
+        setData(nextData);
+        setHydrated(true);
+        chartVersionRef.current = null;
+        resyncScheduledRef.current = false;
+        setError(null);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Chart request failed");
       } finally {
         setLoading(false);
       }
@@ -229,6 +890,17 @@ function emptyPaperTradeDetail(tradeId: string): PaperTradeDetailView {
   };
 }
 
+export function canHydrateSelection(
+  selectedId: string | null,
+  knownIds: Array<string | null | undefined>,
+): boolean {
+  if (!selectedId) {
+    return false;
+  }
+  const resolvedIds = knownIds.filter((value): value is string => Boolean(value));
+  return resolvedIds.length === 0 || resolvedIds.includes(selectedId);
+}
+
 export function useDashboardData(
   activeTab: string,
   commandCenterOpen: boolean,
@@ -239,9 +911,9 @@ export function useDashboardData(
   selectedTradeId: string | null,
   selectedTicketId: string | null,
 ) {
+  const restoringResearch = activeTab === "research";
   const showDesk = activeTab === "desk";
   const showSignals = activeTab === "signals";
-  const showHighRiskSignals = activeTab === "high_risk";
   const showWatchlist = activeTab === "watchlist";
   const showRisk = activeTab === "risk";
   const showTrades = activeTab === "active_trades";
@@ -255,7 +927,14 @@ export function useDashboardData(
   const showResearch = activeTab === "research";
   const showWallet = activeTab === "wallet_balance";
   const showBacktests = activeTab === "backtests";
-  const showFocusSurface = ["desk", "signals", "high_risk", "watchlist", "risk", "trade_tickets", "active_trades"].includes(activeTab);
+  const showFocusSurface = ["desk", "signals", "watchlist", "risk", "trade_tickets", "active_trades", "ai_desk"].includes(activeTab);
+  const showAIDesk = activeTab === "ai_desk";
+  const needsSignalHydration = showFocusSurface || showJournal || showSession;
+  const needsRiskHydration = showFocusSurface || showJournal || showSession;
+  const needsTradeHydration = showTrades || showReplay || showTickets;
+  const needsTicketHydration = showTickets;
+  const needsContextHydration = showFocusSurface || showAIDesk || showJournal || showSession || showPolymarket;
+  const selectedAssetTruthSymbol = selectedSymbol || "USOUSD";
 
   const health = usePollingResource<HealthView>(() => apiClient.health(), {
     status: "syncing",
@@ -263,7 +942,11 @@ export function useDashboardData(
     duckdb_path: "",
     parquet_dir: "",
   }, { preserveData: true });
-  const overview = usePollingResource<RibbonView>(() => apiClient.overview(), {
+  const selectedAssetTruth = useSelectedAssetTruth(
+    selectedAssetTruthSymbol,
+    needsContextHydration,
+  );
+  const overview = usePollingResource<RibbonView>(() => apiClient.overview(selectedSymbol), {
     macro_regime: "syncing",
     data_freshness_minutes: 0,
     freshness_status: "unknown",
@@ -280,13 +963,15 @@ export function useDashboardData(
     mode_explainer: "Syncing market-data truth from the active backend.",
     last_refresh: null,
     next_event: null,
-  }, { preserveData: true });
+  }, { deps: [selectedSymbol], preserveData: true, });
   const deskSummary = usePollingResource<DeskSummaryView>(
     () => apiClient.deskSummary(),
     {
       generated_at: "",
+      runtime_snapshot: null,
+      operator_state_summary: null,
       session_states: [],
-      execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
+      execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [], blocker_details: [] },
       operational_backlog: { generated_at: "", overdue_count: 0, high_priority_count: 0, items: [] },
       section_readiness: {},
       section_notes: {},
@@ -307,6 +992,8 @@ export function useDashboardData(
     () => apiClient.homeSummary(),
     {
       generated_at: "",
+      runtime_snapshot: null,
+      operator_state_summary: null,
       session_states: [],
       session_state: "pre_session",
       pilot_gate_state: "not_ready",
@@ -318,7 +1005,7 @@ export function useDashboardData(
       shadow_divergence_summary: {},
       adapter_health_summary: {},
     },
-    { enabled: false, intervalMs: 60000, preserveData: true },
+    { enabled: showDesk || showSignals || showWatchlist || activeTab === "ai_desk", intervalMs: 60000, preserveData: true },
   );
   const controlCenter = usePollingResource<CommandCenterStatusView>(
     () => apiClient.controlCenter(),
@@ -416,7 +1103,11 @@ export function useDashboardData(
     },
     { enabled: showSession, preserveData: true },
   );
-  const reviewTasks = usePollingResource<ReviewTaskView[]>(() => apiClient.reviewTasks(), [], { enabled: showSession, intervalMs: 60000, preserveData: true });
+  const reviewTasks = usePollingResource<ReviewTaskView[]>(
+    () => apiClient.reviewTasks(true),
+    [],
+    { enabled: showSession && sessionOverview.hydrated, intervalMs: 60000, preserveData: true },
+  );
   const dailyBriefing = usePollingResource<DailyBriefingView>(
     () => apiClient.dailyBriefing(),
     {
@@ -429,7 +1120,7 @@ export function useDashboardData(
       scout_to_focus_promotions: [],
       promoted_strategy_drift_warnings: [],
     },
-    { enabled: showSession, preserveData: true },
+    { enabled: false, preserveData: true },
   );
   const weeklyReview = usePollingResource(
     () => apiClient.weeklyReview(),
@@ -455,7 +1146,7 @@ export function useDashboardData(
       strategy_promotion_health: [],
       paper_trade_outcome_distribution: {},
     },
-    { enabled: showSession, preserveData: true },
+    { enabled: false, preserveData: true },
   );
   const operationalBacklog = usePollingResource<OperationalBacklogView>(
     () => apiClient.operationalBacklog(),
@@ -465,7 +1156,7 @@ export function useDashboardData(
       high_priority_count: 0,
       items: [],
     },
-    { enabled: showSession || showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
+    { enabled: showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const reviewSummary = usePollingResource<ReviewSummaryView>(
     () => apiClient.reviewSummary(),
@@ -476,8 +1167,59 @@ export function useDashboardData(
       failure_attribution_summary: {},
       realism_warning_violations: 0,
       review_completion_trend: {},
+      task_counts: { rendered_open: 0, overdue: 0, high_priority: 0, in_progress: 0, done: 0, archived: 0, resolved_hidden: 0 },
+      accountability_metrics: {
+        overdue_count: 0,
+        oldest_overdue_hours: null,
+        gate_blocking_count: 0,
+        in_progress_count: 0,
+        archived_count: 0,
+        completed_recent_count: 0,
+        completion_rate_7d: 0,
+        clearance_velocity_7d: 0,
+        stale_open_count: 0,
+        clearance_status: "clear",
+      },
+      gate_impact: {
+        gate_blocking_task_ids: [],
+        gate_blocking_count: 0,
+        blocker_counts: {},
+        clear_these_first: [],
+      },
+      review_family_counts: [],
+      history_buckets: [],
+      discipline_loop_proof: {
+        latest_completed_loop_at: null,
+        latest_reviewed_trade_symbol: null,
+        latest_review_chain_summary: "",
+        loop_completion_state: "not_yet_established",
+        selection_policy: "best_available",
+        trade_id: null,
+        ticket_id: null,
+        display_symbol: null,
+        signal_family: null,
+        side: null,
+        trade_status: null,
+        review_status: null,
+        journal_id: null,
+        journal_attached: false,
+      },
+      review_chain_analytics: {
+        review_due_closed_trade_count: 0,
+        reviewed_trade_count: 0,
+        reviewed_without_ticket_count: 0,
+        reviewed_without_journal_count: 0,
+        fully_linked_completed_loop_count: 0,
+        partially_linked_reviewed_loop_count: 0,
+        reopened_after_review_count: 0,
+        archived_without_completion_count: 0,
+        quality_state: "not_established",
+        quality_note: "",
+        latest_loop_linkage_state: "not_yet_established",
+        debt_examples: [],
+      },
     },
-    { enabled: showSession, preserveData: true },
+    { enabled: showDesk || showSession || showJournal, preserveData: true },
   );
   const pilotMetrics = usePollingResource<PilotMetricSummaryView>(
     () => apiClient.pilotMetrics(),
@@ -510,8 +1252,8 @@ export function useDashboardData(
   );
   const executionGate = usePollingResource<ExecutionGateView>(
     () => apiClient.executionGate(),
-    { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
-    { enabled: showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
+    { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [], blocker_details: [] },
+    { enabled: showDesk || showSession || showPilot || commandCenterOpen, intervalMs: 60000, preserveData: true },
   );
   const pilotDashboard = usePollingResource<PilotDashboardView>(
     () => apiClient.pilotDashboard(),
@@ -532,7 +1274,7 @@ export function useDashboardData(
       divergence_hotspots: [],
       operator_discipline: {},
       review_backlog: { generated_at: "", overdue_count: 0, high_priority_count: 0, items: [] },
-      execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [] },
+      execution_gate: { status: "not_ready", blockers: [], thresholds: {}, metrics: {}, rationale: [], blocker_details: [] },
       adapter_health: [],
       recent_audit_logs: [],
     },
@@ -540,14 +1282,17 @@ export function useDashboardData(
   );
   const adapterHealth = usePollingResource<AdapterHealthView[]>(() => apiClient.adapterHealth(), [], { enabled: showPilot, intervalMs: 60000, preserveData: true });
   const auditLogs = usePollingResource<AuditLogView[]>(() => apiClient.auditLogs(), [], { enabled: showPilot, intervalMs: 60000, preserveData: true });
-  const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), [], { enabled: showSignals || showHighRiskSignals });
+  const signals = usePollingResource<SignalView[]>(() => apiClient.signals(), [], { enabled: showSignals, preserveData: true });
   const signalsSummary = usePollingResource<SignalsSummaryView>(
     () => apiClient.signalsSummary(),
     { generated_at: "", filter_metadata: {}, grouped_counts: {}, top_ranked_signals: [], warning_counts: {} },
-    { enabled: showSignals || showHighRiskSignals || showDesk, intervalMs: 60000, preserveData: true },
+    { enabled: showSignals || showDesk || showWatchlist || activeTab === "ai_desk", intervalMs: 60000, preserveData: true },
   );
-  const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), [], { enabled: showHighRiskSignals });
-  const news = usePollingResource<NewsView[]>(() => apiClient.news(), [], { enabled: showNews });
+  const highRiskSignals = usePollingResource<SignalView[]>(() => apiClient.highRiskSignals(), [], {
+    enabled: showSignals || showRisk,
+    preserveData: true,
+  });
+  const news = usePollingResource<NewsView[]>(() => apiClient.news(), [], { enabled: showNews || showAIDesk, preserveData: true });
   const polymarketHunter = usePollingResource<PolymarketHunterView>(
     () => apiClient.polymarketHunter(),
     { generated_at: "", source_status: "syncing", source_note: "", query: "", tag: "", sort: "relevance", available_tags: [], events: [], markets: [] },
@@ -555,7 +1300,7 @@ export function useDashboardData(
   );
   const watchlist = usePollingResource<WatchlistView[]>(() => apiClient.watchlist(), [], { enabled: showWatchlist });
   const watchlistSummary = usePollingResource<WatchlistSummaryView[]>(() => apiClient.watchlistSummary(), [], {
-    enabled: showWatchlist || showDesk || Boolean(selectedSymbol),
+    enabled: showWatchlist || showDesk || showResearch || Boolean(selectedSymbol),
     intervalMs: 60000,
     preserveData: true,
   });
@@ -564,13 +1309,16 @@ export function useDashboardData(
     { generated_at: "", focus_queue: [], scout_queue: [] },
     { enabled: showWatchlist, preserveData: true },
   );
-  const research = usePollingResource<ResearchView[]>(() => apiClient.research(), [], { enabled: showResearch });
-  const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), [], { enabled: showRisk });
-  const riskExposure = usePollingResource<RiskExposureView[]>(() => apiClient.riskExposure(), [], { enabled: showRisk });
-  const activeTrades = usePollingResource<ActiveTradeView[]>(() => apiClient.activeTrades(), [], { enabled: showTrades });
-  const proposedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.proposedPaperTrades(), [], { enabled: showTrades || showJournal || showReplay || Boolean(selectedTradeId) });
-  const activePaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.activePaperTrades(), [], { enabled: showTrades || showJournal || showReplay || Boolean(selectedTradeId) });
-  const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), [], { enabled: showTrades || showJournal || Boolean(selectedTradeId) });
+  const research = usePollingResource<ResearchView[]>(() => apiClient.research(), [], { enabled: showResearch, preserveData: true });
+  const researchRuns = usePollingResource<ResearchRunView[]>(() => apiClient.researchRuns(), [], { enabled: showResearch || showAIDesk, preserveData: true });
+  const risk = usePollingResource<RiskView[]>(() => apiClient.risk(), [], { enabled: showRisk, preserveData: true });
+  const riskExposure = usePollingResource<RiskExposureView[]>(() => apiClient.riskExposure(), [], { enabled: showRisk, preserveData: true });
+  const activeTrades = usePollingResource<ActiveTradeView[]>(() => apiClient.activeTrades(), [], { enabled: showTrades, preserveData: true });
+  const proposedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.proposedPaperTrades(), [], { enabled: (needsTradeHydration || Boolean(selectedTradeId)) && !restoringResearch, preserveData: true });
+  const activePaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.activePaperTrades(), [], { enabled: (needsTradeHydration || Boolean(selectedTradeId)) && !restoringResearch, preserveData: true });
+  const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), [], { enabled: (needsTradeHydration || Boolean(selectedTradeId)) && !restoringResearch, preserveData: true });
+  const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), [], { enabled: showWallet });
+  const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
     () => apiClient.paperTradeAnalytics(),
     {
@@ -603,51 +1351,25 @@ export function useDashboardData(
       },
       failure_categories: [],
     },
-    { enabled: showJournal },
+    { enabled: showJournal && (journal.hydrated || reviewSummary.hydrated), preserveData: true },
   );
-  const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(() => apiClient.paperTradeReviews(), [], { enabled: showJournal });
-  const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), [], { enabled: showWallet });
-  const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
+  const paperTradeReviews = usePollingResource<PaperTradeReviewView[]>(
+    () => apiClient.paperTradeReviews(),
+    [],
+    { enabled: showJournal && (journal.hydrated || reviewSummary.hydrated), preserveData: true },
+  );
+  const scenario = usePollingResource<ScenarioResearchView | null>(
+    () => (selectedSymbol ? apiClient.scenario(selectedSymbol, selectedTimeframe) : Promise.resolve(null)),
+    null,
+    { deps: [selectedSymbol, selectedTimeframe], enabled: (showAIDesk || showResearch) && Boolean(selectedSymbol), intervalMs: 120000, preserveData: true },
+  );
   const alerts = usePollingResource<AlertEnvelope[]>(() => apiClient.alerts(), [], { intervalMs: 60000 });
   const backtests = usePollingResource<BacktestListView[]>(() => apiClient.backtests(), [], { enabled: showBacktests });
   const bars = usePollingResource<BarView[]>(() => apiClient.bars(selectedSymbol), [], {
     deps: [selectedSymbol],
     enabled: false,
   });
-  const marketChart = usePollingResource<MarketChartView>(
-    () => apiClient.marketChart(selectedSymbol, selectedTimeframe),
-    {
-      symbol: selectedSymbol,
-      timeframe: selectedTimeframe,
-      available_timeframes: [],
-      status: "loading",
-      status_note: "Loading chart data…",
-      source_mode: "loading",
-      market_data_mode: "fixture",
-      freshness_minutes: 0,
-      freshness_state: "loading",
-      data_quality: "loading",
-      is_fixture_mode: false,
-      bars: [],
-      indicators: { ema_20: [], ema_50: [], ema_200: [], rsi_14: [], atr_14: [] },
-      overlays: { markers: [], price_lines: [] },
-      instrument_mapping: {
-        requested_symbol: selectedSymbol,
-        canonical_symbol: selectedSymbol,
-        trader_symbol: selectedSymbol,
-        display_symbol: selectedSymbol,
-        display_name: selectedSymbol,
-        underlying_asset: selectedSymbol,
-        research_symbol: selectedSymbol,
-        public_symbol: selectedSymbol,
-        broker_symbol: selectedSymbol,
-        broker_truth: true,
-        mapping_notes: "Loading symbol mapping…",
-      },
-      data_reality: null,
-    },
-    { deps: [selectedSymbol, selectedTimeframe], enabled: showFocusSurface && Boolean(selectedSymbol), intervalMs: 60000, preserveData: true },
-  );
+  const marketChart = useLiveMarketChart(selectedSymbol, selectedTimeframe, needsContextHydration && Boolean(selectedSymbol));
   const assetContext = usePollingResource<AssetContextView>(
     () => apiClient.assetContext(selectedSymbol),
     {
@@ -661,22 +1383,49 @@ export function useDashboardData(
       related_polymarket_markets: [],
       crowd_implied_narrative: "",
     },
-    { deps: [selectedSymbol], enabled: showFocusSurface && Boolean(selectedSymbol), intervalMs: 60000, preserveData: true },
+    { deps: [selectedSymbol], enabled: needsContextHydration && Boolean(selectedSymbol), intervalMs: 60000, preserveData: true },
   );
+  const knownSignalHydrationIds = [
+    ...signals.data.filter((row) => sameTerminalFocusSymbol(row.symbol, selectedSymbol)).map((row) => row.signal_id),
+    ...signalsSummary.data.top_ranked_signals.filter((row) => sameTerminalFocusSymbol(row.symbol, selectedSymbol)).map((row) => row.signal_id),
+    assetContext.data.latest_signal?.signal_id,
+  ];
+  const knownSignalHydrationKey = knownSignalHydrationIds.filter((value): value is string => Boolean(value)).join("|");
+  const canHydrateSelectedSignal = canHydrateSelection(selectedSignalId, knownSignalHydrationIds);
   const signalDetail = usePollingResource<SignalDetailView | null>(
     () => (selectedSignalId ? apiClient.signalDetail(selectedSignalId) : Promise.resolve(null)),
     selectedSignalId ? emptySignalDetail(selectedSignalId) : null,
-    { deps: [selectedSignalId], enabled: Boolean(selectedSignalId), preserveData: true },
+    { deps: [selectedSignalId, selectedSymbol, knownSignalHydrationKey], enabled: canHydrateSelectedSignal && needsSignalHydration, preserveData: true },
   );
+  const selectedSignalWorkspace = usePollingResource<SelectedSignalWorkspaceView | null>(
+    () => (selectedSignalId ? apiClient.selectedSignalWorkspace(selectedSignalId, selectedTimeframe) : Promise.resolve(null)),
+    null,
+    {
+      deps: [selectedSignalId, selectedSymbol, selectedTimeframe, knownSignalHydrationKey],
+      enabled: canHydrateSelectedSignal && needsContextHydration,
+      preserveData: true,
+    },
+  );
+  const knownRiskHydrationIds = [
+    ...risk.data.filter((row) => sameTerminalFocusSymbol(row.symbol, selectedSymbol)).map((row) => row.risk_report_id),
+    assetContext.data.latest_risk?.risk_report_id,
+    selectedSignalWorkspace.data?.risk?.risk_report_id,
+  ];
+  const knownRiskHydrationKey = knownRiskHydrationIds.filter((value): value is string => Boolean(value)).join("|");
+  const canHydrateSelectedRisk = canHydrateSelection(selectedRiskReportId, knownRiskHydrationIds);
   const riskDetail = usePollingResource<RiskDetailView | null>(
     () => (selectedRiskReportId ? apiClient.riskDetail(selectedRiskReportId) : Promise.resolve(null)),
     selectedRiskReportId ? emptyRiskDetail(selectedRiskReportId) : null,
-    { deps: [selectedRiskReportId], enabled: Boolean(selectedRiskReportId), preserveData: true },
+    {
+      deps: [selectedRiskReportId, selectedSymbol, knownRiskHydrationKey],
+      enabled: canHydrateSelectedRisk && needsRiskHydration,
+      preserveData: true,
+    },
   );
   const paperTradeDetail = usePollingResource<PaperTradeDetailView | null>(
     () => (selectedTradeId ? apiClient.paperTradeDetail(selectedTradeId) : Promise.resolve(null)),
     selectedTradeId ? emptyPaperTradeDetail(selectedTradeId) : null,
-    { deps: [selectedTradeId], enabled: Boolean(selectedTradeId), preserveData: true },
+    { deps: [selectedTradeId], enabled: Boolean(selectedTradeId) && needsTradeHydration, preserveData: true },
   );
   const paperTradeTimeline = usePollingResource<TradeTimelineView | null>(
     () => (selectedTradeId ? apiClient.paperTradeTimeline(selectedTradeId) : Promise.resolve(null)),
@@ -688,22 +1437,22 @@ export function useDashboardData(
     [],
     { deps: [selectedTradeId], enabled: showReplay && Boolean(selectedTradeId) },
   );
-  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), [], { enabled: showTickets || Boolean(selectedTicketId) });
+  const tradeTickets = usePollingResource<TradeTicketView[]>(() => apiClient.tradeTickets(), [], { enabled: (showTickets || Boolean(selectedTicketId)) && !restoringResearch, preserveData: true });
   const tradeTicketSummary = usePollingResource<TicketSummaryView>(
     () => apiClient.tradeTicketSummary(),
     { generated_at: "", counts_by_state: {}, checklist_blockers: {}, shadow_active_count: 0, reconciliation_needed_count: 0, ready_for_review_count: 0 },
-    { enabled: showTickets },
+    { enabled: showTickets && !restoringResearch, preserveData: true },
   );
   const tradeTicketDetail = usePollingResource<TradeTicketDetailView | null>(
     () => (selectedTicketId ? apiClient.tradeTicketDetail(selectedTicketId) : Promise.resolve(null)),
     null,
-    { deps: [selectedTicketId], enabled: Boolean(selectedTicketId), preserveData: true },
+    { deps: [selectedTicketId], enabled: Boolean(selectedTicketId) && needsTicketHydration, preserveData: true },
   );
-  const shadowModeTickets = usePollingResource<TradeTicketDetailView[]>(() => apiClient.shadowModeTickets(), [], { enabled: showTickets });
+  const shadowModeTickets = usePollingResource<TradeTicketDetailView[]>(() => apiClient.shadowModeTickets(), [], { enabled: showTickets, preserveData: true });
   const brokerSnapshot = usePollingResource<BrokerAdapterSnapshotView>(
     () => apiClient.brokerSnapshot(),
     { generated_at: "", balances: [], positions: [], fill_imports: [] },
-    { enabled: showTickets },
+    { enabled: showTickets, preserveData: true },
   );
   const replay = usePollingResource<ReplayView>(
     () => apiClient.replay(selectedSymbol, selectedSignalId, selectedTradeId),
@@ -730,6 +1479,7 @@ export function useDashboardData(
 
   return {
     health,
+    selectedAssetTruth,
     overview,
     deskSummary,
     homeSummary,
@@ -750,6 +1500,7 @@ export function useDashboardData(
     signals,
     signalsSummary,
     signalDetail,
+    selectedSignalWorkspace,
     highRiskSignals,
     news,
     polymarketHunter,
@@ -757,6 +1508,7 @@ export function useDashboardData(
     watchlistSummary,
     opportunities,
     research,
+    researchRuns,
     risk,
     riskDetail,
     riskExposure,
@@ -778,6 +1530,7 @@ export function useDashboardData(
     scenarioStress,
     walletBalance,
     journal,
+    scenario,
     alerts,
     backtests,
     bars,

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/client";
+import { duplicateWorkflowIdentityBases, duplicateWorkflowSymbols, workflowIdentityLabel } from "../lib/workflowIdentity";
 import { formatDateTimeIST, compareTimestamps } from "../lib/time";
+import { sameTerminalFocusSymbol } from "../lib/terminalFocus";
+import { plainStatusLabel, proposalStateLabel, sourceTimingLabel, suitabilityLabel, titleCase } from "../lib/uiLabels";
 import { StateBlock } from "../components/StateBlock";
 import type {
   DataRealityView,
@@ -15,11 +18,17 @@ import type {
 
 interface ActiveTradesTabProps {
   proposedRows: PaperTradeView[];
+  proposedLoading?: boolean;
+  proposedError?: string | null;
+  openTradeCount?: number;
   activeRows: PaperTradeView[];
+  activeLoading?: boolean;
+  activeError?: string | null;
   closedRows: PaperTradeView[];
   detail: PaperTradeDetailView | null;
   selectedTradeId: string | null;
   selectedSymbol: string;
+  selectedDisplaySymbol?: string | null;
   selectedSignalId: string | null;
   selectedRiskReportId: string | null;
   selectedSignalReality: DataRealityView | null;
@@ -37,23 +46,74 @@ function compactNumber(value: number | null | undefined): string {
   return value.toFixed(Math.abs(value) >= 100 ? 2 : 4);
 }
 
+function displaySymbol(row: { symbol: string; display_symbol?: string | null; data_reality?: DataRealityView | null } | null | undefined): string {
+  return row?.display_symbol ?? row?.data_reality?.provenance.tradable_symbol ?? row?.symbol ?? "n/a";
+}
+
+function tradeLaneLabel(
+  row: PaperTradeView,
+  duplicateSymbols: Set<string>,
+  duplicateBaseIdentities: Set<string>,
+): string {
+  return workflowIdentityLabel(
+    {
+      symbol: displaySymbol(row),
+      family: row.linked_signal_family ?? row.strategy_id ?? "manual",
+      side: row.side,
+      lifecycle: proposalStateLabel(row.status),
+      accountabilityState: row.integrity_state && row.integrity_state !== "valid" ? "blocked" : row.review_due ? "review due" : null,
+      timestamp: row.opened_at ?? row.closed_at,
+    },
+    duplicateSymbols,
+    "trade",
+    duplicateBaseIdentities,
+  );
+}
+
+function tradeAccountabilityLabel(row: PaperTradeView): string {
+  if (row.integrity_state && row.integrity_state !== "valid") {
+    return "blocked";
+  }
+  if (row.review_due) {
+    return "review due";
+  }
+  if (row.closed_at) {
+    return "history";
+  }
+  return "active";
+}
+
 function TradeTable({
   title,
   rows,
+  emptyMessage,
+  onRetry,
   selectedTradeId,
   onSelect,
+  duplicateSymbols,
+  duplicateBaseIdentities,
 }: {
   title: string;
   rows: PaperTradeView[];
+  emptyMessage?: string;
+  onRetry?: () => void;
   selectedTradeId: string | null;
   onSelect: (trade: PaperTradeView) => void;
+  duplicateSymbols: Set<string>;
+  duplicateBaseIdentities: Set<string>;
 }) {
   return (
-    <article className="panel compact-panel">
-      <h3>{title}</h3>
-      {rows.length === 0 ? (
-        <p className="muted-copy">No trades in this state.</p>
-      ) : (
+      <article className="panel compact-panel detail-table-panel">
+        <h3>{title}</h3>
+        {rows.length === 0 ? (
+          <div className="stack">
+            <div className="showcase-note">
+              <strong className="showcase-note-title">{title} lane is quiet</strong>
+              <p className="showcase-note-body">{emptyMessage ?? "No trades in this state."}</p>
+            </div>
+            {emptyMessage && onRetry ? <button className="text-button" onClick={onRetry} type="button">Retry trade hydration</button> : null}
+          </div>
+        ) : (
         <table className="data-table">
           <thead>
             <tr>
@@ -72,12 +132,15 @@ function TradeTable({
                 key={row.trade_id}
                 onClick={() => onSelect(row)}
               >
-                <td>{row.symbol}</td>
-                <td>{row.status}</td>
+                <td>
+                  <strong>{tradeLaneLabel(row, duplicateSymbols, duplicateBaseIdentities)}</strong>
+                  <div className="muted-copy">{row.strategy_id ?? "manual paper ops"}</div>
+                </td>
+                <td>{proposalStateLabel(row.status)}</td>
                 <td>{compactNumber(row.actual_entry ?? row.proposed_entry_zone.low)}</td>
                 <td>{compactNumber(row.stop)}</td>
                 <td>{compactNumber(row.outcome?.realized_pnl_pct)}%</td>
-                <td>{row.review_due ? "due" : "ok"}</td>
+                <td>{tradeAccountabilityLabel(row)}</td>
               </tr>
             ))}
           </tbody>
@@ -89,11 +152,17 @@ function TradeTable({
 
 export function ActiveTradesTab({
   proposedRows,
+  proposedLoading = false,
+  proposedError = null,
+  openTradeCount = 0,
   activeRows,
+  activeLoading = false,
+  activeError = null,
   closedRows,
   detail,
   selectedTradeId,
   selectedSymbol,
+  selectedDisplaySymbol = null,
   selectedSignalId,
   selectedRiskReportId,
   selectedSignalReality,
@@ -104,8 +173,61 @@ export function ActiveTradesTab({
   onOpenRisk,
 }: ActiveTradesTabProps) {
   const allRows = useMemo(() => [...proposedRows, ...activeRows, ...closedRows], [activeRows, closedRows, proposedRows]);
-  const selectedTrade = detail ?? allRows.find((row) => row.trade_id === selectedTradeId) ?? allRows[0] ?? null;
-  const selectedReality = selectedTrade?.data_reality ?? detail?.linked_signal?.data_reality ?? selectedSignalReality;
+  const activeDuplicateShapes = useMemo(
+    () =>
+      [...proposedRows, ...activeRows].map((row) => ({
+        symbol: displaySymbol(row),
+        family: row.linked_signal_family ?? row.strategy_id ?? "manual",
+        side: row.side,
+        lifecycle: proposalStateLabel(row.status),
+        accountabilityState: row.integrity_state && row.integrity_state !== "valid" ? "blocked" : row.review_due ? "review due" : null,
+        timestamp: row.opened_at ?? row.closed_at,
+      })),
+    [activeRows, proposedRows],
+  );
+  const closedDuplicateShapes = useMemo(
+    () =>
+      closedRows.map((row) => ({
+        symbol: displaySymbol(row),
+        family: row.linked_signal_family ?? row.strategy_id ?? "manual",
+        side: row.side,
+        lifecycle: proposalStateLabel(row.status),
+        accountabilityState: row.integrity_state && row.integrity_state !== "valid" ? "blocked" : row.review_due ? "review due" : null,
+        timestamp: row.opened_at ?? row.closed_at,
+      })),
+    [closedRows],
+  );
+  const activeDuplicateSymbols = useMemo(() => duplicateWorkflowSymbols(activeDuplicateShapes), [activeDuplicateShapes]);
+  const activeDuplicateBaseIdentities = useMemo(
+    () => duplicateWorkflowIdentityBases(activeDuplicateShapes),
+    [activeDuplicateShapes],
+  );
+  const closedDuplicateSymbols = useMemo(() => duplicateWorkflowSymbols(closedDuplicateShapes), [closedDuplicateShapes]);
+  const closedDuplicateBaseIdentities = useMemo(
+    () => duplicateWorkflowIdentityBases(closedDuplicateShapes),
+    [closedDuplicateShapes],
+  );
+  const focusDisplaySymbol = selectedDisplaySymbol ?? selectedSymbol;
+  const focusRows = useMemo(
+    () => allRows.filter((row) => sameTerminalFocusSymbol(row.symbol, selectedSymbol)),
+    [allRows, selectedSymbol],
+  );
+  const focusClosedRows = useMemo(
+    () => closedRows.filter((row) => sameTerminalFocusSymbol(row.symbol, selectedSymbol)),
+    [closedRows, selectedSymbol],
+  );
+  const selectedTrade = detail
+    ?? allRows.find((row) => row.trade_id === selectedTradeId)
+    ?? focusRows[0]
+    ?? (!selectedSymbol ? allRows[0] : null)
+    ?? null;
+  const linkedSignal = detail?.linked_signal ?? null;
+  const linkedRisk = detail?.linked_risk ?? null;
+  const selectedReality = selectedTrade?.data_reality ?? linkedSignal?.data_reality ?? selectedSignalReality;
+  const selectedTradeIntegrityBlocked = Boolean(selectedTrade?.integrity_state && selectedTrade.integrity_state !== "valid");
+  const missingLinkedSignal = Boolean(detail?.signal_id) && !linkedSignal;
+  const missingLinkedRisk = Boolean(detail?.risk_report_id) && !linkedRisk;
+  const focusReviewDueCount = focusClosedRows.filter((row) => row.review_due).length;
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +236,7 @@ export function ActiveTradesTab({
     signal_id: selectedSignalId ?? "",
     risk_report_id: selectedRiskReportId,
     strategy_id: "manual_paper_ops",
-    symbol: selectedSymbol || "BTC",
+    symbol: selectedDisplaySymbol ?? selectedSymbol ?? "BTC",
     side: "long",
     notes: "",
   });
@@ -148,9 +270,9 @@ export function ActiveTradesTab({
       ...current,
       signal_id: selectedSignalId ?? current.signal_id,
       risk_report_id: selectedRiskReportId,
-      symbol: selectedSymbol || current.symbol,
+      symbol: selectedDisplaySymbol ?? selectedSymbol ?? current.symbol,
     }));
-  }, [selectedRiskReportId, selectedSignalId, selectedSymbol]);
+  }, [selectedDisplaySymbol, selectedRiskReportId, selectedSignalId, selectedSymbol]);
 
   useEffect(() => {
     setOpenDraft({
@@ -224,30 +346,81 @@ export function ActiveTradesTab({
     }
   }
 
+  const proposedHydrationMessage =
+    !proposedRows.length
+      ? proposedLoading
+        ? "Proposed rows are hydrating from the current paper-trade state."
+        : proposedError
+          ? `Proposed rows did not load cleanly. ${proposedError}`
+          : openTradeCount > 0
+            ? "Proposed rows are reconciling against the current paper-trade state."
+            : focusClosedRows.length > 0
+              ? `No proposed trades are open for ${focusDisplaySymbol}. Last known workflow context is ${focusClosedRows.length} recently closed trade(s), with ${focusReviewDueCount} still awaiting review.`
+              : undefined
+      : undefined;
+  const activeHydrationMessage =
+    !activeRows.length
+      ? activeLoading
+        ? "Active rows are hydrating from the current paper-trade state."
+        : activeError
+          ? `Active rows did not load cleanly. ${activeError}`
+          : openTradeCount > 0
+            ? "Some active paper trades were withheld because their linked context or tracking state could not be hydrated truthfully."
+            : focusClosedRows.length > 0
+              ? `No active trades are open for ${focusDisplaySymbol}. The most recent truthful context is ${focusClosedRows.length} closed trade(s), with ${focusReviewDueCount} review item(s) still due.`
+              : undefined
+      : undefined;
+  const proposedRetryEnabled = Boolean(proposedError || (!proposedLoading && openTradeCount > 0));
+  const activeRetryEnabled = Boolean(activeError || (!activeLoading && openTradeCount > 0));
+
   return (
     <div className="split-stack">
       <div className="stack">
         <StateBlock error={error} />
-        <TradeTable onSelect={selectTrade} rows={proposedRows} selectedTradeId={selectedTradeId} title="Proposed" />
-        <TradeTable onSelect={selectTrade} rows={activeRows} selectedTradeId={selectedTradeId} title="Active" />
-        <TradeTable onSelect={selectTrade} rows={closedRows} selectedTradeId={selectedTradeId} title="Closed" />
+        <TradeTable
+          emptyMessage={proposedHydrationMessage}
+          onRetry={proposedRetryEnabled ? () => void onChanged() : undefined}
+          onSelect={selectTrade}
+          rows={proposedRows}
+          selectedTradeId={selectedTradeId}
+          title="Proposed"
+          duplicateSymbols={activeDuplicateSymbols}
+          duplicateBaseIdentities={activeDuplicateBaseIdentities}
+        />
+        <TradeTable
+          emptyMessage={activeHydrationMessage}
+          onRetry={activeRetryEnabled ? () => void onChanged() : undefined}
+          onSelect={selectTrade}
+          rows={activeRows}
+          selectedTradeId={selectedTradeId}
+          title="Active"
+          duplicateSymbols={activeDuplicateSymbols}
+          duplicateBaseIdentities={activeDuplicateBaseIdentities}
+        />
+        <TradeTable
+          emptyMessage={
+            focusRows.length > 0
+              ? `No recent closed trades are recorded for ${focusDisplaySymbol} yet.`
+              : undefined
+          }
+          onSelect={selectTrade}
+          rows={closedRows}
+          selectedTradeId={selectedTradeId}
+          title={focusClosedRows.length > 0 ? "Closed / Recent context" : "Closed"}
+          duplicateSymbols={closedDuplicateSymbols}
+          duplicateBaseIdentities={closedDuplicateBaseIdentities}
+        />
       </div>
 
       <div className="stack">
-        <article className="panel compact-panel">
+        <article className="panel compact-panel detail-shell-panel active-trade-proposal-panel">
           <h3>Propose Paper Trade</h3>
+          <div className="stack">
+            <small>Signal context: {detail?.linked_signal ? `${displaySymbol(detail.linked_signal)} ${titleCase(detail.linked_signal.signal_type)}` : selectedSignalId ? "Loaded from selected setup" : "no signal selected"}</small>
+            <small>Risk context: {detail?.linked_risk ? `${displaySymbol(detail.linked_risk)} stop ${compactNumber(detail.linked_risk.stop_price)}` : selectedRiskReportId ? "Loaded from selected risk frame" : "no risk selected"}</small>
+            {!proposalDraft.signal_id ? <small>Select a signal first to create a proposal from the current setup and risk frame.</small> : null}
+          </div>
           <div className="field-grid">
-            <label className="field">
-              <span>Signal</span>
-              <input value={proposalDraft.signal_id} onChange={(event) => setProposalDraft((current) => ({ ...current, signal_id: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Risk</span>
-              <input
-                value={proposalDraft.risk_report_id ?? ""}
-                onChange={(event) => setProposalDraft((current) => ({ ...current, risk_report_id: event.target.value || null }))}
-              />
-            </label>
             <label className="field">
               <span>Strategy</span>
               <input
@@ -277,13 +450,14 @@ export function ActiveTradesTab({
                 <span>
                   {selectedSignalReality.provenance.research_symbol} {"->"} {selectedSignalReality.provenance.tradable_symbol}
                 </span>
-                <span>{selectedSignalReality.provenance.source_timing}</span>
+                <span>{sourceTimingLabel(selectedSignalReality.provenance.source_timing)}</span>
               </div>
               <div className="metric-row compact-row">
-                <span>{selectedSignalReality.execution_suitability}</span>
-                <span>{selectedSignalReality.news_suitability}</span>
+                <span>{selectedSignalReality.execution_grade_allowed ? "Execution-capable" : "Not execution-grade"}</span>
+                <span>{suitabilityLabel(selectedSignalReality.news_suitability)}</span>
               </div>
               <small>{selectedSignalReality.tradable_alignment_note}</small>
+              {!selectedSignalReality.execution_grade_allowed ? <small>Commodity truth is degraded here. Keep proposals in research and paper workflow only.</small> : null}
             </div>
           ) : null}
           <div className="metric-row">
@@ -294,36 +468,54 @@ export function ActiveTradesTab({
           </div>
         </article>
 
-        <article className="panel compact-panel">
+        <article className="panel compact-panel hero-panel detail-shell-panel active-trade-detail-panel">
           <h3>Selected Paper Trade</h3>
           {selectedTrade ? (
             <>
               <div className="metric-grid">
                 <div>
                   <span className="metric-label">Trade</span>
-                  <strong>{selectedTrade.trade_id}</strong>
+                  <strong>{selectedTrade.display_symbol ?? selectedTrade.data_reality?.provenance.tradable_symbol ?? selectedTrade.symbol} {proposalStateLabel(selectedTrade.status)}</strong>
+                  <small>{formatDateTimeIST(selectedTrade.opened_at ?? selectedTrade.closed_at ?? null)}</small>
                 </div>
                 <div>
                   <span className="metric-label">State</span>
-                  <strong>{selectedTrade.status}</strong>
+                  <strong>{proposalStateLabel(selectedTrade.status)}</strong>
                 </div>
                 <div>
                   <span className="metric-label">Asset</span>
-                  <strong>{selectedTrade.symbol}</strong>
+                  <strong>{displaySymbol(selectedTrade)}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Setup family</span>
+                  <strong>{selectedTrade.linked_signal_family ?? selectedTrade.strategy_id ?? "manual"}</strong>
                 </div>
                 <div>
                   <span className="metric-label">Realized</span>
                   <strong>{compactNumber(selectedTrade.outcome?.realized_pnl_pct)}%</strong>
                 </div>
               </div>
-              <div className="metric-row">
-                {selectedTrade.signal_id ? (
-                  <button className="text-button" onClick={() => onOpenSignal(selectedTrade.signal_id!)} type="button">
+              <div className="stack detail-meta-stack">
+                <small>Signal source: {linkedSignal ? `${displaySymbol(linkedSignal)} ${titleCase(linkedSignal.signal_type)}` : missingLinkedSignal ? "Linked setup is no longer available." : selectedTrade.signal_id ? "Signal reference is attached to this trade and will resolve when the current setup is available." : "No linked signal"}</small>
+                <small>Risk frame: {linkedRisk ? `${displaySymbol(linkedRisk)} stop ${compactNumber(linkedRisk.stop_price)}` : missingLinkedRisk ? "Linked risk frame is no longer available." : selectedTrade.risk_report_id ? "Risk reference is attached to this trade and will resolve when the current frame is available." : "No linked risk"}</small>
+                {selectedTradeIntegrityBlocked ? (
+                  <>
+                    <small>Integrity state: {titleCase(selectedTrade.integrity_state ?? "broken")}</small>
+                    <small>{selectedTrade.integrity_note ?? "This paper trade is preserved for auditability, but its linked context no longer hydrates truthfully."}</small>
+                    <small>Operator actions are blocked here until the trade is reconciled, archived, or reviewed from history.</small>
+                  </>
+                ) : (
+                  <small>Next obligation: {selectedTrade.review_due ? "complete the post-trade review chain before treating this as closed-loop discipline." : selectedTrade.closed_at ? "keep this trade in audit/history unless you need to inspect the completed loop." : "carry this trade into ticket follow-through, observation, or closure without leaving the audit thread behind."}</small>
+                )}
+              </div>
+              <div className="metric-row detail-action-row">
+                {linkedSignal ? (
+                  <button className="text-button" onClick={() => onOpenSignal(linkedSignal.signal_id)} type="button">
                     Open Signal
                   </button>
                 ) : null}
-                {selectedTrade.risk_report_id ? (
-                  <button className="text-button" onClick={() => onOpenRisk(selectedTrade.risk_report_id!)} type="button">
+                {linkedRisk ? (
+                  <button className="text-button" onClick={() => onOpenRisk(linkedRisk.risk_report_id)} type="button">
                     Open Risk
                   </button>
                 ) : null}
@@ -352,22 +544,23 @@ export function ActiveTradesTab({
               </div>
               <p className="muted-copy">{selectedTrade.notes || "No operator notes on this trade yet."}</p>
               {selectedReality ? (
-                <div className="stack">
+                <div className="stack detail-meta-stack">
                   <div className="metric-row compact-row">
                     <span>
                       {selectedReality.provenance.research_symbol} {"->"} {selectedReality.provenance.tradable_symbol}
                     </span>
-                    <span>{selectedReality.provenance.intended_venue}</span>
+                    <span>{plainStatusLabel(selectedReality.provenance.intended_venue)}</span>
                   </div>
                   <div className="metric-row compact-row">
-                    <span>{selectedReality.execution_suitability}</span>
-                    <span>{selectedReality.provenance.source_timing}</span>
+                    <span>{selectedReality.execution_grade_allowed ? "Execution-capable" : "Not execution-grade"}</span>
+                    <span>{sourceTimingLabel(selectedReality.provenance.source_timing)}</span>
                   </div>
+                  {!selectedReality.execution_grade_allowed ? <small>Current commodity truth is degraded or proxy-backed. Keep this paper-trade path explicitly research-only.</small> : null}
                   {selectedReality.event_context_note ? <small>{selectedReality.event_context_note}</small> : null}
                 </div>
               ) : null}
               {selectedTrade.paper_account ? (
-                <article className="panel compact-panel">
+                <article className="panel compact-panel detail-subpanel">
                   <h4>10k Paper Account</h4>
                   <div className="metric-grid">
                     <div>
@@ -398,7 +591,7 @@ export function ActiveTradesTab({
                 </article>
               ) : null}
               {selectedTrade.execution_realism ? (
-                <article className="panel compact-panel">
+                <article className="panel compact-panel detail-subpanel">
                   <h4>Execution Realism</h4>
                   <div className="metric-grid">
                     <div>
@@ -430,12 +623,12 @@ export function ActiveTradesTab({
                 </article>
               ) : null}
               {selectedTrade.execution_quality ? (
-                <article className="panel compact-panel">
+                <article className="panel compact-panel detail-subpanel">
                   <h4>Execution Diagnostics</h4>
                   <div className="metric-row compact-row">
-                    <span>signal: {selectedTrade.execution_quality.signal_quality}</span>
-                    <span>plan: {selectedTrade.execution_quality.plan_quality}</span>
-                    <span>execution: {selectedTrade.execution_quality.execution_quality}</span>
+                    <span>signal: {plainStatusLabel(selectedTrade.execution_quality.signal_quality)}</span>
+                    <span>plan: {plainStatusLabel(selectedTrade.execution_quality.plan_quality)}</span>
+                    <span>execution: {plainStatusLabel(selectedTrade.execution_quality.execution_quality)}</span>
                   </div>
                   <div className="metric-row compact-row">
                     <span>slippage {compactNumber(selectedTrade.execution_quality.slippage_penalty_bps)} bps</span>
@@ -448,8 +641,8 @@ export function ActiveTradesTab({
                 </article>
               ) : null}
 
-              {selectedTrade.status === "proposed" ? (
-                <div className="stack">
+              {selectedTrade.status === "proposed" && !selectedTradeIntegrityBlocked ? (
+                <div className="stack detail-action-surface">
                   <div className="field-grid">
                     <label className="field">
                       <span>Actual Entry</span>
@@ -472,7 +665,7 @@ export function ActiveTradesTab({
                     <span>Open Notes</span>
                     <textarea value={openDraft.notes ?? ""} onChange={(event) => setOpenDraft((current) => ({ ...current, notes: event.target.value }))} />
                   </label>
-                  <div className="metric-row">
+                  <div className="metric-row detail-action-row">
                     <button
                       className="text-button"
                       disabled={busy === "open"}
@@ -493,8 +686,8 @@ export function ActiveTradesTab({
                 </div>
               ) : null}
 
-              {["opened", "scaled_in", "partially_exited"].includes(selectedTrade.status) ? (
-                <div className="stack">
+              {["opened", "scaled_in", "partially_exited"].includes(selectedTrade.status) && !selectedTradeIntegrityBlocked ? (
+                <div className="stack detail-action-surface">
                   <div className="field-grid">
                     <label className="field">
                       <span>Scale Entry</span>
@@ -544,7 +737,7 @@ export function ActiveTradesTab({
                       />
                     </label>
                   </div>
-                  <div className="metric-row">
+                  <div className="metric-row detail-action-row">
                     <button
                       className="text-button"
                       disabled={busy === "scale"}
@@ -570,7 +763,7 @@ export function ActiveTradesTab({
                       {busy === "close" ? "Saving…" : "Close"}
                     </button>
                   </div>
-                  <div className="metric-row">
+                  <div className="metric-row detail-action-row">
                     <button
                       className="text-button"
                       disabled={busy === "invalidate"}
@@ -591,7 +784,7 @@ export function ActiveTradesTab({
                 </div>
               ) : null}
 
-              <article className="panel compact-panel">
+              <article className="panel compact-panel detail-subpanel">
                 <h4>Outcome Attribution</h4>
                 {selectedTrade.outcome ? (
                   <div className="metric-grid">
@@ -621,10 +814,12 @@ export function ActiveTradesTab({
                     </div>
                   </div>
                 ) : (
-                  <p className="muted-copy">No attribution yet.</p>
+                  <div className="showcase-note showcase-note-inline">
+                    <p className="showcase-note-body">No attribution yet.</p>
+                  </div>
                 )}
               </article>
-              <article className="panel compact-panel">
+              <article className="panel compact-panel detail-subpanel">
                 <h4>Trade Timeline</h4>
                 {detail?.timeline ? (
                   <div className="stack">
@@ -640,10 +835,12 @@ export function ActiveTradesTab({
                       ))}
                   </div>
                 ) : (
-                  <p className="muted-copy">Timeline will populate once the trade detail is loaded.</p>
+                  <div className="showcase-note showcase-note-inline">
+                    <p className="showcase-note-body">Timeline will populate once the trade detail is loaded.</p>
+                  </div>
                 )}
               </article>
-              <article className="panel compact-panel">
+              <article className="panel compact-panel detail-subpanel">
                 <h4>Scenario Stress</h4>
                 {detail?.scenario_stress?.length ? (
                   <table className="data-table">
@@ -667,12 +864,17 @@ export function ActiveTradesTab({
                     </tbody>
                   </table>
                 ) : (
-                  <p className="muted-copy">No scenario stress summary yet.</p>
+                  <div className="showcase-note showcase-note-inline">
+                    <p className="showcase-note-body">No scenario stress summary yet.</p>
+                  </div>
                 )}
               </article>
             </>
           ) : (
-            <p className="muted-copy">No paper trade selected.</p>
+            <div className="showcase-note">
+              <strong className="showcase-note-title">Select a paper trade</strong>
+              <p className="showcase-note-body">No paper trade selected.</p>
+            </div>
           )}
         </article>
       </div>

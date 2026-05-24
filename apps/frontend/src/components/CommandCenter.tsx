@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import { apiClient } from "../api/client";
+import { buildWorkspaceHref, operatorWireTarget, type WorkspaceRouteState, type WorkspaceTarget } from "../lib/workspaceNavigation";
 import { formatDateTimeIST } from "../lib/time";
-import type { CommandCenterStatusView, OpsActionSpecView, OpsActionView, OpsSummaryView } from "../types/api";
+import { operatorWireCategoryLabel, operatorWireFreshnessLabel, recoveryReasonLabel, recoveryStatusLabel, titleCase } from "../lib/uiLabels";
+import type { CommandCenterStatusView, CommodityTruthStatusView, OperatorWireItemView, OpsActionSpecView, OpsActionView, OpsSummaryView } from "../types/api";
+import { RealityStrip } from "./RealityStrip";
 
 interface CommandCenterProps {
   status: CommandCenterStatusView;
   summary: OpsSummaryView;
   onRefreshAll: () => Promise<void>;
+  onOpenWireItem?: (item: OperatorWireItemView) => void;
+  onNavigateWorkspaceTarget?: (target: WorkspaceTarget) => void;
+  selectedSymbol?: string | null;
+  workspaceBaseState?: WorkspaceRouteState;
 }
 
 function formatTimestamp(value: string | null | undefined): string {
@@ -20,9 +27,40 @@ function renderActionStatus(action: OpsActionView | null | undefined): string {
   return `${action.status} / ${formatTimestamp(action.finished_at ?? action.started_at)}`;
 }
 
-export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterProps) {
+function shouldHandleInAppNavigation(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return !event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+}
+
+export function CommandCenter({
+  status,
+  summary,
+  onRefreshAll,
+  onOpenWireItem,
+  onNavigateWorkspaceTarget,
+  selectedSymbol = null,
+  workspaceBaseState,
+}: CommandCenterProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const effectiveLastRefresh =
+    status.last_refresh
+    ?? status.latest_refresh_action?.finished_at
+    ?? status.latest_refresh_action?.started_at
+    ?? status.diagnostics_updated_at
+    ?? null;
+  const recovery = status.recovery_telemetry;
+  const priorityWire = status.priority_wire?.items ?? [];
+  const recoveryTruth: CommodityTruthStatusView | null = recovery
+    ? {
+      truth_state: recovery.truth_state,
+      truth_label: recovery.truth_label,
+      truth_note: recovery.recovery_reason ? recoveryReasonLabel(recovery.recovery_reason) : recovery.truth_label,
+      last_verified_at: null,
+      last_verified_age_minutes: null,
+      recovery_in_progress: recovery.recovery_active ?? false,
+      blocking_reason: recovery.blocking_reason ?? undefined,
+    }
+    : null;
 
   function displayLabel(action: OpsActionSpecView): string {
     if (action.action_name === "fixture_refresh") {
@@ -79,11 +117,11 @@ export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterPr
   }
 
   return (
-    <section className="panel command-center">
+    <section className="panel command-center terminal-console-panel showcase-command-center">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Command Center</p>
-          <h2>Operations Console</h2>
+          <p className="eyebrow">Global Wire</p>
+          <h2>Operator Command Center</h2>
         </div>
         <div className="inline-tags">
           <span className="tag">{status.runtime_status}</span>
@@ -93,17 +131,17 @@ export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterPr
         </div>
       </div>
 
-      <div className="metric-grid">
+      <div className="metric-grid command-center-metrics console-strip analyst-console-strip">
         <div>
-          <span className="metric-label">Pipeline Freshness</span>
+          <span className="metric-label">Pipeline</span>
           <strong>{status.pipeline_freshness_minutes}m</strong>
         </div>
         <div>
-          <span className="metric-label">Last Refresh</span>
-          <strong>{formatTimestamp(status.last_refresh)}</strong>
+          <span className="metric-label">Last refresh</span>
+          <strong>{formatTimestamp(effectiveLastRefresh)}</strong>
         </div>
         <div>
-          <span className="metric-label">Frontend Runtime</span>
+          <span className="metric-label">Frontend</span>
           <strong>{status.frontend_runtime_status}</strong>
         </div>
         <div>
@@ -112,64 +150,165 @@ export function CommandCenter({ status, summary, onRefreshAll }: CommandCenterPr
         </div>
       </div>
 
-      <div className="desk-grid">
-        <article className="panel compact-panel">
-          <h3>Safe / Common</h3>
-          <p className="muted-copy">Normal daily operations that keep fixture-first workflows current.</p>
-          {renderActionButtons(status.safe_actions)}
-        </article>
+      <div className="command-center-grid focus-layout">
+        <div className="command-center-main">
+          <article className="panel compact-panel terminal-subpanel hero-panel command-center-wire-panel detail-shell-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Priority Wire</h3>
+                <p className="muted-copy">The few changes that still alter desk posture right now.</p>
+              </div>
+              <span className="tag">{priorityWire.length} item{priorityWire.length === 1 ? "" : "s"}</span>
+            </div>
+            {priorityWire.length === 0 ? (
+              <div className="showcase-note showcase-note-inline">
+                <p className="showcase-note-body">No priority wire items are published for this runtime yet.</p>
+              </div>
+            ) : (
+              <div className="stack wire-list">
+                {priorityWire.map((item, index) => (
+                  <a
+                    className="news-item wire-row command-wire-row"
+                    href={buildWorkspaceHref(operatorWireTarget(item, selectedSymbol), { baseState: workspaceBaseState })}
+                    key={`${item.category}-${item.headline}-${index}`}
+                    onClick={(event) => {
+                      if (!shouldHandleInAppNavigation(event)) {
+                        return;
+                      }
+                      event.preventDefault();
+                      const target = operatorWireTarget(item, selectedSymbol);
+                      if (onNavigateWorkspaceTarget) {
+                        onNavigateWorkspaceTarget(target);
+                        return;
+                      }
+                      onOpenWireItem?.(item);
+                    }}
+                  >
+                    <div className="metric-row compact-row">
+                      <strong>{item.headline}</strong>
+                      <span>{operatorWireCategoryLabel(item.category)}</span>
+                    </div>
+                    <small>{item.summary}</small>
+                    <div className="metric-row compact-row">
+                      <span>{item.symbol ?? "desk-wide"}</span>
+                      <span>{item.action_label ?? operatorWireFreshnessLabel(item)}</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </article>
 
-        <article className="panel compact-panel">
-          <h3>Heavy / Maintenance</h3>
-          <p className="muted-copy">Explicit confirmation required before slower verification or bundle tasks run.</p>
-          {renderActionButtons(status.heavy_actions)}
-        </article>
+          <article className="panel compact-panel terminal-subpanel command-center-history-panel detail-subpanel">
+            <div className="panel-header">
+              <div>
+                <h3>Recent Actions</h3>
+                <p className="muted-copy">Verification, export, and maintenance activity in one short tape.</p>
+              </div>
+            </div>
+            {summary.action_history.length === 0 ? (
+              <div className="showcase-note showcase-note-inline">
+                <p className="showcase-note-body">No recent command-center actions recorded.</p>
+              </div>
+            ) : (
+              <div className="stack wire-list">
+                {summary.action_history.slice(0, 8).map((item) => (
+                  <div className="news-item wire-row" key={item.action_id}>
+                    <strong>{item.action_name}</strong>
+                    <small>
+                      {item.status} / {formatTimestamp(item.finished_at ?? item.started_at)}
+                    </small>
+                    <small>{item.summary}</small>
+                    {item.log_path ? <small>{item.log_path}</small> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+        </div>
 
-        <article className="panel compact-panel">
-          <h3>Latest Runs</h3>
-          <div className="stack">
-            <div className="metric-row compact-row">
-              <span>Fast Verify</span>
-              <span>{renderActionStatus(status.latest_fast_verify)}</span>
+        <div className="command-center-support">
+          <article className="panel compact-panel terminal-subpanel command-center-actions-panel detail-subpanel">
+            <div className="panel-header">
+              <div>
+                <h3>Daily Actions</h3>
+                <p className="muted-copy">Fast, normal operations for keeping the local desk current.</p>
+              </div>
             </div>
-            <div className="metric-row compact-row">
-              <span>Full Verify</span>
-              <span>{renderActionStatus(status.latest_full_verify)}</span>
-            </div>
-            <div className="metric-row compact-row">
-              <span>Pilot Export</span>
-              <span>{renderActionStatus(status.latest_export)}</span>
-            </div>
-            <div className="metric-row compact-row">
-              <span>Review Bundle</span>
-              <span>{renderActionStatus(status.latest_bundle)}</span>
-            </div>
-            <div className="metric-row compact-row">
-              <span>Contract Snapshots</span>
-              <span>{renderActionStatus(status.latest_contract_snapshot)}</span>
-            </div>
-          </div>
-        </article>
+            {renderActionButtons(status.safe_actions)}
+          </article>
 
-        <article className="panel compact-panel">
-          <h3>Action History</h3>
-          {summary.action_history.length === 0 ? (
-            <p className="muted-copy">No recent command-center actions recorded.</p>
-          ) : (
-            <div className="stack">
-              {summary.action_history.slice(0, 8).map((item) => (
-                <div className="news-item" key={item.action_id}>
-                  <strong>{item.action_name}</strong>
-                  <small>
-                    {item.status} / {formatTimestamp(item.finished_at ?? item.started_at)}
-                  </small>
-                  <small>{item.summary}</small>
-                  {item.log_path ? <small>{item.log_path}</small> : null}
+          <article className="panel compact-panel terminal-subpanel command-center-actions-panel detail-subpanel">
+            <div className="panel-header">
+              <div>
+                <h3>Heavy Actions</h3>
+                <p className="muted-copy">Slower maintenance paths that require explicit confirmation.</p>
+              </div>
+            </div>
+            {renderActionButtons(status.heavy_actions)}
+          </article>
+
+          <article className="panel compact-panel terminal-subpanel command-center-support-group detail-subpanel">
+            <section className="command-center-support-section">
+              <div className="panel-header">
+                <div>
+                  <h3>Commodity Recovery</h3>
+                  <p className="muted-copy">Current commodity-truth recovery posture and retry timing.</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </article>
+              </div>
+              {recovery ? (
+                <div className="stack">
+                  <RealityStrip commodityTruth={recoveryTruth} recovery={recovery} className="command-reality-strip" />
+                  <div className="metric-row compact-row">
+                    <span>Attempts</span>
+                    <span>{recovery.recovery_attempt_count ?? 0}</span>
+                  </div>
+                  <div className="metric-row compact-row">
+                    <span>Last / Next</span>
+                    <span>{formatTimestamp(recovery.recovery_last_attempt_at)} {"->"} {formatTimestamp(recovery.recovery_next_attempt_at)}</span>
+                  </div>
+                  <small>{recoveryReasonLabel(recovery.recovery_reason)}</small>
+                  {recovery.blocking_reason ? <small>Blocking reason: {titleCase(recovery.blocking_reason)}</small> : null}
+                </div>
+              ) : (
+                <div className="showcase-note showcase-note-inline">
+                  <p className="showcase-note-body">Recovery telemetry is not published for this runtime yet.</p>
+                </div>
+              )}
+            </section>
+
+            <section className="command-center-support-section">
+              <div className="panel-header">
+                <div>
+                  <h3>Latest Runs</h3>
+                  <p className="muted-copy">Latest verification, export, and contract snapshot outcomes.</p>
+                </div>
+              </div>
+              <div className="stack">
+                <div className="metric-row compact-row">
+                  <span>Fast Verify</span>
+                  <span>{renderActionStatus(status.latest_fast_verify)}</span>
+                </div>
+                <div className="metric-row compact-row">
+                  <span>Full Verify</span>
+                  <span>{renderActionStatus(status.latest_full_verify)}</span>
+                </div>
+                <div className="metric-row compact-row">
+                  <span>Pilot Export</span>
+                  <span>{renderActionStatus(status.latest_export)}</span>
+                </div>
+                <div className="metric-row compact-row">
+                  <span>Review Bundle</span>
+                  <span>{renderActionStatus(status.latest_bundle)}</span>
+                </div>
+                <div className="metric-row compact-row">
+                  <span>Contract Snapshots</span>
+                  <span>{renderActionStatus(status.latest_contract_snapshot)}</span>
+                </div>
+              </div>
+            </section>
+          </article>
+        </div>
       </div>
 
       <div className="stack">

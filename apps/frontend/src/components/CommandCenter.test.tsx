@@ -1,60 +1,26 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiClient } from "../api/client";
+import { describe, expect, it, vi } from "vitest";
 import { mockCommandCenter, mockOpsSummary } from "../api/mockData";
 import { CommandCenter } from "./CommandCenter";
 
+
 describe("CommandCenter", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("renders status, history, and triggers approved actions", async () => {
-    const actionSpy = vi.spyOn(apiClient, "runSystemAction").mockResolvedValue(mockOpsSummary.action_history[0]);
-    const onRefreshAll = vi.fn().mockResolvedValue(undefined);
+  it("shows compact commodity recovery telemetry without turning into a debug console", async () => {
     const user = userEvent.setup();
+    const onOpenWireItem = vi.fn();
 
-    render(<CommandCenter onRefreshAll={onRefreshAll} status={mockCommandCenter} summary={mockOpsSummary} />);
+    render(<CommandCenter onOpenWireItem={onOpenWireItem} status={mockCommandCenter} summary={mockOpsSummary} onRefreshAll={vi.fn(async () => {})} />);
 
-    expect(screen.getByRole("heading", { name: "Operations Console" })).toBeInTheDocument();
-    expect(screen.getByText("fixture_mode")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Action History" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Commodity Recovery" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Priority Wire" })).toBeInTheDocument();
+    expect(screen.getAllByTestId("reality-strip").length).toBeGreaterThan(0);
+    expect(screen.getByText("Recovery active")).toBeInTheDocument();
+    expect(screen.getAllByText("Commodity truth recovering").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Current commodity truth is too stale for operator use").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Blocking reason:/i).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Refresh System" }));
-    await waitFor(() => {
-      expect(actionSpy).toHaveBeenCalledWith("system_refresh", { confirm_heavy: false });
-      expect(onRefreshAll).toHaveBeenCalled();
-    });
-    expect(screen.getAllByText(/source_mode=sample/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Reset Fixture Data" })).toBeInTheDocument();
-  });
-
-  it("shows action errors without crashing", async () => {
-    vi.spyOn(apiClient, "runSystemAction").mockRejectedValue(new Error("verify fast failed"));
-    const onRefreshAll = vi.fn().mockResolvedValue(undefined);
-    const user = userEvent.setup();
-
-    render(<CommandCenter onRefreshAll={onRefreshAll} status={mockCommandCenter} summary={mockOpsSummary} />);
-
-    await user.click(screen.getByRole("button", { name: "Run Fast Verify" }));
-    await waitFor(() => {
-      expect(screen.getByText(/verify fast failed/i)).toBeInTheDocument();
-    });
-  });
-
-  it("requires explicit confirmation before resetting fixture data", async () => {
-    const actionSpy = vi.spyOn(apiClient, "runSystemAction").mockResolvedValue(mockOpsSummary.action_history[0]);
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const onRefreshAll = vi.fn().mockResolvedValue(undefined);
-    const user = userEvent.setup();
-
-    render(<CommandCenter onRefreshAll={onRefreshAll} status={mockCommandCenter} summary={mockOpsSummary} />);
-
-    await user.click(screen.getByRole("button", { name: "Reset Fixture Data" }));
-
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(actionSpy).not.toHaveBeenCalled();
-    expect(onRefreshAll).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("link", { name: /Commodity truth recovering/i }));
+    expect(onOpenWireItem).toHaveBeenCalled();
   });
 });

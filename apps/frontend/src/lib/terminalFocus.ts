@@ -2,8 +2,41 @@ import type { WatchlistSummaryView } from "../types/api";
 
 export const TERMINAL_FOCUS_ORDER = ["WTI", "GOLD", "SILVER", "BTC", "ETH", "DXY", "US10Y", "VIX"] as const;
 
+const TERMINAL_FOCUS_ALIASES: Record<string, (typeof TERMINAL_FOCUS_ORDER)[number]> = {
+  WTI: "WTI",
+  WTI_CTX: "WTI",
+  "CL=F": "WTI",
+  USOUSD: "WTI",
+  GOLD: "GOLD",
+  "GC=F": "GOLD",
+  XAUUSD: "GOLD",
+  SILVER: "SILVER",
+  XAG_CTX: "SILVER",
+  "SI=F": "SILVER",
+  XAGUSD: "SILVER",
+  BTC: "BTC",
+  BTCUSD: "BTC",
+  ETH: "ETH",
+  ETHUSD: "ETH",
+  DXY: "DXY",
+  US10Y: "US10Y",
+  VIX: "VIX",
+};
+
+export function normalizeTerminalFocusSymbol(symbol: string): string {
+  return TERMINAL_FOCUS_ALIASES[symbol] ?? symbol;
+}
+
+export function sameTerminalFocusSymbol(left: string | null | undefined, right: string | null | undefined): boolean {
+  if (!left || !right) {
+    return left === right;
+  }
+  return normalizeTerminalFocusSymbol(left) === normalizeTerminalFocusSymbol(right);
+}
+
 export function terminalFocusPriority(symbol: string): number {
-  const index = TERMINAL_FOCUS_ORDER.indexOf(symbol as (typeof TERMINAL_FOCUS_ORDER)[number]);
+  const normalizedSymbol = normalizeTerminalFocusSymbol(symbol);
+  const index = TERMINAL_FOCUS_ORDER.indexOf(normalizedSymbol as (typeof TERMINAL_FOCUS_ORDER)[number]);
   return index === -1 ? TERMINAL_FOCUS_ORDER.length + 50 : index;
 }
 

@@ -11,7 +11,7 @@ describe("apiClient", () => {
 
     const payload = await apiClient.overview();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/dashboard/overview", {
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/dashboard/overview?symbol=USOUSD", {
       headers: { "Content-Type": "application/json" },
       signal: expect.any(AbortSignal),
     });
@@ -72,6 +72,41 @@ describe("apiClient", () => {
       signal: expect.any(AbortSignal),
     });
     expect(payload.signal_id).toBe("sig_test");
+  });
+
+  it("treats clean-backend-absent optional workspace APIs as unavailable without doomed fetches", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const workspace = await apiClient.selectedSignalWorkspace("sig_test", "1h");
+    const scenario = await apiClient.scenario("USOUSD", "1d");
+    const runs = await apiClient.researchRuns(12);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(workspace).toBeNull();
+    expect(scenario).toBeNull();
+    expect(runs).toEqual([]);
+  });
+
+  it("uses an honest degraded selected-asset truth fallback without requesting absent clean-backend routes", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = await apiClient.selectedAssetTruth("WTI");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      symbol: "USOUSD",
+      trader_facing_symbol: "USOUSD",
+      research_symbol_if_any: "WTI_CTX",
+      source_mode: "unknown",
+      route_readiness: "warming_up",
+      degraded_reason: "clean_backend_selected_asset_truth_unavailable",
+      is_proxy: true,
+    });
+    expect(payload.as_of).toBeNull();
+    expect(payload.freshness_minutes).toBeNull();
+    expect(payload.confidence).toBeLessThan(0.5);
   });
 
   it("uses trader-facing commodity aliases for asset context and chart requests", async () => {
@@ -237,7 +272,7 @@ describe("apiClient", () => {
     const runtimeClient = await import("./client");
     const payload = await runtimeClient.apiClient.overview();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8011/api/dashboard/overview", {
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8011/api/dashboard/overview?symbol=USOUSD", {
       headers: { "Content-Type": "application/json" },
       signal: expect.any(AbortSignal),
     });

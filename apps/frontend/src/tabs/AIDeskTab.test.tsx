@@ -741,6 +741,46 @@ describe("AIDeskTab", () => {
     expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
   });
 
+  it("renders with partial optional AI and scenario arrays from a clean backend", async () => {
+    vi.mocked(apiClient.aiStatus).mockResolvedValueOnce({
+      ...mockLocalStatus,
+      available_providers: undefined,
+      available_models: undefined,
+    } as unknown as typeof mockLocalStatus);
+
+    const partialScenario = {
+      ...mockScenarioResearch,
+      catalyst_chain: undefined,
+      invalidation_triggers: undefined,
+      confidence_notes: undefined,
+    } as unknown as typeof mockScenarioResearch;
+
+    render(
+      <AIDeskTab
+        activeTab="ai_desk"
+        assetContext={mockAssetContexts.WTI}
+        assetLabel="USOUSD"
+        chart={mockMarketCharts["WTI:1d"]}
+        deskSectionNotes={{}}
+        onNavigate={vi.fn()}
+        scenario={partialScenario}
+        riskDetail={null}
+        selectedRiskReportId={null}
+        selectedSignalId={null}
+        selectedSymbol="USOUSD"
+        signalDetail={null}
+        signals={mockSignals}
+        timeframe="1d"
+        tradeDetail={null}
+        watchlist={mockWatchlistSummary}
+      />,
+    );
+
+    expect(await screen.findByText("MiroFish Research")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Local advisory" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "deterministic_brief" })).toBeInTheDocument();
+  });
+
   it("shows explicit expired-session guidance without leaking provider errors", async () => {
     vi.mocked(apiClient.aiStatus).mockResolvedValueOnce({
       ...mockAIStatus,

@@ -28,7 +28,6 @@ import {
   mockRisk,
   mockRiskDetail,
   mockRiskExposure,
-  mockSelectedSignalWorkspace,
   mockSessionOverview,
   mockExecutionGate,
   mockAdapterHealth,
@@ -50,8 +49,6 @@ import {
   mockBrokerSnapshot,
   mockReplay,
   mockResearchRun,
-  mockResearchRuns,
-  mockScenarioResearch,
   mockScenarioStressSummary,
   mockShadowTickets,
   mockTicketDetail,
@@ -169,6 +166,16 @@ const TRADER_SYMBOL_REQUESTS: Record<string, string> = {
   GOLD: "XAUUSD",
   SILVER: "XAGUSD",
 };
+const RESEARCH_CONTEXT_SYMBOLS: Record<string, string> = {
+  USOUSD: "WTI_CTX",
+  WTI: "WTI_CTX",
+  XAUUSD: "XAU_CTX",
+  GOLD: "XAU_CTX",
+  XAGUSD: "XAG_CTX",
+  SILVER: "XAG_CTX",
+  BTC: "BTCUSD",
+  ETH: "ETHUSD",
+};
 const MOCK_CANONICAL_SYMBOLS: Record<string, string> = {
   USOUSD: "WTI",
   XAUUSD: "GOLD",
@@ -183,6 +190,22 @@ function requestSymbol(symbol: string): string {
 function mockSymbol(symbol: string): string {
   const requested = symbol.toUpperCase();
   return MOCK_CANONICAL_SYMBOLS[requested] ?? requested;
+}
+
+function degradedSelectedAssetTruth(symbol: string): SelectedAssetTruthView {
+  const requested = requestSymbol(symbol);
+  return {
+    symbol: requested,
+    trader_facing_symbol: requested,
+    research_symbol_if_any: RESEARCH_CONTEXT_SYMBOLS[requested] ?? null,
+    as_of: null,
+    freshness_minutes: null,
+    source_mode: "unknown",
+    route_readiness: "warming_up",
+    degraded_reason: "clean_backend_selected_asset_truth_unavailable",
+    is_proxy: true,
+    confidence: 0.2,
+  };
 }
 
 function socketBaseUrl(): string {
@@ -510,23 +533,15 @@ export const apiClient = {
   signals: () => requestJson<SignalView[]>("/signals", mockSignals),
   signalsSummary: () => requestJson<SignalsSummaryView>("/signals/summary", mockSignalsSummary),
   signalDetail: (signalId: string) => requestJson<SignalDetailView>(`/signals/${signalId}`, mockSignalDetail),
-  selectedSignalWorkspace: (signalId: string, timeframe = "1d") =>
-    requestJson<SelectedSignalWorkspaceView>(
-      `/signals/${signalId}/workspace-context?timeframe=${encodeURIComponent(timeframe)}`,
-      mockSelectedSignalWorkspace,
-    ),
-  scenario: (symbol: string, timeframe = "1d") =>
-    requestJson<ScenarioResearchView>(
-      `/scenario/${requestSymbol(symbol)}?timeframe=${encodeURIComponent(timeframe)}`,
-      mockScenarioResearch,
-    ),
+  selectedSignalWorkspace: (_signalId: string, _timeframe = "1d") => Promise.resolve<SelectedSignalWorkspaceView | null>(null),
+  scenario: (_symbol: string, _timeframe = "1d") => Promise.resolve<ScenarioResearchView | null>(null),
   highRiskSignals: () => requestJson<SignalView[]>("/signals/high-risk", mockHighRiskSignals),
   news: () => requestJson<NewsView[]>("/news", mockNews),
   watchlist: () => requestJson<WatchlistView[]>("/watchlist", mockWatchlist),
   watchlistSummary: () => requestJson<WatchlistSummaryView[]>("/watchlist/summary", mockWatchlistSummary),
   opportunities: () => requestJson<OpportunityHunterView>("/watchlist/opportunity-hunter", mockOpportunities),
   research: () => requestJson<ResearchView[]>("/research", mockResearch),
-  researchRuns: (limit = 12) => requestJson<ResearchRunView[]>(`/research/runs?limit=${limit}`, mockResearchRuns),
+  researchRuns: (_limit = 12) => Promise.resolve<ResearchRunView[]>([]),
   researchRun: (runId: string) => requestJson<ResearchRunView>(`/research/runs/${runId}`, mockResearchRun),
   createResearchRun: (payload: ResearchRunCreateRequest, openAiApiKey?: string | null) =>
     requestJson<ResearchRunView>("/research/runs", mockResearchRun, {
@@ -638,25 +653,7 @@ export const apiClient = {
       `/dashboard/assets/${requestSymbol(symbol)}`,
       mockAssetContexts[mockSymbol(symbol)] ?? mockAssetContexts.BTC,
     ),
-  selectedAssetTruth: (symbol: string) =>
-    requestJson<SelectedAssetTruthView>(
-      `/dashboard/selected-asset-truth/${requestSymbol(symbol)}`,
-      {
-        symbol: requestSymbol(symbol),
-        trader_facing_symbol: requestSymbol(symbol),
-        research_symbol_if_any: mockMarketCharts[`${mockSymbol(symbol)}:1d`]?.instrument_mapping?.research_symbol ?? null,
-        as_of: (() => {
-          const bars = mockMarketCharts[`${mockSymbol(symbol)}:1d`]?.bars ?? [];
-          return bars.length > 0 ? bars[bars.length - 1].timestamp : null;
-        })(),
-        freshness_minutes: mockMarketCharts[`${mockSymbol(symbol)}:1d`]?.freshness_minutes ?? null,
-        source_mode: "unknown",
-        route_readiness: "warming_up",
-        degraded_reason: "selected_asset_truth_mock_fallback",
-        is_proxy: true,
-        confidence: 0.25,
-      },
-    ),
+  selectedAssetTruth: (symbol: string) => Promise.resolve<SelectedAssetTruthView>(degradedSelectedAssetTruth(symbol)),
   updatesSocketUrl: () => `${socketBaseUrl()}/ws/updates`,
   selectedAssetTruthSocketUrl: () => `${socketBaseUrl()}/ws/updates`,
   marketChartSocketUrl: () => `${socketBaseUrl()}/ws/updates`,

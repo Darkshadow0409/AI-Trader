@@ -38,6 +38,10 @@ function runClockAnchorMs(status: ResearchRunStatusView): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+function safeStringList(value: string[] | null | undefined): string[] {
+  return Array.isArray(value) ? value : [];
+}
+
 interface ResearchTabProps {
   focusedRiskReportId?: string | null;
   focusedSignalId?: string | null;
@@ -453,6 +457,11 @@ export function ResearchTab({
   const activeModel = activeRunStatus?.selected_model ?? providerStatus?.selected_model ?? selectedAIModel ?? "deterministic_brief";
   const activeProvider = activeRunStatus?.provider ?? providerStatus?.provider ?? selectedAIProvider;
   const recentCompletionTrail = recentRunStageTrailLabel(recentCompletionRun?.stage_history, 5);
+  const scenarioCatalystChain = safeStringList(scenario?.catalyst_chain);
+  const scenarioInvalidationTriggers = safeStringList(scenario?.invalidation_triggers);
+  const scenarioConfidenceNotes = safeStringList(scenario?.confidence_notes);
+  const availableProviders = providerStatus?.available_providers?.length ? providerStatus.available_providers : ["local", "ollama", "openai"];
+  const availableModels = providerStatus?.available_models?.length ? providerStatus.available_models : [selectedAIModel ?? "deterministic_brief"];
 
   return (
     <div className="stack analyst-console-tab">
@@ -499,9 +508,9 @@ export function ResearchTab({
           <div className="stack">
             {scenario.generated_at ? <small>Generated {formatDateTimeIST(scenario.generated_at)}</small> : null}
             {scenario.availability_note ? <small>{scenario.availability_note}</small> : null}
-            {scenario.catalyst_chain.length > 0 ? <small>Catalyst chain: {scenario.catalyst_chain.slice(0, 3).join(" -> ")}</small> : null}
-            {scenario.invalidation_triggers.length > 0 ? <small>Invalidation triggers: {scenario.invalidation_triggers.slice(0, 2).join(" / ")}</small> : null}
-            {scenario.confidence_notes.length > 0 ? <small>{scenario.confidence_notes[0]}</small> : null}
+            {scenarioCatalystChain.length > 0 ? <small>Catalyst chain: {scenarioCatalystChain.slice(0, 3).join(" -> ")}</small> : null}
+            {scenarioInvalidationTriggers.length > 0 ? <small>Invalidation triggers: {scenarioInvalidationTriggers.slice(0, 2).join(" / ")}</small> : null}
+            {scenarioConfidenceNotes.length > 0 ? <small>{scenarioConfidenceNotes[0]}</small> : null}
           </div>
         </article>
       ) : null}
@@ -560,7 +569,7 @@ export function ResearchTab({
                   onAIModelChange(null);
                 }}
               >
-                {(providerStatus?.available_providers.length ? providerStatus.available_providers : ["local", "ollama", "openai"]).map((provider) => (
+                {availableProviders.map((provider) => (
                   <option key={provider} value={provider}>
                     {aiProviderLabel(provider)}
                   </option>
@@ -573,7 +582,7 @@ export function ResearchTab({
                 value={providerStatus?.selected_model ?? selectedAIModel ?? "deterministic_brief"}
                 onChange={(event) => onAIModelChange(event.target.value)}
               >
-                {(providerStatus?.available_models.length ? providerStatus.available_models : [selectedAIModel ?? "deterministic_brief"]).map((model) => (
+                {availableModels.map((model) => (
                   <option key={model} value={model}>
                     {model}
                   </option>

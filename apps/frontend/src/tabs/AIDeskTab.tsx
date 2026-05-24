@@ -292,6 +292,19 @@ function displayAssetSymbol(row: SymbolBackedRow | null | undefined): string {
   return row?.display_symbol ?? row?.data_reality?.provenance?.tradable_symbol ?? row?.symbol ?? "n/a";
 }
 
+function safeStringList(value: string[] | null | undefined): string[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeSnapshot(snapshot: AIDeskContextSnapshotView): AIDeskContextSnapshotView {
+  return {
+    ...snapshot,
+    watchlist_board: safeStringList(snapshot.watchlist_board),
+    catalyst_headlines: safeStringList(snapshot.catalyst_headlines),
+    crowd_markets: safeStringList(snapshot.crowd_markets),
+  };
+}
+
 function localBriefPreview(
   snapshot: AIDeskContextSnapshotView,
   chart: MarketChartView,
@@ -427,7 +440,7 @@ export function AIDeskTab({
 
   const leadSignal = useMemo(() => contextLeadSignal(selectedSymbol, signals), [selectedSymbol, signals]);
   const snapshot = useMemo(
-    () => state.response?.context_snapshot ?? localSnapshot(activeTab, assetContext, assetLabel, chart, selectedAssetTruth, leadSignal, riskDetail, signalDetail, tradeDetail, watchlist),
+    () => normalizeSnapshot(state.response?.context_snapshot ?? localSnapshot(activeTab, assetContext, assetLabel, chart, selectedAssetTruth, leadSignal, riskDetail, signalDetail, tradeDetail, watchlist)),
     [activeTab, assetContext, assetLabel, chart, leadSignal, riskDetail, selectedAssetTruth, signalDetail, state.response, tradeDetail, watchlist],
   );
   const degradedNotes = useMemo(() => Object.values(deskSectionNotes).filter((item) => item.trim().length > 0), [deskSectionNotes]);
@@ -684,6 +697,21 @@ export function AIDeskTab({
   const recentCompletionStageTrail = recentRunStageTrailLabel(recentCompletion?.stage_history, 5);
   const providerStripSourceLabel = aiAnswerSourceLabel(state.response?.answer_source, state.status.provider, state.status.connected);
   const providerConsoleStatus = connectionLabel(state.status);
+  const scenarioCatalystChain = safeStringList(scenario?.catalyst_chain);
+  const scenarioInvalidationTriggers = safeStringList(scenario?.invalidation_triggers);
+  const scenarioConfidenceNotes = safeStringList(scenario?.confidence_notes);
+  const availableProviders = state.status.available_providers?.length ? state.status.available_providers : ["local", "ollama", "openai"];
+  const availableModels = state.status.available_models?.length
+    ? state.status.available_models
+    : [state.status.selected_model ?? state.status.default_model ?? "deterministic_brief"];
+  const responseValidationNotes = state.response?.validation?.notes ?? [];
+  const responseWarnings = state.response?.warnings ?? [];
+  const responseKeyLevels = state.response?.key_levels ?? [];
+  const responseCatalysts = state.response?.catalysts ?? [];
+  const responseRiskFrame = state.response?.risk_frame ?? [];
+  const responseRelatedMarkets = state.response?.related_markets ?? [];
+  const responseNextActions = state.response?.next_actions ?? [];
+  const responseAgentResults = state.response?.agent_results ?? [];
 
   return (
     <div className="stack analyst-console-tab">
@@ -876,13 +904,13 @@ export function AIDeskTab({
           <div className="stack">
             {scenario.generated_at ? <small>Generated {formatDateTimeIST(scenario.generated_at)}</small> : null}
             {scenario.availability_note ? <small>{scenario.availability_note}</small> : null}
-            {scenario.catalyst_chain.length > 0 ? (
-              <small>Catalyst chain: {scenario.catalyst_chain.slice(0, 3).join(" -> ")}</small>
+            {scenarioCatalystChain.length > 0 ? (
+              <small>Catalyst chain: {scenarioCatalystChain.slice(0, 3).join(" -> ")}</small>
             ) : null}
-            {scenario.invalidation_triggers.length > 0 ? (
-              <small>Invalidation triggers: {scenario.invalidation_triggers.slice(0, 2).join(" / ")}</small>
+            {scenarioInvalidationTriggers.length > 0 ? (
+              <small>Invalidation triggers: {scenarioInvalidationTriggers.slice(0, 2).join(" / ")}</small>
             ) : null}
-            {scenario.confidence_notes.length > 0 ? <small>{scenario.confidence_notes[0]}</small> : null}
+            {scenarioConfidenceNotes.length > 0 ? <small>{scenarioConfidenceNotes[0]}</small> : null}
             <small>Scenario sidecar is research support only. Chart, signal, risk, and paper-trade truth still come from AI Trader.</small>
           </div>
         </article>
@@ -945,7 +973,7 @@ export function AIDeskTab({
                 }));
               }}
             >
-              {(state.status.available_providers.length > 0 ? state.status.available_providers : ["local", "ollama", "openai"]).map((provider) => (
+              {availableProviders.map((provider) => (
                 <option key={provider} value={provider}>
                   {aiProviderLabel(provider)}
                 </option>
@@ -978,7 +1006,7 @@ export function AIDeskTab({
                 }));
               }}
             >
-              {state.status.available_models.map((model) => (
+              {availableModels.map((model) => (
                 <option key={model} value={model}>
                   {model}
                 </option>
@@ -1122,8 +1150,8 @@ export function AIDeskTab({
               </div>
             </div>
             <div className="stack">
-              {state.response.validation.notes.length > 0 ? (
-                state.response.validation.notes.map((note) => <small key={note}>{note}</small>)
+              {responseValidationNotes.length > 0 ? (
+                responseValidationNotes.map((note) => <small key={note}>{note}</small>)
               ) : (
                 <small>Signal, risk, chart, and freshness evidence were strong enough for an operator-ready view.</small>
               )}
@@ -1152,7 +1180,7 @@ export function AIDeskTab({
                 {state.response.latency_ms !== null && state.response.latency_ms !== undefined ? <span className="tag">{durationLabel(state.response.latency_ms)}</span> : null}
               </div>
               {completedRunStageTrail ? <small>Recent stages: {completedRunStageTrail}</small> : null}
-              {state.response.warnings.map((warning) => (
+              {responseWarnings.map((warning) => (
                 <small key={warning}>{warning}</small>
               ))}
               <p className="compact-copy">{state.response.final_answer}</p>
@@ -1171,7 +1199,7 @@ export function AIDeskTab({
             <article className="panel compact-panel">
               <p className="eyebrow">Key Levels / Scenarios</p>
               <div className="stack">
-                {state.response.key_levels.map((item) => (
+                {responseKeyLevels.map((item) => (
                   <small key={item}>{item}</small>
                 ))}
               </div>
@@ -1179,7 +1207,7 @@ export function AIDeskTab({
             <article className="panel compact-panel">
               <p className="eyebrow">Catalyst Watch</p>
               <div className="stack">
-                {state.response.catalysts.map((item) => (
+                {responseCatalysts.map((item) => (
                   <small key={item}>{item}</small>
                 ))}
               </div>
@@ -1191,7 +1219,7 @@ export function AIDeskTab({
             <article className="panel compact-panel">
               <p className="eyebrow">Risk Frame</p>
               <div className="stack">
-                {state.response.risk_frame.map((item) => (
+                {responseRiskFrame.map((item) => (
                   <small key={item}>{item}</small>
                 ))}
               </div>
@@ -1199,7 +1227,7 @@ export function AIDeskTab({
             <article className="panel compact-panel">
               <p className="eyebrow">Related Assets To Monitor</p>
               <div className="stack">
-                {state.response.related_markets.map((item) => (
+                {responseRelatedMarkets.map((item) => (
                   <small key={item}>{item}</small>
                 ))}
               </div>
@@ -1207,7 +1235,7 @@ export function AIDeskTab({
             <article className="panel compact-panel">
               <p className="eyebrow">Next Actions In Platform</p>
               <div className="stack">
-                {state.response.next_actions.map((action) => (
+                {responseNextActions.map((action) => (
                   <button className="news-item" key={`${action.workspace}-${action.label}`} onClick={() => onNavigate(action.workspace)} type="button">
                     <strong>{action.label}</strong>
                     <small>{action.workspace.replace(/_/g, " ")}</small>
@@ -1223,7 +1251,7 @@ export function AIDeskTab({
           <article className="panel compact-panel terminal-console-panel">
             <h3>Contributing Agents</h3>
             <div className="split-stack">
-              {state.response.agent_results.map((agent) => (
+              {responseAgentResults.map((agent) => (
                 <article className="panel compact-panel" key={agent.agent}>
                   <div className="panel-header">
                     <div>
@@ -1234,16 +1262,16 @@ export function AIDeskTab({
                   </div>
                   <strong>{agent.headline}</strong>
                   <p className="compact-copy">{agent.summary}</p>
-                  {agent.warnings.length > 0 ? (
+                  {safeStringList(agent.warnings).length > 0 ? (
                     <div className="stack">
-                      {agent.warnings.map((warning) => (
+                      {safeStringList(agent.warnings).map((warning) => (
                         <small key={warning}>{warning}</small>
                       ))}
                     </div>
                   ) : null}
-                  {agent.citations.length > 0 ? (
+                  {safeStringList(agent.citations).length > 0 ? (
                     <div className="inline-tags">
-                      {agent.citations.slice(0, 3).map((citation) => (
+                      {safeStringList(agent.citations).slice(0, 3).map((citation) => (
                         <span className="tag" key={citation}>
                           {citation}
                         </span>

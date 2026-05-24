@@ -711,7 +711,7 @@ describe("App", () => {
     const topRibbon = await screen.findByTestId("top-ribbon");
     expect(topRibbon).toHaveAttribute("data-shell-bootstrap", "false");
     expect(screen.queryByText("Syncing workspace snapshot")).not.toBeInTheDocument();
-    expect(await screen.findByTestId("route-settle-strip")).toHaveTextContent("Supporting market context is still syncing");
+    expect(await screen.findByTestId("route-settle-strip")).toHaveTextContent("Supporting market context is recovering");
   });
 
   it("prefers session overview weekly review metrics over a stale direct weekly review endpoint", async () => {
@@ -1343,9 +1343,9 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "XAGUSD Focus" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/signals/sig_silver_event_001/workspace-context?timeframe=1d"), expect.any(Object));
       expect(screen.getByTestId("price-chart")).toHaveTextContent("XAGUSD / SILVER / ok");
     });
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/signals/sig_silver_event_001/workspace-context?timeframe=1d"))).toBe(false);
   });
 
   it("prefers a loaded direct chart over a slower workspace chart placeholder for trader-facing commodities", async () => {

@@ -1,0 +1,23 @@
+# Keep Graphify focused on source and durable docs.
+.git/
+.venv/
+node_modules/
+review_bundle/
+review_bundle_runtime*/
+AI_TRADER_REVIEW_PACK_*/
+NEW_CHAT_CONTEXT_PACK_*/
+data/
+graphify-out/
+handoff_evidence*/
+
+# Local/runtime artifacts that do not help architecture queries.
+apps/frontend/node_modules/
+apps/frontend/dist/
+apps/frontend/coverage/
+apps/frontend/npm_install_log.txt
+apps/frontend/public/runtime-config.local.js
+tmp-review-home.png
+*.log
+*.db
+*.sqlite3
+*.duckdb

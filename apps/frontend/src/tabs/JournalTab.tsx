@@ -707,7 +707,7 @@ export function JournalTab({
                   onNavigate={onNavigateWorkspaceTarget}
                 />
                 {!selectedTrade.data_reality?.execution_grade_allowed ? (
-                  <small className="muted-copy">Degraded commodity truth was active for this trade path. Keep this review explicitly paper-only and not execution-grade.</small>
+                  <small className="muted-copy">Degraded commodity truth was active for this trade path. Keep this review explicitly paper-only and operator-reviewed.</small>
                 ) : null}
                 <small className="muted-copy">Unknown means the operator has not scored that review field yet.</small>
               </section>

@@ -1627,7 +1627,7 @@ export const mockAssetContexts: Record<string, AssetContextView> = {
     data_reality: goldDataReality,
     related_polymarket_markets: [mockPolymarketGoldMarket],
     crowd_implied_narrative:
-      "Crowd-implied narrative: No at 52% in 'Will gold trade above $2,400 after the next FOMC meeting?' Use this as macro sentiment context, not execution truth.",
+      "Crowd-implied narrative: No at 52% in 'Will gold trade above $2,400 after the next FOMC meeting?' Use this as macro sentiment context, not order truth.",
   },
   SILVER: {
     symbol: "SILVER",
@@ -2791,7 +2791,7 @@ export const mockJournal: JournalReviewView[] = [
     review_status: "reviewed",
     updated_at: "2026-03-15T11:20:00Z",
     freshness_minutes: 10,
-    truth_note: "Paper journal review only. Preserve degraded source context and do not treat this as execution-grade market truth.",
+    truth_note: "Paper journal review only. Preserve degraded source context and do not treat this as order-timing market truth.",
   },
   {
     journal_id: "journal_eth_invalidated_review",
@@ -2817,7 +2817,7 @@ export const mockJournal: JournalReviewView[] = [
     review_status: "logged",
     updated_at: "2026-03-10T19:00:00Z",
     freshness_minutes: 80,
-    truth_note: "Paper journal review only. Preserve degraded source context and do not treat this as execution-grade market truth.",
+    truth_note: "Paper journal review only. Preserve degraded source context and do not treat this as order-timing market truth.",
   },
 ];
 
@@ -3954,7 +3954,7 @@ export const mockResearchValidation: ResearchValidationView = {
   validation_status: "degraded_truth",
   confidence_label: "research_only",
   notes: [
-    "Chart truth is degraded; do not treat levels or timing as execution-grade.",
+    "Chart truth is degraded; do not treat levels or timing as order-timing proof.",
     "Current oil mapping remains proxy/public fallback, so confidence stays capped at research mode.",
   ],
 };
@@ -4097,7 +4097,7 @@ export const mockResearchRun: ResearchRunView = {
   ],
   final_summary: "USOUSD stays useful as a research-first oil workflow, but current chart truth still caps conviction below execution grade.",
   final_answer:
-    "Chart truth is degraded; do not treat levels or timing as execution-grade. USOUSD is usable here as an oil research companion, not direct execution truth. The current setup is most useful for event-driven swing framing: chart structure, EIA-sensitive news, risk stop placement, and ticket discipline. If you need intraday conviction, first confirm that 15m/1h bars are actually available in the active mode.",
+    "Chart truth is degraded; do not treat levels or timing as order-timing proof. USOUSD is usable here as an oil research companion, not direct order truth. The current setup is most useful for event-driven swing framing: chart structure, EIA-sensitive news, risk stop placement, and ticket discipline. If you need intraday conviction, first confirm that 15m/1h bars are actually available in the active mode.",
 };
 
 export const mockResearchRuns: ResearchRunView[] = [mockResearchRun];

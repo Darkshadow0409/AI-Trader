@@ -486,7 +486,7 @@ export function sourceTimingLabel(value: string | null | undefined): string {
 export function suitabilityLabel(value: string | null | undefined): string {
   switch (value) {
     case "intraday_suitable":
-      return "Execution-capable";
+      return "Paper timing usable";
     case "monitor_only":
       return "Monitor only";
     case "swing_only":
@@ -498,7 +498,7 @@ export function suitabilityLabel(value: string | null | undefined): string {
     case "news_context_only":
       return "News context only";
     case "unusable":
-      return "Not execution-grade";
+      return "Research-only timing";
     default:
       return plainStatusLabel(value, "Unknown");
   }

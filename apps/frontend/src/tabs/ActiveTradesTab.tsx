@@ -453,7 +453,7 @@ export function ActiveTradesTab({
                 <span>{sourceTimingLabel(selectedSignalReality.provenance.source_timing)}</span>
               </div>
               <div className="metric-row compact-row">
-                <span>{selectedSignalReality.execution_grade_allowed ? "Execution-capable" : "Not execution-grade"}</span>
+                <span>{selectedSignalReality.execution_grade_allowed ? "Paper timing usable" : "Research-only timing"}</span>
                 <span>{suitabilityLabel(selectedSignalReality.news_suitability)}</span>
               </div>
               <small>{selectedSignalReality.tradable_alignment_note}</small>
@@ -552,7 +552,7 @@ export function ActiveTradesTab({
                     <span>{plainStatusLabel(selectedReality.provenance.intended_venue)}</span>
                   </div>
                   <div className="metric-row compact-row">
-                    <span>{selectedReality.execution_grade_allowed ? "Execution-capable" : "Not execution-grade"}</span>
+                    <span>{selectedReality.execution_grade_allowed ? "Paper timing usable" : "Research-only timing"}</span>
                     <span>{sourceTimingLabel(selectedReality.provenance.source_timing)}</span>
                   </div>
                   {!selectedReality.execution_grade_allowed ? <small>Current commodity truth is degraded or proxy-backed. Keep this paper-trade path explicitly research-only.</small> : null}

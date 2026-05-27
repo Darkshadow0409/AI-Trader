@@ -106,7 +106,7 @@ export function SignalDetailsCard({
       : chart && ["stale", "degraded", "unusable", "no_data", "loading"].includes(chart.status)
         ? `${displaySymbol} still has an active setup, but the chart lane is ${chart.status.replace(/_/g, " ")}. Review freshness before promoting the setup.`
         : reality && !reality.execution_grade_allowed
-          ? `${displaySymbol} has a live setup, but current timing remains non-execution-grade. Keep it in paper/review workflow.`
+          ? `${displaySymbol} has a live setup, but current timing remains research-only. Keep it in paper/review workflow.`
           : `${displaySymbol} is the active setup lane. Confirm risk and catalysts, then carry it into tickets or review.`;
 
   return (

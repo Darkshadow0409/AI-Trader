@@ -72,7 +72,7 @@ export function deriveAssetReadiness({
     return {
       kind: "research_only_today",
       badgeLabel: "Research-only today",
-      headline: `${displaySymbol} is usable for research, not direct execution timing.`,
+      headline: `${displaySymbol} is usable for research, not direct order timing.`,
       summary:
         reality?.ui_warning
         || commodityTruth?.truth_note

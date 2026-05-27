@@ -106,7 +106,7 @@ function assetWorkspaceSummary({
     return `${traderSymbol} is still running on delayed or recovering commodity truth. Keep the workspace research-first until current desk truth returns.`;
   }
   if (!executionGradeAllowed) {
-    return `${traderSymbol} remains useful for structure and catalyst review, but timing is still proxy/public context rather than direct execution-grade truth.`;
+    return `${traderSymbol} remains useful for structure and catalyst review, but timing is still proxy/public context rather than direct order-timing truth.`;
   }
   if (chartStatus === "degraded" || chartStatus === "stale" || chartStatus === "unusable") {
     return `${traderSymbol} has a loaded chart, but the current market context is ${chartStatus.replace(/_/g, " ")}. Review levels and catalysts before promoting any next step.`;
@@ -272,8 +272,8 @@ export function PriceChart({
             ? "Fixture data only. Suitable for research, review, and paper workflow, not live market claims."
             : "";
   const executionGradeNote = chart.data_reality?.execution_grade_allowed
-    ? "Execution-capable timing"
-    : "Not execution-grade";
+    ? "Paper timing usable"
+    : "Research-only timing";
   const stateLabel = error
     ? "Backend disconnected or chart data request failed."
     : malformed
@@ -327,7 +327,7 @@ export function PriceChart({
       : chart.status === "degraded" || chart.status === "stale" || chart.status === "unusable"
         ? "Chart timing is not fully current-ready. Keep any next step inside review or paper-only workflow."
         : chart.data_reality && !chart.data_reality.execution_grade_allowed
-          ? "Current context is still non-execution-grade. Keep the setup in advisory and paper-trading review lanes."
+          ? "Current context is still research-only. Keep the setup in advisory and paper-trading review lanes."
           : "Current signal and risk context are loaded. Use the next step to carry the setup into the paper-trading review lane.");
   const nextStepLabel = proposalBusy
     ? "Proposal in progress"

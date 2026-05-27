@@ -39,3 +39,13 @@ apps/frontend/dist/
 apps/frontend/node_modules/
 apps/frontend/npm_install_log.txt
 *.tsbuildinfo
+
+# Graphify local/tooling outputs.
+.graphify_python
+.graphify_detect.json
+.graphify_ast.json
+.graphify_cached.json
+.graphify_semantic_new.json
+.graphify_uncached.txt
+graphify-out/
+handoff_evidence*/

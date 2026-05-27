@@ -152,7 +152,7 @@ function advisoryNextStep({
   if (!riskDetail) {
     return "Open Risk to attach stop and size before paper workflow.";
   }
-  return "Paper-only observation; no execution route.";
+  return "Paper-only observation; no live order route.";
 }
 
 export function OperatorBrief({

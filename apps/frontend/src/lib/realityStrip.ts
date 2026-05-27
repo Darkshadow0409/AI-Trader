@@ -100,11 +100,11 @@ export function resolveRealityStrip({
     ? `${mapping?.trader_symbol ?? reality.provenance.tradable_symbol} trader-facing${mapping?.research_symbol || reality.provenance.research_symbol ? ` / ${mapping?.research_symbol ?? reality.provenance.research_symbol} research` : ""}`
     : `${mapping?.trader_symbol ?? "Trader symbol"} board posture`;
   const realityValue = reality
-    ? `${reality.provenance.realism_grade} / ${reality.execution_grade_allowed ? "paper-timing usable" : "non-execution-grade"}`
+    ? `${reality.provenance.realism_grade} / ${reality.execution_grade_allowed ? "paper-timing usable" : "research-only timing"}`
     : "Advisory-only desk truth";
   const realityNote = reality
     ? reality.tradable_alignment_note || reality.ui_warning
-    : "Delayed/public desk context stays advisory-only and non-execution-grade.";
+    : "Delayed/public desk context stays advisory-only and research-first.";
   const recoveryValue = recovery
     ? recoveryStatusLabel(recovery)
     : effectiveTruth?.recovery_in_progress

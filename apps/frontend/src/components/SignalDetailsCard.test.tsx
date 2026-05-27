@@ -100,7 +100,7 @@ describe("SignalDetailsCard", () => {
     expect(screen.getByText("Supplemental note")).toBeInTheDocument();
   });
 
-  it("never renders a commodity freshness badge as execution-grade when execution is disallowed", () => {
+  it("never renders a commodity freshness badge as order-ready when timing is disallowed", () => {
     render(
       <SignalDetailsCard
         context={{

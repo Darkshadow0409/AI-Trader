@@ -381,7 +381,7 @@ function localBriefPreview(
   return {
     marketRead: signal
       ? `${snapshot.selected_instrument} is carrying a ${signalDirection.toLowerCase()} ${signalFamily.toLowerCase()} bias on ${chart.timeframe}. Current market freshness reads ${snapshot.market_freshness}, and the latest visible price is ${currentPriceLabel}.`
-      : `${snapshot.selected_instrument} is loaded on ${chart.timeframe} with ${snapshot.market_freshness}. No active setup is pinned yet, so treat this as chart/research context rather than an execution-ready signal.`,
+      : `${snapshot.selected_instrument} is loaded on ${chart.timeframe} with ${snapshot.market_freshness}. No active setup is pinned yet, so treat this as chart/research context rather than an actionable paper setup.`,
     whyNow: catalystLead
       ? `${catalystLead} is the current lead catalyst while ${snapshot.truth_note}`
       : `${snapshot.truth_note} That makes current chart state and signal age more important than broad narrative assumptions.`,
@@ -767,7 +767,7 @@ export function AIDeskTab({
             <span className="tag">{snapshot.data_mode_label}</span>
             <span className="tag">{aiProviderStatusLabel(state.status.status, state.status.provider)}</span>
             <span className="tag">{providerStripSourceLabel}</span>
-            <span className="tag">{chart.data_reality?.execution_grade_allowed ? "Execution-capable" : "Not execution-grade"}</span>
+            <span className="tag">{chart.data_reality?.execution_grade_allowed ? "Paper timing usable" : "Research-only timing"}</span>
           </div>
         </div>
         <div className="console-strip analyst-console-strip">
@@ -789,13 +789,13 @@ export function AIDeskTab({
           <div>
             <span className="metric-label">Truth gate</span>
             <strong>{commodityTruth ? commodityTruthStateLabel(commodityTruth) : snapshot.data_mode_label}</strong>
-            <small>{chart.data_reality?.execution_grade_allowed ? "Execution-capable context available." : "Research-only or proxy-backed context."}</small>
+            <small>{chart.data_reality?.execution_grade_allowed ? "Paper timing context available." : "Research-only or proxy-backed context."}</small>
           </div>
         </div>
         <div className="stack analyst-console-notes">
           <small>Structured Commodity Advisory keeps one console path for active run, current result, last good result, and retry lineage.</small>
           {commodityTruth && !commodityTruthReady ? <small>{commodityTruthSummaryLabel(commodityTruth)}</small> : null}
-          {!commodityTruth && !chart.data_reality?.execution_grade_allowed ? <small>Current commodity truth is degraded or proxy-backed. AI Desk must stay research-only and non-execution-grade.</small> : null}
+          {!commodityTruth && !chart.data_reality?.execution_grade_allowed ? <small>Current commodity truth is degraded or proxy-backed. AI Desk must stay research-only and operator-reviewed.</small> : null}
         </div>
       </article>
 

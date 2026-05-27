@@ -260,6 +260,8 @@ describe("AIDeskTab", () => {
     expect(within(brief).getByText("Advisory")).toBeInTheDocument();
     expect(within(brief).getByText("Research context only; use USOUSD for trader-facing oil.")).toBeInTheDocument();
     expect(within(brief).queryByText(/fake-live|live confirmed|guaranteed|buy now|sell now/i)).not.toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(/execution-ready|execution-grade|non-execution-grade|broker-ready/i);
+    expect(document.body.textContent ?? "").toMatch(/Advisory|research-only|paper/i);
   });
 
   it("shows staged long-running local inference state while the advisory request is in flight", async () => {

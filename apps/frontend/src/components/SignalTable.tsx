@@ -63,7 +63,7 @@ function chartTruthLine(row: SignalView, commodityTruth: CommodityTruthStatusVie
     }
     return `Research only / ${row.data_reality?.provenance.realism_grade ?? "n/a"}`;
   }
-  return `${row.data_reality?.execution_grade_allowed ? "Execution-capable" : "Research only"} / ${row.data_reality?.provenance.realism_grade ?? "n/a"}`;
+  return `${row.data_reality?.execution_grade_allowed ? "Paper timing usable" : "Research only"} / ${row.data_reality?.provenance.realism_grade ?? "n/a"}`;
 }
 
 function traderSymbol(row: SignalView): string {
@@ -400,7 +400,7 @@ export function SignalTable({ rows, highRiskRows = [], commodityTruth = null, se
 
       <SignalSection
         emptyLabel="No actionable setups are currently loaded for the selected operator scope."
-        eyebrow="Execution-Ready First"
+        eyebrow="Review-Ready First"
         commodityTruth={commodityTruth}
         onSelectSignal={onSelectSignal}
         onSelectSymbol={onSelectSymbol}

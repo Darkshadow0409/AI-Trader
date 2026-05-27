@@ -23,7 +23,7 @@ const paperCapitalSummary = {
 const researchOnlyReadiness: AssetReadinessView = {
   kind: "research_only_today",
   badgeLabel: "Research-only today",
-  headline: "USOUSD is usable for research, not direct execution timing.",
+  headline: "USOUSD is usable for research, not direct order timing.",
   summary: "Truth and risk posture are still too weak for direct ticket framing.",
   nextStep: "Stay in chart, research, and review workflow until a stronger setup returns.",
   tone: "warning",
@@ -98,7 +98,7 @@ describe("DeskTab", () => {
     expect(screen.queryByRole("heading", { name: "Board -> Chart -> Risk -> Ticket -> Review" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("desk-help-panel")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Research-only today" })).toBeInTheDocument();
-    expect(screen.getByText("USOUSD is usable for research, not direct execution timing.")).toBeInTheDocument();
+    expect(screen.getByText("USOUSD is usable for research, not direct order timing.")).toBeInTheDocument();
     expect(screen.getByText(/Complete the overdue ETH post-trade review/i)).toBeInTheDocument();
   });
 
@@ -112,6 +112,8 @@ describe("DeskTab", () => {
     expect(within(brief).getByText("Why It Matters")).toBeInTheDocument();
     expect(within(brief).getByText("USOUSD is trader-facing oil; WTI/WTI_CTX remains research context.")).toBeInTheDocument();
     expect(within(brief).queryByText(/fake-live|live confirmed|guaranteed|buy now|sell now/i)).not.toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(/execution-ready|execution-grade|non-execution-grade|broker-ready/i);
+    expect(document.body.textContent ?? "").toMatch(/Advisory|research-only|paper/i);
   });
 
   it("keeps degraded missing truth explicit instead of rendering a blank state", () => {
@@ -212,7 +214,7 @@ describe("DeskTab", () => {
     expect(within(screen.getAllByText("Open Trades")[0].closest("div")!).getByText("2")).toBeInTheDocument();
   });
 
-  it("changes first-step guidance when the selected asset is research-only versus execution-ready", () => {
+  it("changes first-step guidance when the selected asset is research-only versus review-ready", () => {
     const onNavigate = vi.fn();
 
     renderDeskTab({
@@ -231,7 +233,7 @@ describe("DeskTab", () => {
     expect(screen.getByRole("button", { name: "Open Commodity Board" })).toBeInTheDocument();
   });
 
-  it("points an execution-ready asset toward risk or tickets instead of research", () => {
+  it("points a review-ready asset toward risk or tickets instead of research", () => {
     const onNavigate = vi.fn();
 
     renderDeskTab({

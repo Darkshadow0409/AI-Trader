@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiClient } from "../api/client";
+import { OperatorBrief } from "../components/OperatorBrief";
 import { RunLifecycleCard } from "../components/RunLifecycleCard";
 import {
   selectedAssetTruthFallbackLabel,
@@ -18,12 +19,15 @@ import type {
   AIProviderStatusView,
   AssetContextView,
   MarketChartView,
+  OperationalBacklogView,
   PaperTradeDetailView,
+  ReviewSummaryView,
   RiskDetailView,
   SelectedAssetTruthView,
   ScenarioResearchView,
   SignalDetailView,
   SignalView,
+  TradeTicketView,
   WatchlistSummaryView,
 } from "../types/api";
 
@@ -40,6 +44,8 @@ interface AIDeskTabProps {
   onNavigate: (tab: string) => void;
   onNavigateWorkspaceTarget?: (target: WorkspaceTarget) => void;
   onProposePaperTrade?: () => void;
+  operationalBacklog?: OperationalBacklogView | null;
+  reviewSummary?: ReviewSummaryView | null;
   riskDetail: RiskDetailView | null;
   scenario: ScenarioResearchView | null;
   selectedAIModel?: string | null;
@@ -52,6 +58,7 @@ interface AIDeskTabProps {
   signalDetail: SignalDetailView | null;
   signals: SignalView[];
   timeframe: string;
+  tickets?: TradeTicketView[];
   tradeDetail: PaperTradeDetailView | null;
   watchlist: WatchlistSummaryView[];
   workspaceBaseState?: WorkspaceRouteState;
@@ -404,6 +411,8 @@ export function AIDeskTab({
   onNavigate,
   onNavigateWorkspaceTarget,
   onProposePaperTrade,
+  operationalBacklog = null,
+  reviewSummary = null,
   riskDetail,
   scenario,
   selectedAIModel = null,
@@ -416,6 +425,7 @@ export function AIDeskTab({
   signalDetail,
   signals,
   timeframe,
+  tickets = [],
   tradeDetail,
   watchlist,
   workspaceBaseState,
@@ -730,6 +740,20 @@ export function AIDeskTab({
           </div>
         </article>
       ) : null}
+
+      <OperatorBrief
+        assetContext={assetContext}
+        assetLabel={assetLabel}
+        chart={chart}
+        operationalBacklog={operationalBacklog}
+        reviewSummary={reviewSummary}
+        riskDetail={riskDetail ?? assetContext.latest_risk}
+        selectedAssetTruth={selectedAssetTruth}
+        selectedSymbol={selectedSymbol}
+        signal={signalDetail ?? leadSignal}
+        tickets={tickets}
+        timeframe={timeframe}
+      />
 
       <article className="panel compact-panel hero-panel terminal-console-panel">
         <div className="panel-header">

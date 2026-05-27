@@ -2592,6 +2592,8 @@ export default function App() {
       case "desk":
         return (
           <DeskTab
+            assetContext={visibleAssetContext}
+            chart={visibleMarketChart}
             commodityTruth={visibleCommodityTruth}
             desk={resources.deskSummary.data}
             executionGate={resolvedExecutionGate}
@@ -2606,12 +2608,17 @@ export default function App() {
             operationalBacklog={shellBacklogSummary}
             paperCapitalSummary={paperCapitalSummary}
             reviewSummary={resources.reviewSummary.data}
+            riskDetail={visibleRiskDetail}
             selectedAssetReadiness={selectedAssetReadiness}
+            selectedAssetTruth={visibleSelectedAssetTruth}
             selectedHasRisk={selectedHasRisk}
             selectedHasSignal={selectedHasSignal}
             selectedInstrumentLabel={focusInstrumentLabel}
             selectedMappingNote={selectedMappingNote}
+            selectedSymbol={selectedSymbol}
             selectedUnderlyingLabel={focusUnderlyingLabel}
+            signal={visibleSignalDetail ?? visibleAssetContext.latest_signal}
+            tickets={resources.tradeTickets.data}
           />
         );
       case "signals":
@@ -2687,6 +2694,8 @@ export default function App() {
               onNavigate={(tab) => navigateTab(tab as TabKey)}
               onNavigateWorkspaceTarget={navigateWorkspaceTarget}
               onProposePaperTrade={() => void proposePaperTradeFromSignal(focusedSignalId, focusedRiskReportId)}
+              operationalBacklog={shellBacklogSummary}
+              reviewSummary={resources.reviewSummary.data}
               riskDetail={visibleRiskDetail}
             scenario={resources.scenario.data}
             selectedAIModel={selectedAIModel}
@@ -2699,6 +2708,7 @@ export default function App() {
             signalDetail={visibleSignalDetail}
             signals={signalRows}
             timeframe={selectedTimeframe}
+            tickets={resources.tradeTickets.data}
             tradeDetail={visibleTradeDetail}
             watchlist={resources.watchlistSummary.data}
             workspaceBaseState={currentRouteState}

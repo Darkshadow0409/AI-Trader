@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { mockDeskSummary, mockHomeSummary, mockReviewSummary } from "../api/mockData";
+import { mockAssetContexts, mockDeskSummary, mockHomeSummary, mockMarketCharts, mockReviewSummary, mockRiskDetail, mockSignals, mockTicketList } from "../api/mockData";
 import { DeskTab } from "./DeskTab";
 import type { AssetReadinessView } from "../lib/assetReadiness";
 
@@ -32,6 +32,8 @@ const researchOnlyReadiness: AssetReadinessView = {
 function renderDeskTab(overrides: Partial<ComponentProps<typeof DeskTab>> = {}) {
   return render(
     <DeskTab
+      assetContext={mockAssetContexts.WTI}
+      chart={mockMarketCharts["WTI:1d"]}
       desk={mockDeskSummary}
       executionGate={mockDeskSummary.execution_gate}
       homeSummary={mockHomeSummary}
@@ -45,12 +47,17 @@ function renderDeskTab(overrides: Partial<ComponentProps<typeof DeskTab>> = {}) 
       onSelectTrade={vi.fn()}
       paperCapitalSummary={paperCapitalSummary}
       reviewSummary={mockReviewSummary}
+      riskDetail={mockRiskDetail}
       selectedAssetReadiness={researchOnlyReadiness}
+      selectedAssetTruth={mockMarketCharts["WTI:1d"].selected_asset_truth}
       selectedHasRisk={false}
       selectedHasSignal={false}
       selectedInstrumentLabel="USOUSD"
       selectedMappingNote="You trade USOUSD here. Research context still comes from WTI / CL=F."
+      selectedSymbol="USOUSD"
       selectedUnderlyingLabel="WTI"
+      signal={mockSignals[0]}
+      tickets={mockTicketList}
       {...overrides}
     />,
   );
@@ -78,6 +85,7 @@ describe("DeskTab", () => {
     renderDeskTab();
 
     expect(screen.getByRole("heading", { name: "What Matters Now" })).toBeInTheDocument();
+    expect(screen.getByTestId("operator-brief")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Priority Wire" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Queue Pressure" })).toBeInTheDocument();
     expect(screen.getByText("Gate-blocking reviews")).toBeInTheDocument();
@@ -92,6 +100,33 @@ describe("DeskTab", () => {
     expect(screen.getByRole("heading", { name: "Research-only today" })).toBeInTheDocument();
     expect(screen.getByText("USOUSD is usable for research, not direct execution timing.")).toBeInTheDocument();
     expect(screen.getByText(/Complete the overdue ETH post-trade review/i)).toBeInTheDocument();
+  });
+
+  it("summarizes the selected oil board with WTI as research context", () => {
+    renderDeskTab();
+
+    const brief = screen.getByTestId("operator-brief");
+
+    expect(within(brief).getByText("Evidence-Backed Brief")).toBeInTheDocument();
+    expect(within(brief).getByText("Market State")).toBeInTheDocument();
+    expect(within(brief).getByText("Why It Matters")).toBeInTheDocument();
+    expect(within(brief).getByText("USOUSD is trader-facing oil; WTI/WTI_CTX remains research context.")).toBeInTheDocument();
+    expect(within(brief).queryByText(/fake-live|live confirmed|guaranteed|buy now|sell now/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps degraded missing truth explicit instead of rendering a blank state", () => {
+    renderDeskTab({
+      selectedAssetTruth: null,
+      chart: {
+        ...mockMarketCharts["WTI:1d"],
+        selected_asset_truth: null,
+      },
+    });
+
+    const brief = screen.getByTestId("operator-brief");
+
+    expect(within(brief).getAllByText(/Truth unavailable \/ fallback unknown/i).length).toBeGreaterThan(0);
+    expect(within(brief).getByText("Unknown source")).toBeInTheDocument();
   });
 
   it("opens workflow help on demand and keeps the demo path buttons usable", async () => {

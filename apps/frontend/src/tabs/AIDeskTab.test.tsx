@@ -3,7 +3,7 @@ import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../api/client";
-import { mockAIAdvisor, mockAIStatus, mockAssetContexts, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockScenarioResearch, mockSignals, mockWatchlistSummary } from "../api/mockData";
+import { mockAIAdvisor, mockAIStatus, mockAssetContexts, mockDeskSummary, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
 import { AIDeskTab } from "./AIDeskTab";
 
 vi.mock("../api/client", () => ({
@@ -152,20 +152,26 @@ describe("AIDeskTab", () => {
         chart={mockMarketCharts["WTI:1d"]}
         deskSectionNotes={{}}
         onNavigate={vi.fn()}
+        operationalBacklog={mockDeskSummary.operational_backlog}
+        reviewSummary={mockReviewSummary}
         scenario={mockScenarioResearch}
         riskDetail={null}
+        selectedAssetTruth={mockMarketCharts["WTI:1d"].selected_asset_truth}
         selectedRiskReportId={null}
         selectedSignalId={null}
         selectedSymbol="WTI"
         signalDetail={null}
         signals={mockSignals}
         timeframe="1d"
+        tickets={mockTicketList}
         tradeDetail={mockPaperTradeDetail}
         watchlist={mockWatchlistSummary}
       />,
     );
 
     expect(await screen.findByText("Analyst Console")).toBeInTheDocument();
+    expect(screen.getByTestId("operator-brief")).toBeInTheDocument();
+    expect(screen.getByText("Research context only; use USOUSD for trader-facing oil.")).toBeInTheDocument();
     expect(await screen.findByText("Ask The Desk Brain")).toBeInTheDocument();
     expect(screen.getAllByText(/Structured Commodity Advisory/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Current Desk Snapshot")).toBeInTheDocument();
@@ -213,6 +219,47 @@ describe("AIDeskTab", () => {
     });
 
     expect(screen.getAllByText("Local advisory").length).toBeGreaterThan(0);
+  });
+
+  it("renders an advisory operator brief before the console without fake-live wording", async () => {
+    render(
+      <AIDeskTab
+        activeTab="ai_desk"
+        assetContext={mockAssetContexts.WTI}
+        assetLabel="USOUSD"
+        chart={mockMarketCharts["WTI:1d"]}
+        deskSectionNotes={{}}
+        onNavigate={vi.fn()}
+        operationalBacklog={mockDeskSummary.operational_backlog}
+        reviewSummary={mockReviewSummary}
+        riskDetail={null}
+        scenario={{
+          ...mockScenarioResearch,
+          catalyst_chain: undefined as unknown as string[],
+          invalidation_triggers: undefined as unknown as string[],
+          confidence_notes: undefined as unknown as string[],
+        }}
+        selectedAssetTruth={mockMarketCharts["WTI:1d"].selected_asset_truth}
+        selectedRiskReportId={null}
+        selectedSignalId={null}
+        selectedSymbol="WTI"
+        signalDetail={null}
+        signals={mockSignals}
+        timeframe="1d"
+        tickets={mockTicketList}
+        tradeDetail={null}
+        watchlist={mockWatchlistSummary}
+      />,
+    );
+
+    const brief = await screen.findByTestId("operator-brief");
+    const consoleHeading = await screen.findByText("Analyst Console");
+
+    expect(brief.compareDocumentPosition(consoleHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(brief).getByText("Evidence-Backed Brief")).toBeInTheDocument();
+    expect(within(brief).getByText("Advisory")).toBeInTheDocument();
+    expect(within(brief).getByText("Research context only; use USOUSD for trader-facing oil.")).toBeInTheDocument();
+    expect(within(brief).queryByText(/fake-live|live confirmed|guaranteed|buy now|sell now/i)).not.toBeInTheDocument();
   });
 
   it("shows staged long-running local inference state while the advisory request is in flight", async () => {

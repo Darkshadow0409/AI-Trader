@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AssetReadinessBanner } from "../components/AssetReadinessBanner";
+import { OperatorBrief } from "../components/OperatorBrief";
 import type { AssetReadinessView } from "../lib/assetReadiness";
 import { formatDateTimeIST } from "../lib/time";
 import {
@@ -19,24 +20,37 @@ import type {
   CommodityTruthStatusView,
   DeskSummaryView,
   ExecutionGateView,
+  AssetContextView,
   HomeOperatorSummaryView,
+  MarketChartView,
   OperationalBacklogView,
   ReviewSummaryView,
+  RiskDetailView,
+  SelectedAssetTruthView,
+  SignalView,
+  TradeTicketView,
 } from "../types/api";
 
 interface DeskTabProps {
+  assetContext: AssetContextView;
+  chart: MarketChartView;
   desk: DeskSummaryView;
   homeSummary: HomeOperatorSummaryView;
   executionGate: ExecutionGateView;
   operationalBacklog: OperationalBacklogView;
   reviewSummary?: ReviewSummaryView | null;
   commodityTruth?: CommodityTruthStatusView | null;
+  riskDetail?: RiskDetailView | null;
   selectedAssetReadiness: AssetReadinessView;
+  selectedAssetTruth?: SelectedAssetTruthView | null;
   selectedInstrumentLabel: string;
+  selectedSymbol: string;
   selectedUnderlyingLabel?: string | null;
   selectedMappingNote?: string | null;
   selectedHasSignal: boolean;
   selectedHasRisk: boolean;
+  signal?: SignalView | null;
+  tickets?: TradeTicketView[];
   onNavigate: (tab: string) => void;
   onOpenSignal: (signalId: string) => void;
   onOpenRisk: (riskReportId: string) => void;
@@ -90,18 +104,25 @@ function blockerCategoryLabel(category: string | null | undefined): string {
 }
 
 export function DeskTab({
+  assetContext,
+  chart,
   desk,
   homeSummary,
   executionGate,
   operationalBacklog,
   reviewSummary = null,
   commodityTruth = null,
+  riskDetail = null,
   selectedAssetReadiness,
+  selectedAssetTruth = null,
   selectedInstrumentLabel,
+  selectedSymbol,
   selectedUnderlyingLabel = null,
   selectedMappingNote = null,
   selectedHasSignal,
   selectedHasRisk,
+  signal = null,
+  tickets = [],
   onNavigate,
   onOpenSignal,
   onOpenCommandCenter,
@@ -125,6 +146,7 @@ export function DeskTab({
   const operatorWire = desk.operator_wire?.items ?? [];
   const topReviewTasks = desk.review_tasks.slice(0, 3);
   const topSignals = desk.high_priority_signals.slice(0, 4);
+  const operatorBriefSignal = signal ?? topSignals.find((row) => row.symbol === selectedSymbol) ?? assetContext.latest_signal ?? null;
   const accountabilityMetrics = reviewSummary?.accountability_metrics ?? null;
   const gateImpact = reviewSummary?.gate_impact ?? null;
   const clearTheseFirst = gateImpact?.clear_these_first.slice(0, 2) ?? [];
@@ -169,6 +191,21 @@ export function DeskTab({
     <section className="desk-grid desk-terminal-grid">
       <AssetReadinessBanner readiness={selectedAssetReadiness} title={selectedAssetHeading} />
       {selectedMappingNote ? <small>{selectedMappingNote}</small> : null}
+      <OperatorBrief
+        assetContext={assetContext}
+        assetLabel={selectedInstrumentLabel}
+        chart={chart}
+        operationalBacklog={operationalBacklog}
+        reviewSummary={reviewSummary}
+        riskDetail={riskDetail ?? assetContext.latest_risk}
+        selectedAssetReadiness={selectedAssetReadiness}
+        selectedAssetTruth={selectedAssetTruth}
+        selectedMappingNote={selectedMappingNote}
+        selectedSymbol={selectedSymbol}
+        signal={operatorBriefSignal}
+        tickets={tickets}
+        timeframe={chart.timeframe}
+      />
 
       <article className="panel compact-panel terminal-subpanel desk-what-matters">
         <div className="panel-header">

@@ -1,0 +1,48 @@
+Phase 8p.1 isolated browser smoke
+
+Runtime:
+- compose project: ai-trader-phase8p1-mobile-smoke
+- frontend/proxy: http://127.0.0.1:5194
+- backend port: 5457
+
+Routes:
+- desk_uso
+- desk_xag
+- watchlist
+- tickets
+- ai_desk
+- journal
+
+Viewports:
+- 1440x900
+- 1280x720
+- 390x844
+
+Summary:
+- total checks: 18
+- passed checks: 18
+- failed checks: 0
+- console errors: 0
+- page errors: 0
+- failed requests: 0
+- horizontal overflow: false
+- detected overlaps: 0
+- forbidden wording: absent
+- fake-live wording: absent
+- Operator Brief visible on Desk and AI Desk
+
+Mobile width checks:
+- desk_uso 390x844: clientWidth 390, docScrollWidth 390
+- desk_xag 390x844: clientWidth 390, docScrollWidth 390
+- watchlist 390x844: clientWidth 390, docScrollWidth 390
+- tickets 390x844: clientWidth 390, docScrollWidth 390
+- ai_desk 390x844: clientWidth 390, docScrollWidth 390
+- journal 390x844: clientWidth 390, docScrollWidth 390
+
+Raw temporary evidence:
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p1-mobile-smoke\overflow_probe_before.json
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p1-mobile-smoke\overflow_probe_after.json
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p1-mobile-smoke\layout_overflow_overlap_checks.json
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p1-mobile-smoke\screenshots_final\
+
+The raw screenshots and JSON files are not committed.

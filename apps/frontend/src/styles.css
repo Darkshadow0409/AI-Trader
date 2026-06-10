@@ -24,17 +24,25 @@ html,
 body,
 #root {
   min-height: 100%;
+  width: 100%;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     linear-gradient(rgba(41, 57, 57, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(41, 57, 57, 0.06) 1px, transparent 1px),
     radial-gradient(circle at top left, rgba(38, 71, 69, 0.18), transparent 32%),
     var(--bg);
   background-size: 22px 22px, 22px 22px, auto;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
 }
 
 button,
@@ -276,6 +284,10 @@ code {
   padding: 4px 8px;
   color: #a2b8b2;
   background: rgba(12, 20, 22, 0.94);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .status-pill.warning {
@@ -315,6 +327,34 @@ code {
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  min-width: 0;
+}
+
+.workspace-header-copy,
+.workspace-actions,
+.workspace-badges,
+.workspace-cta-group,
+.panel,
+.compact-panel,
+.ribbon-block,
+.rail-panel,
+.left-rail,
+.right-pane,
+.operator-main,
+.workspace,
+.focus-layout,
+.split-stack,
+.detail-columns,
+.control-grid,
+.field-grid,
+.desk-grid,
+.operator-brief-grid,
+.metric-strip > div,
+.metric-grid > div,
+.workflow-strip > div,
+.reality-grid > div {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .workspace-header {
@@ -339,6 +379,74 @@ code {
 
 .workspace-inline-link {
   padding: 4px 8px;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.workspace-continuity-bar {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.workspace-continuity-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.workspace-continuity-thread {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.workspace-continuity-thread strong,
+.workspace-thread-chip strong {
+  display: block;
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.workspace-thread-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-thread-chip {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.workspace-jump-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-jump-row .workspace-inline-link {
+  display: inline-flex;
+  flex: 0 1 auto;
+  justify-content: center;
+  text-align: center;
 }
 
 .subtle-tag {
@@ -489,6 +597,7 @@ code {
   padding: 8px;
   display: grid;
   gap: 4px;
+  overflow-wrap: anywhere;
 }
 
 .split-stack,
@@ -751,6 +860,7 @@ textarea:focus-visible {
   color: var(--text);
   padding: 0.55rem 0.7rem;
   min-height: 2.4rem;
+  max-width: 100%;
 }
 
 .text-input {
@@ -883,5 +993,49 @@ textarea:focus-visible {
 
   .right-pane {
     order: 3;
+  }
+}
+
+@media (max-width: 520px) {
+  .terminal-shell {
+    padding: 6px;
+  }
+
+  .workspace-header,
+  .panel,
+  .compact-panel,
+  .rail-panel {
+    padding: 8px;
+  }
+
+  .workspace-continuity-head,
+  .workspace-thread-strip,
+  .operator-brief-facts,
+  .operator-brief-pressure,
+  .metric-strip,
+  .metric-grid,
+  .workflow-strip,
+  .reality-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-continuity-head > .tag {
+    justify-self: start;
+  }
+
+  .workspace-jump-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .workspace-jump-row .workspace-inline-link,
+  .workspace-actions .text-button,
+  .workspace-actions .action-button {
+    width: 100%;
+  }
+
+  .text-input {
+    min-width: 0;
   }
 }

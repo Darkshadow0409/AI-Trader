@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import { StateBlock } from "../components/StateBlock";
+import { advisoryVisibleCopy } from "../lib/realityStrip";
 import { compactWorkflowId, duplicateWorkflowIdentityBases, duplicateWorkflowSymbols, workflowIdentityLabel } from "../lib/workflowIdentity";
 import {
   selectedAssetTruthFallbackLabel,
@@ -730,7 +731,7 @@ export function TradeTicketsTab({
           </div>
           <div className="stack detail-meta-stack">
             <small>Trader-facing symbol: {selectedTicket?.data_reality?.provenance.tradable_symbol ?? selectedDisplaySymbol ?? selectedSymbol}</small>
-            <small>{selectedTicket?.data_reality?.tradable_alignment_note ?? commodityTruthSummaryLabel(commodityTruth)}</small>
+            <small>{advisoryVisibleCopy(selectedTicket?.data_reality?.tradable_alignment_note ?? commodityTruthSummaryLabel(commodityTruth))}</small>
             {!commodityTruth && !selectedTicket?.data_reality?.execution_grade_allowed ? <small>Degraded market truth. Keep timing claims paper-only and review-first.</small> : null}
           </div>
         </article>

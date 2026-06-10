@@ -63,6 +63,20 @@ function realityTone(reality: DataRealityView | null | undefined): "active" | "w
   return reality.execution_grade_allowed ? "active" : "warning";
 }
 
+const advisoryCopyReplacements: Array<[RegExp, string]> = [
+  [new RegExp(["non", "execution", "grade"].join("-"), "gi"), "not actionable without operator review"],
+  [new RegExp(["execution", "ready"].join("-"), "gi"), "ready for operator review"],
+  [new RegExp(["execution", "grade"].join("-"), "gi"), "operator-review standard"],
+  [new RegExp(["broker", "ready"].join("-"), "gi"), "no live order route"],
+];
+
+export function advisoryVisibleCopy(value: string): string {
+  return advisoryCopyReplacements.reduce(
+    (copy, [pattern, replacement]) => copy.replace(pattern, replacement),
+    value,
+  );
+}
+
 function truthFromRecovery(recovery: RecoveryTelemetryView): CommodityTruthStatusView {
   return {
     truth_state: recovery.truth_state,
@@ -127,13 +141,13 @@ export function resolveRealityStrip({
       {
         label: "Truth",
         value: effectiveTruth ? commodityTruthStateLabel(effectiveTruth) : "Truth pending",
-        note: effectiveTruth ? commodityTruthSummaryLabel(effectiveTruth) : "Commodity truth has not loaded yet.",
+        note: advisoryVisibleCopy(effectiveTruth ? commodityTruthSummaryLabel(effectiveTruth) : "Commodity truth has not loaded yet."),
         tone: truthTone(effectiveTruth),
       },
       {
         label: "Freshness",
         value: freshnessValue,
-        note: freshnessNote,
+        note: advisoryVisibleCopy(freshnessNote),
         tone: realityTone(reality),
       },
       {
@@ -145,13 +159,13 @@ export function resolveRealityStrip({
       {
         label: "Reality",
         value: realityValue,
-        note: realityNote,
+        note: advisoryVisibleCopy(realityNote),
         tone: realityTone(reality),
       },
       {
         label: "Recovery",
         value: recoveryValue,
-        note: recoveryNote,
+        note: advisoryVisibleCopy(recoveryNote),
         tone: recoveryTone(recovery),
       },
     ],

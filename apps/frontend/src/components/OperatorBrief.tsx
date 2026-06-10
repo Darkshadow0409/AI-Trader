@@ -4,6 +4,7 @@ import {
   selectedAssetTruthSourceFamilyLabel,
   selectedAssetTruthStateLabel,
 } from "../lib/selectedAssetTruth";
+import { advisoryVisibleCopy } from "../lib/realityStrip";
 import { chartStateLabel, titleCase, traderFreshnessStateLabel } from "../lib/uiLabels";
 import type { AssetReadinessView } from "../lib/assetReadiness";
 import type {
@@ -62,7 +63,7 @@ function truthNote(
   if (!selectedAssetTruth) {
     return "Truth unavailable / fallback unknown.";
   }
-  return (
+  return advisoryVisibleCopy(
     selectedAssetTruth.degraded_reason
     ?? chart.status_note
     ?? assetContext.data_reality?.ui_warning

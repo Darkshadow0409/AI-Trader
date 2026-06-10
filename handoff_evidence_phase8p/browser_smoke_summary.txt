@@ -1,0 +1,30 @@
+Phase 8p used existing final repair browser evidence from:
+
+C:\Users\sajal\OneDrive\Desktop\Codex Projects\AI Trader\phase8p_ui_review_inspection_20260610-044019\phase8p_ui_repair_evidence\browser_smoke_summary.txt
+C:\Users\sajal\OneDrive\Desktop\Codex Projects\AI Trader\phase8p_ui_review_inspection_20260610-044019\phase8p_ui_repair_evidence\layout_overflow_overlap_checks.json
+C:\Users\sajal\OneDrive\Desktop\Codex Projects\AI Trader\phase8p_ui_review_inspection_20260610-044019\phase8p_ui_repair_evidence\*.png
+
+Routes:
+- desk_uso
+- desk_xag
+- watchlist
+- tickets
+- ai_desk
+- journal
+
+Viewports:
+- 1440x900
+- 1280x720
+- 390x844
+
+Result summary:
+- console=0
+- page=0
+- failed=0
+- overflow=False
+- wide=0
+- overlaps=0
+- forbidden=[]
+- fakeLive=[]
+- Desk/Watchlist charts nonblank where expected
+- Operator Brief visible on Desk and AI Desk

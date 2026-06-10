@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { instrumentMappingExplainer } from "../lib/assetReadiness";
 import { buildCanonicalChartContext } from "../lib/canonicalChartContext";
+import { advisoryVisibleCopy } from "../lib/realityStrip";
 import { workspaceTabTarget, type WorkspaceRouteState, type WorkspaceTarget } from "../lib/workspaceNavigation";
 import type { MarketChartView, PaperTradeDetailView, RecoveryTelemetryView, RiskDetailView, SelectedAssetTruthView, SignalDetailView, TradeTicketDetailView } from "../types/api";
 import { formatDateTimeIST } from "../lib/time";
@@ -269,8 +270,9 @@ export function PriceChart({
         : chart.status === "stale"
           ? chart.status_note || "Visible bars are stale for the current mode."
           : chart.is_fixture_mode
-            ? "Fixture data only. Suitable for research, review, and paper workflow, not live market claims."
+          ? "Fixture data only. Suitable for research, review, and paper workflow, not live market claims."
             : "";
+  const safeOverlayBody = advisoryVisibleCopy(overlayBody);
   const executionGradeNote = chart.data_reality?.execution_grade_allowed
     ? "Paper timing usable"
     : "Research-only timing";
@@ -659,7 +661,7 @@ export function PriceChart({
         overlay={overlayLabel ? (
           <div className={`chart-state-overlay ${overlayTone}`} data-testid="chart-state-overlay">
             <strong>{overlayLabel}</strong>
-            <span>{overlayBody}</span>
+              <span>{safeOverlayBody}</span>
             <span>Do not treat this chart as current live market truth unless the mode and freshness state explicitly support it.</span>
             {!chart.instrument_mapping.broker_truth ? <span>Current mapping uses proxy/public fallback rather than direct broker-truth pricing.</span> : null}
             {onRefresh ? (

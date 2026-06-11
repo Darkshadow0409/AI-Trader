@@ -82,6 +82,12 @@ def build_signal_frame(
     elif spec.template == "vol_expansion":
         raw_entry = (frame["atr_pct"] >= atr_threshold) & (frame["Close"] > frame["ema_fast"]) & (frame["rv"] >= rv_threshold)
         raw_exit = (frame["atr_pct"] < atr_threshold * 0.8) | (frame["Close"] < frame["ema_fast"])
+    elif spec.template == "mean_reversion":
+        reversion_atr_multiple = float(params.get("reversion_atr_multiple", 1.2))
+        relative_volume_max = float(params.get("relative_volume_max", 1.35))
+        lower_band = frame["sma_slow"] - frame["atr"] * reversion_atr_multiple
+        raw_entry = (frame["Close"] < lower_band) & (frame["rv"] <= relative_volume_max)
+        raw_exit = (frame["Close"] >= frame["ema_fast"]) | (frame["Close"] >= frame["sma_slow"])
     else:
         recent_event = _event_mask(frame.index, event_times, event_lookback)
         raw_entry = recent_event & (frame["Close"] > frame["ema_fast"]) & (frame["rv"] >= rv_threshold)

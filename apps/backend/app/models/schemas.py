@@ -1373,6 +1373,36 @@ class PilotSummaryView(BaseModel):
     asset_class_trust_split: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class StrategyContractMetadataView(BaseModel):
+    contract_schema_version: str
+    strategy_key: str
+    strategy_name: str
+    strategy_version: str
+    strategy_family: str
+    deterministic: bool
+    allowed_symbols: list[str] = Field(default_factory=list)
+    research_only_symbols: list[str] = Field(default_factory=list)
+    default_symbol: str
+    supported_timeframes: list[str] = Field(default_factory=list)
+    required_inputs: list[str] = Field(default_factory=list)
+    optional_inputs: list[str] = Field(default_factory=list)
+    entry_rule_summary: str
+    exit_rule_summary: str
+    risk_rule_summary: str
+    compatible_candle_fill_rules: list[str] = Field(default_factory=list)
+    required_assumption_fields: list[str] = Field(default_factory=list)
+    forbidden_inputs: list[str] = Field(default_factory=list)
+    lookahead_policy: str
+    output_signal_type: str
+    min_bars_required: int
+    warmup_bars: int
+    parameter_schema: dict[str, str] = Field(default_factory=dict)
+    parameter_defaults: dict[str, Any] = Field(default_factory=dict)
+    parameter_bounds: dict[str, Any] = Field(default_factory=dict)
+    contract_hash: str
+    warnings: list[str] = Field(default_factory=list)
+
+
 class StrategyListView(BaseModel):
     name: str
     version: str
@@ -1391,6 +1421,7 @@ class StrategyListView(BaseModel):
     lifecycle_note: str
     tags: list[str]
     validation: dict[str, Any]
+    contract: StrategyContractMetadataView
     data_reality: DataRealityView | None = None
 
 

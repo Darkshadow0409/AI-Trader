@@ -71,6 +71,10 @@ function formatModeCounts(value: unknown): string {
   return entries.map(([key, count]) => `${titleize(key)} ${asNumber(count).toFixed(0)}`).join(", ");
 }
 
+function formatList(values: string[]): string {
+  return values.length > 0 ? values.join(", ") : "none";
+}
+
 function uniqueMeaningfulTransitions(history: StrategyDetailView["transition_history"]): StrategyDetailView["transition_history"] {
   const seen = new Set<string>();
   return history.filter((transition) => {
@@ -394,6 +398,65 @@ export function StrategyLabTab() {
             ) : null}
           </div>
           <div className="detail-columns">
+            <div>
+              <h3>Strategy Contract</h3>
+              <table className="data-table">
+                <tbody>
+                  <tr>
+                    <td>Version / family</td>
+                    <td>
+                      {strategyDetail.contract.strategy_version} / {titleize(strategyDetail.contract.strategy_family)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Deterministic</td>
+                    <td>{strategyDetail.contract.deterministic ? "yes" : "unknown"}</td>
+                  </tr>
+                  <tr>
+                    <td>Allowed symbols</td>
+                    <td>{formatList(strategyDetail.contract.allowed_symbols)}</td>
+                  </tr>
+                  <tr>
+                    <td>Research-only symbols</td>
+                    <td>{formatList(strategyDetail.contract.research_only_symbols)}</td>
+                  </tr>
+                  <tr>
+                    <td>Timeframes</td>
+                    <td>{formatList(strategyDetail.contract.supported_timeframes)}</td>
+                  </tr>
+                  <tr>
+                    <td>Lookahead policy</td>
+                    <td>{strategyDetail.contract.lookahead_policy}</td>
+                  </tr>
+                  <tr>
+                    <td>Warmup / min bars</td>
+                    <td>
+                      {strategyDetail.contract.warmup_bars} / {strategyDetail.contract.min_bars_required}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Candle fill rules</td>
+                    <td>{formatList(strategyDetail.contract.compatible_candle_fill_rules.map(titleize))}</td>
+                  </tr>
+                  <tr>
+                    <td>Contract hash</td>
+                    <td>{strategyDetail.contract.contract_hash}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="muted-copy">{strategyDetail.contract.entry_rule_summary}</p>
+              <p className="muted-copy">{strategyDetail.contract.exit_rule_summary}</p>
+              <p className="muted-copy">{strategyDetail.contract.risk_rule_summary}</p>
+              {strategyDetail.contract.warnings.length > 0 ? (
+                <div className="inline-tags" aria-label="Strategy contract warnings">
+                  {strategyDetail.contract.warnings.map((warning) => (
+                    <span className="tag warning" key={warning}>
+                      {warning}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <div>
               <h3>Search space</h3>
               <table className="data-table">

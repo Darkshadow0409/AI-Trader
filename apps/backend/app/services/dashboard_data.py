@@ -27,6 +27,8 @@ from app.services.data_reality import asset_reality, freshness_minutes, freshnes
 from app.services.market_identity import instrument_mapping_view, market_data_mode, terminal_focus_priority
 from app.services.polymarket import crowd_implied_narrative, related_polymarket_markets
 from app.services.feature_pipeline import build_feature_frame
+from app.strategy_lab.registry import get_registry_entry
+from app.strategy_lab.service import _backtest_assumptions, _backtest_metrics_audit, _backtest_validation_metadata
 
 
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
@@ -506,6 +508,29 @@ def asset_context(session: Session, symbol: str) -> AssetContextView:
     risk = next((row for row in list_risk_views(session) if row.symbol == symbol), None)
     related_news = list_news_views(session, symbol=symbol)[:6]
     backtest = session.exec(select(BacktestResult).where(BacktestResult.symbol == symbol).order_by(desc(BacktestResult.created_at))).first()
+    latest_backtest_entry = get_registry_entry(session, backtest.strategy_name) if backtest else None
+    latest_backtest_reality = (
+        asset_reality(
+            session,
+            symbol,
+            as_of=backtest.created_at,
+            data_quality=research.data_quality if research else "fixture",
+            tradable_symbol=latest_backtest_entry.tradable_symbol if latest_backtest_entry else None,
+        )
+        if backtest
+        else None
+    )
+    latest_backtest_reality_label = (
+        f"{latest_backtest_reality.provenance.realism_grade} / {latest_backtest_reality.freshness_state}"
+        if latest_backtest_reality is not None
+        else "unknown"
+    )
+    latest_backtest_source_family = latest_backtest_reality.provenance.source_type if latest_backtest_reality is not None else "unknown"
+    latest_backtest_assumptions = (
+        _backtest_assumptions(backtest, latest_backtest_entry, latest_backtest_reality_label, latest_backtest_source_family)
+        if backtest and latest_backtest_entry
+        else None
+    )
     latest_backtest = (
         BacktestListView(
             id=backtest.id or 0,
@@ -523,14 +548,13 @@ def asset_context(session: Session, symbol: str) -> AssetContextView:
             sharpe_ratio=backtest.sharpe_ratio,
             max_drawdown_pct=backtest.max_drawdown_pct,
             trade_count=backtest.trade_count,
-            data_reality=asset_reality(
-                session,
-                symbol,
-                as_of=backtest.created_at,
-                data_quality=research.data_quality if research else "fixture",
-            ),
+            lifecycle_state=latest_backtest_entry.lifecycle_state if latest_backtest_entry else "experimental",
+            data_reality=latest_backtest_reality,
+            assumptions=latest_backtest_assumptions,
+            validation_metadata=_backtest_validation_metadata(backtest, latest_backtest_assumptions.assumptions_complete),
+            metrics_audit=_backtest_metrics_audit(backtest),
         )
-        if backtest
+        if backtest and latest_backtest_assumptions
         else None
     )
     context_reality = asset_reality(

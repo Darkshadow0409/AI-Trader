@@ -13,9 +13,13 @@ from app.core.clock import naive_utc_now
 from app.core.settings import get_settings
 from app.models.entities import BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, MacroEvent, MarketBar, PaperTradeRecord, PaperTradeReviewRecord, PipelineRun, SignalRecord, StrategyRegistryEntry, StrategyStateTransition
 from app.models.schemas import (
+    BacktestAssumptionsView,
     BacktestDetailView,
     BacktestListView,
+    BacktestMetricsAuditView,
     BacktestRunRequest,
+    BacktestValidationMetadataView,
+    BacktestValidationWindowView,
     CalibrationBucketView,
     CalibrationSnapshotView,
     DataRealismPenaltyView,
@@ -47,6 +51,8 @@ FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
 LIFECYCLE_STATES = {"experimental", "paper_validating", "promoted", "demoted"}
 CLOSED_PAPER_STATUSES = {"closed_win", "closed_loss", "invalidated", "timed_out", "cancelled"}
 OPERATOR_FAILURE_CATEGORIES = {"operator_timing", "operator_sizing", "realism_ignored", "execution_plan_violation"}
+ASSUMPTION_SCHEMA_VERSION = "phase9b.v1"
+MIN_BACKTEST_TRADE_COUNT = 10
 
 
 def _clean_number(value: Any) -> float:
@@ -135,6 +141,174 @@ def _walk_forward_quality(result: BacktestResult | None) -> float:
         if summary_walk_forward.get("pass_rate") is not None:
             return _clean_number(summary_walk_forward.get("pass_rate"))
     return 0.0
+
+
+def _walk_forward_windows_from_payload(payload: dict[str, Any]) -> list[BacktestValidationWindowView]:
+    windows = payload.get("windows", [])
+    if not isinstance(windows, list):
+        return []
+    parsed: list[BacktestValidationWindowView] = []
+    for item in windows:
+        if not isinstance(item, dict):
+            continue
+        try:
+            parsed.append(
+                BacktestValidationWindowView(
+                    train_start=int(item.get("train_start", 0)),
+                    train_end=int(item.get("train_end", 0)),
+                    test_start=int(item.get("test_start", 0)),
+                    test_end=int(item.get("test_end", 0)),
+                )
+            )
+        except (TypeError, ValueError):
+            continue
+    return parsed
+
+
+def _backtest_assumptions(row: BacktestResult, entry: StrategyRegistryEntry, reality_label: str, source_family: str) -> BacktestAssumptionsView:
+    persisted = row.metadata_json.get("assumptions", {})
+    if isinstance(persisted, dict) and persisted.get("assumption_schema_version") == ASSUMPTION_SCHEMA_VERSION:
+        return BacktestAssumptionsView.model_validate(persisted)
+
+    return BacktestAssumptionsView(
+        assumption_schema_version="legacy.reconstructed",
+        assumptions_complete=False,
+        fee_model_label="fixed basis points from strategy spec",
+        fee_bps=float(row.fees_bps),
+        spread_model_label="not modeled separately",
+        spread_bps=0.0,
+        slippage_model_label="fixed basis points from strategy spec",
+        slippage_bps=float(row.slippage_bps),
+        candle_fill_rule="close_only",
+        benchmark_label=f"{entry.tradable_symbol or row.symbol} buy-and-hold benchmark pending",
+        data_reality_label=reality_label,
+        source_family=source_family,
+        symbol=row.symbol,
+        timeframe=row.timeframe,
+        run_started_at=row.created_at,
+        run_completed_at=row.completed_at,
+        warnings=["Assumptions reconstructed from a legacy backtest row; rerun the strategy to persist Phase 9B metadata."],
+    )
+
+
+def _backtest_validation_metadata(row: BacktestResult, assumptions_complete: bool) -> BacktestValidationMetadataView:
+    persisted = row.validation_json.get("validation_metadata", {})
+    if isinstance(persisted, dict) and persisted.get("assumptions_complete") is not None:
+        return BacktestValidationMetadataView.model_validate(persisted)
+
+    flags = row.validation_json.get("flags", {})
+    walk_forward = row.validation_json.get("walk_forward", {})
+    walk_forward_payload = walk_forward if isinstance(walk_forward, dict) else {}
+    windows = _walk_forward_windows_from_payload(walk_forward_payload)
+    first = windows[0] if windows else None
+    no_lookahead = bool(flags.get("no_lookahead", False)) if isinstance(flags, dict) else False
+    return BacktestValidationMetadataView(
+        no_lookahead=no_lookahead,
+        no_lookahead_method="validation flag reconstructed from legacy metadata",
+        train_start=first.train_start if first else None,
+        train_end=first.train_end if first else None,
+        test_start=first.test_start if first else None,
+        test_end=first.test_end if first else None,
+        walk_forward_enabled=bool(windows or int(walk_forward_payload.get("window_count", 0) or 0) > 0),
+        walk_forward_window_count=len(windows) if windows else int(walk_forward_payload.get("window_count", 0) or 0),
+        walk_forward_windows=windows,
+        min_trade_count_warning=int(row.trade_count) < MIN_BACKTEST_TRADE_COUNT,
+        low_sample_warning=int(row.trade_count) < MIN_BACKTEST_TRADE_COUNT,
+        assumptions_complete=assumptions_complete,
+    )
+
+
+def _backtest_metrics_audit(row: BacktestResult) -> BacktestMetricsAuditView:
+    persisted = row.summary_json.get("metrics_audit", {})
+    if isinstance(persisted, dict) and "total_return" in persisted:
+        return BacktestMetricsAuditView.model_validate(persisted)
+
+    pnl_values = [_clean_number(item.get("pnl_pct")) for item in row.trades_json if isinstance(item, dict)]
+    wins = [value for value in pnl_values if value > 0]
+    losses = [value for value in pnl_values if value < 0]
+    gross_profit = sum(wins)
+    gross_loss = abs(sum(losses))
+    profit_factor = round(gross_profit / gross_loss, 4) if gross_loss > 0 else None
+    expectancy = round(sum(pnl_values) / len(pnl_values), 4) if pnl_values else None
+    unavailable = ["average_r", "sortino"]
+    if profit_factor is None:
+        unavailable.append("profit_factor")
+    if expectancy is None:
+        unavailable.append("expectancy")
+    return BacktestMetricsAuditView(
+        total_return=float(row.net_return_pct),
+        max_drawdown=float(row.max_drawdown_pct),
+        win_rate=round(len(wins) / len(pnl_values), 4) if pnl_values else None,
+        trade_count=int(row.trade_count),
+        profit_factor=profit_factor,
+        expectancy=expectancy,
+        average_r=None,
+        sharpe=float(row.sharpe_ratio),
+        sortino=None,
+        unavailable_metrics=unavailable,
+    )
+
+
+def _phase9b_assumptions_for_run(spec: StrategySpec, symbol: str, started_at: datetime, completed_at: datetime | None, source_family: str) -> dict[str, Any]:
+    return BacktestAssumptionsView(
+        assumption_schema_version=ASSUMPTION_SCHEMA_VERSION,
+        assumptions_complete=True,
+        fee_model_label="fixed basis points per trade",
+        fee_bps=spec.execution.fees_bps,
+        spread_model_label="not modeled separately; folded into slippage",
+        spread_bps=0.0,
+        slippage_model_label="fixed basis points per trade",
+        slippage_bps=spec.execution.slippage_bps,
+        candle_fill_rule="close_only",
+        benchmark_label=f"{spec.tradable_symbol or symbol} buy-and-hold benchmark pending",
+        data_reality_label="fixture" if source_family == "fixture" else source_family,
+        source_family=source_family,
+        symbol=symbol,
+        timeframe=spec.timeframe,
+        run_started_at=started_at,
+        run_completed_at=completed_at,
+        warnings=[],
+    ).model_dump(mode="json")
+
+
+def _phase9b_validation_metadata_for_run(spec: StrategySpec, walk_forward: dict[str, Any], trade_count: int) -> dict[str, Any]:
+    windows = _walk_forward_windows_from_payload(walk_forward)
+    first = windows[0] if windows else None
+    return BacktestValidationMetadataView(
+        no_lookahead=True,
+        no_lookahead_method="signals activate after warmup; parameters are selected on train slices and evaluated on later test slices",
+        train_start=first.train_start if first else None,
+        train_end=first.train_end if first else None,
+        test_start=first.test_start if first else None,
+        test_end=first.test_end if first else None,
+        walk_forward_enabled=spec.validation.walk_forward_required,
+        walk_forward_window_count=len(windows),
+        walk_forward_windows=windows,
+        min_trade_count_warning=trade_count < MIN_BACKTEST_TRADE_COUNT,
+        low_sample_warning=trade_count < MIN_BACKTEST_TRADE_COUNT,
+        assumptions_complete=True,
+    ).model_dump(mode="json")
+
+
+def _phase9b_metrics_audit_for_run(metrics: dict[str, Any], trades: list[dict[str, Any]]) -> dict[str, Any]:
+    row = BacktestResult(
+        strategy_name="audit_builder",
+        engine="strategy_lab",
+        status="completed",
+        symbol="audit",
+        timeframe="1d",
+        fees_bps=1,
+        slippage_bps=1,
+        warmup_bars=1,
+        search_method="grid",
+        robustness_score=0,
+        net_return_pct=_clean_number(metrics.get("net_return_pct")),
+        sharpe_ratio=_clean_number(metrics.get("sharpe_ratio")),
+        max_drawdown_pct=_clean_number(metrics.get("max_drawdown_pct")),
+        trade_count=int(metrics.get("trade_count", 0)),
+        trades_json=trades,
+    )
+    return _backtest_metrics_audit(row).model_dump(mode="json")
 
 
 def _objective(metrics: dict[str, Any]) -> float:
@@ -865,6 +1039,9 @@ def backtest_list_view(session: Session, row: BacktestResult) -> BacktestListVie
         data_quality="fixture",
         tradable_symbol=entry.tradable_symbol,
     )
+    reality_label = f"{reality.provenance.realism_grade} / {reality.freshness_state}" if reality is not None else "unknown"
+    source_family = reality.provenance.source_type if reality is not None else "unknown"
+    assumptions = _backtest_assumptions(row, entry, reality_label, source_family)
     return BacktestListView(
         id=row.id or 0,
         strategy_name=row.strategy_name,
@@ -884,6 +1061,9 @@ def backtest_list_view(session: Session, row: BacktestResult) -> BacktestListVie
         lifecycle_state=entry.lifecycle_state,
         data_realism_penalties=penalties,
         data_reality=reality,
+        assumptions=assumptions,
+        validation_metadata=_backtest_validation_metadata(row, assumptions.assumptions_complete),
+        metrics_audit=_backtest_metrics_audit(row),
     )
 
 
@@ -951,6 +1131,12 @@ def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResul
         raise ValueError("Walk-forward validation is required before promoting a strategy.")
 
     now = naive_utc_now()
+    completed_at = now
+    trade_count = int(evaluation["validation"]["metrics"]["trade_count"])
+    source_family = str(rows[-1].get("source", "fixture")) if rows else "fixture"
+    assumptions_payload = _phase9b_assumptions_for_run(spec, symbol, now, completed_at, source_family)
+    validation_metadata_payload = _phase9b_validation_metadata_for_run(spec, walk_forward, trade_count)
+    metrics_audit_payload = _phase9b_metrics_audit_for_run(evaluation["validation"]["metrics"], evaluation["validation"]["trades"])
     run = BacktestRun(
         name=f"{spec.name}_{symbol}_{now:%Y%m%d%H%M%S}",
         engine="strategy_lab",
@@ -972,7 +1158,7 @@ def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResul
         symbol=symbol,
         timeframe=spec.timeframe,
         created_at=now,
-        completed_at=now,
+        completed_at=completed_at,
         proxy_grade=spec.proxy_grade,
         promoted_candidate=promoted,
         fees_bps=spec.execution.fees_bps,
@@ -983,11 +1169,12 @@ def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResul
         net_return_pct=_clean_number(evaluation["validation"]["metrics"]["net_return_pct"]),
         sharpe_ratio=_clean_number(evaluation["validation"]["metrics"]["sharpe_ratio"]),
         max_drawdown_pct=_clean_number(evaluation["validation"]["metrics"]["max_drawdown_pct"]),
-        trade_count=int(evaluation["validation"]["metrics"]["trade_count"]),
-        validation_json=_clean_json({"flags": _validation_flags(spec), "walk_forward": walk_forward}),
+        trade_count=trade_count,
+        validation_json=_clean_json({"flags": _validation_flags(spec), "walk_forward": walk_forward, "validation_metadata": validation_metadata_payload}),
         summary_json=_clean_json({
             "research": evaluation["research"]["metrics"],
             "validation": evaluation["validation"]["metrics"],
+            "metrics_audit": metrics_audit_payload,
             "best_parameters": best_params,
             "trial_summaries": trial_summaries,
             "walk_forward": {
@@ -1006,6 +1193,7 @@ def run_backtest(session: Session, request: BacktestRunRequest) -> BacktestResul
             "best_parameters": best_params,
             "research_engine": evaluation["research"]["engine"],
             "validation_engine": evaluation["validation"]["engine"],
+            "assumptions": assumptions_payload,
         }),
     )
     session.add(result)

@@ -10,12 +10,41 @@ interface BacktestsTabProps {
   rows: BacktestListView[];
 }
 
+function formatPct(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "unavailable";
+  }
+  return `${value.toFixed(2)}%`;
+}
+
+function formatBps(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "unavailable";
+  }
+  return `${value.toFixed(2)} bps`;
+}
+
+function formatIndexRange(start: number | null | undefined, end: number | null | undefined): string {
+  if (start === null || start === undefined || end === null || end === undefined) {
+    return "unavailable";
+  }
+  return `${start} -> ${end}`;
+}
+
 export function BacktestsTab({ rows }: BacktestsTabProps) {
   const [selectedRunId, setSelectedRunId] = useState<number | null>(rows[0]?.id ?? null);
   const [detail, setDetail] = useState<BacktestDetailView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastEquityPoint = detail ? detail.equity_curve[detail.equity_curve.length - 1] : null;
+  const assumptions = detail?.assumptions ?? null;
+  const validationMetadata = detail?.validation_metadata ?? null;
+  const metricsAudit = detail?.metrics_audit ?? null;
+  const assumptionWarnings = [
+    ...(assumptions?.warnings ?? []),
+    ...(validationMetadata?.low_sample_warning ? ["Low sample warning: review this run before comparing strategy quality."] : []),
+    ...(validationMetadata?.assumptions_complete === false ? ["Assumptions are incomplete or reconstructed from legacy metadata."] : []),
+  ];
 
   useEffect(() => {
     setSelectedRunId((current) => current ?? rows[0]?.id ?? null);
@@ -112,6 +141,56 @@ export function BacktestsTab({ rows }: BacktestsTabProps) {
             </Panel>
             <Panel title="Equity Curve" eyebrow={detail.strategy_name}>
               <EquityCurveChart points={detail.equity_curve} />
+            </Panel>
+            <Panel title="Assumptions & Validation" eyebrow="Research-only backtest proof">
+              <div className="metric-grid">
+                <div>
+                  <span className="metric-label">Fees / spread / slippage</span>
+                  <strong>
+                    {formatBps(assumptions?.fee_bps)} / {formatBps(assumptions?.spread_bps)} / {formatBps(assumptions?.slippage_bps)}
+                  </strong>
+                </div>
+                <div>
+                  <span className="metric-label">Candle fill rule</span>
+                  <strong>{assumptions?.candle_fill_rule?.replace(/_/g, " ") ?? "unavailable"}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Benchmark</span>
+                  <strong>{assumptions?.benchmark_label ?? "unavailable"}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">No-lookahead</span>
+                  <strong>{validationMetadata?.no_lookahead ? "on" : "unavailable"}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Train / test index range</span>
+                  <strong>
+                    {formatIndexRange(validationMetadata?.train_start, validationMetadata?.train_end)} / {formatIndexRange(validationMetadata?.test_start, validationMetadata?.test_end)}
+                  </strong>
+                </div>
+                <div>
+                  <span className="metric-label">Walk-forward windows</span>
+                  <strong>{validationMetadata?.walk_forward_enabled ? validationMetadata.walk_forward_window_count : "off"}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Win rate / expectancy</span>
+                  <strong>{formatPct(metricsAudit?.win_rate === null || metricsAudit?.win_rate === undefined ? null : metricsAudit.win_rate * 100)} / {formatPct(metricsAudit?.expectancy)}</strong>
+                </div>
+                <div>
+                  <span className="metric-label">Profit factor / avg R</span>
+                  <strong>{metricsAudit?.profit_factor?.toFixed(2) ?? "unavailable"} / {metricsAudit?.average_r?.toFixed(2) ?? "unavailable"}</strong>
+                </div>
+              </div>
+              <p className="muted-copy">
+                {validationMetadata?.no_lookahead_method ?? "No-lookahead method unavailable. Treat this run as research-only until assumptions are complete."}
+              </p>
+              {assumptionWarnings.length > 0 ? (
+                <div className="inline-tags" aria-label="Backtest assumption warnings">
+                  {assumptionWarnings.map((warning) => (
+                    <span className="tag warning" key={warning}>{warning}</span>
+                  ))}
+                </div>
+              ) : null}
             </Panel>
             <Panel title="Trade List" eyebrow="Executed Trades">
               {detail.trades.length === 0 ? (

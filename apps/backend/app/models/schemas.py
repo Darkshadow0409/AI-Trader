@@ -1486,6 +1486,61 @@ class BacktestRunRequest(BaseModel):
     parameter_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
+class BacktestAssumptionsView(BaseModel):
+    assumption_schema_version: str
+    assumptions_complete: bool
+    fee_model_label: str
+    fee_bps: float
+    spread_model_label: str
+    spread_bps: float | None = None
+    slippage_model_label: str
+    slippage_bps: float
+    candle_fill_rule: str
+    benchmark_label: str
+    data_reality_label: str
+    source_family: str
+    symbol: str
+    timeframe: str
+    run_started_at: datetime | None = None
+    run_completed_at: datetime | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class BacktestValidationWindowView(BaseModel):
+    train_start: int
+    train_end: int
+    test_start: int
+    test_end: int
+
+
+class BacktestValidationMetadataView(BaseModel):
+    no_lookahead: bool
+    no_lookahead_method: str
+    train_start: int | None = None
+    train_end: int | None = None
+    test_start: int | None = None
+    test_end: int | None = None
+    walk_forward_enabled: bool
+    walk_forward_window_count: int
+    walk_forward_windows: list[BacktestValidationWindowView] = Field(default_factory=list)
+    min_trade_count_warning: bool
+    low_sample_warning: bool
+    assumptions_complete: bool
+
+
+class BacktestMetricsAuditView(BaseModel):
+    total_return: float
+    max_drawdown: float
+    win_rate: float | None = None
+    trade_count: int
+    profit_factor: float | None = None
+    expectancy: float | None = None
+    average_r: float | None = None
+    sharpe: float | None = None
+    sortino: float | None = None
+    unavailable_metrics: list[str] = Field(default_factory=list)
+
+
 class BacktestListView(BaseModel):
     id: int
     strategy_name: str
@@ -1505,6 +1560,9 @@ class BacktestListView(BaseModel):
     lifecycle_state: str = "experimental"
     data_realism_penalties: list[DataRealismPenaltyView] = Field(default_factory=list)
     data_reality: DataRealityView | None = None
+    assumptions: BacktestAssumptionsView
+    validation_metadata: BacktestValidationMetadataView
+    metrics_audit: BacktestMetricsAuditView
 
 
 class BacktestDetailView(BacktestListView):

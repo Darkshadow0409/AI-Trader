@@ -682,6 +682,61 @@ export interface RegimeSummaryView {
   win_rate: number;
 }
 
+export interface BacktestAssumptionsView {
+  assumption_schema_version: string;
+  assumptions_complete: boolean;
+  fee_model_label: string;
+  fee_bps: number;
+  spread_model_label: string;
+  spread_bps: number | null;
+  slippage_model_label: string;
+  slippage_bps: number;
+  candle_fill_rule: string;
+  benchmark_label: string;
+  data_reality_label: string;
+  source_family: string;
+  symbol: string;
+  timeframe: string;
+  run_started_at: string | null;
+  run_completed_at: string | null;
+  warnings: string[];
+}
+
+export interface BacktestValidationWindowView {
+  train_start: number;
+  train_end: number;
+  test_start: number;
+  test_end: number;
+}
+
+export interface BacktestValidationMetadataView {
+  no_lookahead: boolean;
+  no_lookahead_method: string;
+  train_start: number | null;
+  train_end: number | null;
+  test_start: number | null;
+  test_end: number | null;
+  walk_forward_enabled: boolean;
+  walk_forward_window_count: number;
+  walk_forward_windows: BacktestValidationWindowView[];
+  min_trade_count_warning: boolean;
+  low_sample_warning: boolean;
+  assumptions_complete: boolean;
+}
+
+export interface BacktestMetricsAuditView {
+  total_return: number;
+  max_drawdown: number;
+  win_rate: number | null;
+  trade_count: number;
+  profit_factor: number | null;
+  expectancy: number | null;
+  average_r: number | null;
+  sharpe: number | null;
+  sortino: number | null;
+  unavailable_metrics: string[];
+}
+
 export interface BacktestListView {
   id: number;
   strategy_name: string;
@@ -701,6 +756,9 @@ export interface BacktestListView {
   lifecycle_state: string;
   data_realism_penalties: DataRealismPenaltyView[];
   data_reality: DataRealityView | null;
+  assumptions?: BacktestAssumptionsView;
+  validation_metadata?: BacktestValidationMetadataView;
+  metrics_audit?: BacktestMetricsAuditView;
 }
 
 export interface BacktestDetailView extends BacktestListView {

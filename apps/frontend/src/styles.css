@@ -358,6 +358,18 @@ code {
   max-width: 100%;
 }
 
+.operator-main > *,
+.main-pane > *,
+.operator-workspace-anchor,
+.operator-workspace-anchor > *,
+.terminal-workspace-header,
+.terminal-workspace-panel,
+.workspace-continuity-bar {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .workspace-header {
   padding: 10px 12px;
   background: rgba(7, 14, 16, 0.92);

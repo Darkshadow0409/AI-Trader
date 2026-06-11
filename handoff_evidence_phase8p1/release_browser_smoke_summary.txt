@@ -1,0 +1,49 @@
+Phase 8p.2 fresh release browser smoke
+
+Runtime:
+- frontend: http://127.0.0.1:5195
+- backend: http://127.0.0.1:5458
+- launcher: scripts/dev.py --detach --no-open
+- API proxy: Playwright route fulfillment added CORS headers for backend API responses; product source and runtime config were not changed.
+
+Routes:
+- Desk USOUSD
+- Desk XAGUSD
+- Watchlist
+- Tickets
+- AI Desk
+- Journal
+
+Viewports:
+- 1440x900
+- 1280x720
+- 390x844
+
+Summary:
+- total checks: 18
+- passed checks: 18
+- failed checks: 0
+- console errors: 0
+- page errors: 0
+- failed requests: 0
+- horizontal overflow: false
+- detected overlaps: 0
+- forbidden wording: absent
+- fake-live wording: absent
+- Desk and Watchlist charts: nonblank where expected
+- Operator Brief visible on Desk and AI Desk
+
+Mobile width checks:
+- desk_uso 390x844: clientWidth 390, docScrollWidth 390
+- desk_xag 390x844: clientWidth 390, docScrollWidth 390
+- watchlist 390x844: clientWidth 390, docScrollWidth 390
+- tickets 390x844: clientWidth 390, docScrollWidth 390
+- ai_desk 390x844: clientWidth 390, docScrollWidth 390
+- journal 390x844: clientWidth 390, docScrollWidth 390
+
+Raw temporary evidence:
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p2-release-smoke-proxy\release_browser_smoke_results.json
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p2-release-smoke-proxy\release_browser_smoke_summary.txt
+- C:\Users\sajal\AppData\Local\Temp\ai-trader-phase8p2-release-smoke-proxy\screenshots
+
+The raw screenshots and JSON files are not committed.

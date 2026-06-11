@@ -40,6 +40,36 @@ const mockReality = {
   tradable_alignment_note: "BTC research symbol BTCUSD aligns directly with BTCUSD on binance_spot.",
 };
 
+const mockStrategyContract = {
+  contract_schema_version: "phase9c.v1",
+  strategy_key: "trend_breakout_v1",
+  strategy_name: "trend_breakout_v1",
+  strategy_version: "1.0",
+  strategy_family: "trend_breakout",
+  deterministic: true,
+  allowed_symbols: ["BTC"],
+  research_only_symbols: [],
+  default_symbol: "BTC",
+  supported_timeframes: ["1d"],
+  required_inputs: ["Open", "High", "Low", "Close", "Volume"],
+  optional_inputs: [],
+  entry_rule_summary: "Close must clear prior breakout high after warmup.",
+  exit_rule_summary: "Exit when close loses fast trend.",
+  risk_rule_summary: "paper/research sizing only; fees 8 bps, slippage 5 bps, warmup 55 bars",
+  compatible_candle_fill_rules: ["close_only"],
+  required_assumption_fields: ["fee_bps", "slippage_bps", "candle_fill_rule"],
+  forbidden_inputs: ["future_candles", "same_bar_signal_fill", "live_order_route", "real_account_balance"],
+  lookahead_policy: "Indicators are computed from prior bars and Entry/Exit signals are shifted one bar forward before evaluation.",
+  output_signal_type: "long_flat",
+  min_bars_required: 175,
+  warmup_bars: 55,
+  parameter_schema: { breakout_buffer: "float" },
+  parameter_defaults: { breakout_buffer: 0.01 },
+  parameter_bounds: { breakout_buffer: { kind: "float", low: 0, high: 0.02, step: 0.01 } },
+  contract_hash: "contract123",
+  warnings: [],
+};
+
 describe("StrategyLabTab", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -66,6 +96,7 @@ describe("StrategyLabTab", () => {
               lifecycle_note: "Forward validation is underway.",
               tags: ["trend"],
               validation: { walk_forward_required: true },
+              contract: mockStrategyContract,
               data_reality: mockReality,
             },
           ],
@@ -119,6 +150,7 @@ describe("StrategyLabTab", () => {
             tags: ["trend"],
             validation: { walk_forward_required: true, robustness_required: true },
             search_space: { breakout_buffer: { kind: "float", low: 0, high: 0.02, step: 0.01 } },
+            contract: mockStrategyContract,
             spec: {},
             promotion_rationale: {
               state: "promoted",
@@ -412,6 +444,10 @@ describe("StrategyLabTab", () => {
     expect(await screen.findByRole("heading", { name: "Run Detail" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Equity Curve" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Search space" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Strategy Contract" })).toBeInTheDocument();
+    expect(await screen.findByText("1.0 / trend breakout")).toBeInTheDocument();
+    expect(await screen.findByText("contract123")).toBeInTheDocument();
+    expect(await screen.findByText(/shifted one bar forward/i)).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Strategy Promotion / Validation" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Operator feedback" })).toBeInTheDocument();
     expect(await screen.findByText("Adherence-adjusted outcome")).toBeInTheDocument();
@@ -421,6 +457,7 @@ describe("StrategyLabTab", () => {
     expect(await screen.findByText("paper trade 2, live sim 1")).toBeInTheDocument();
     expect(await screen.findByText("breakout buffer 0.01")).toBeInTheDocument();
     expect(screen.getByTestId("equity-chart")).toBeInTheDocument();
+    expect(screen.queryByText(/broker-ready|execution-ready|fake-live/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Run trend_breakout_v1/i }));
 

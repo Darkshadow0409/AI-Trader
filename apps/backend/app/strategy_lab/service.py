@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, datetime
 from math import isnan
@@ -27,6 +28,7 @@ from app.models.schemas import (
     ForwardValidationSummaryView,
     PromotionRationaleView,
     PromotionTransitionView,
+    StrategyContractMetadataView,
     StrategyDetailView,
     StrategyLifecycleUpdateRequest,
     StrategyListView,
@@ -53,6 +55,21 @@ CLOSED_PAPER_STATUSES = {"closed_win", "closed_loss", "invalidated", "timed_out"
 OPERATOR_FAILURE_CATEGORIES = {"operator_timing", "operator_sizing", "realism_ignored", "execution_plan_violation"}
 ASSUMPTION_SCHEMA_VERSION = "phase9b.v1"
 MIN_BACKTEST_TRADE_COUNT = 10
+CONTRACT_SCHEMA_VERSION = "phase9c.v1"
+PHASE9B_REQUIRED_ASSUMPTIONS = [
+    "assumption_schema_version",
+    "fee_model_label",
+    "fee_bps",
+    "spread_model_label",
+    "slippage_model_label",
+    "slippage_bps",
+    "candle_fill_rule",
+    "benchmark_label",
+    "data_reality_label",
+    "source_family",
+    "symbol",
+    "timeframe",
+]
 
 
 def _clean_number(value: Any) -> float:
@@ -71,6 +88,115 @@ def _clean_json(value: Any) -> Any:
     if isinstance(value, float) and isnan(value):
         return 0.0
     return value
+
+
+def _contract_hash(payload: dict[str, Any]) -> str:
+    stable_payload = {key: value for key, value in payload.items() if key != "contract_hash"}
+    return hashlib.sha256(json.dumps(stable_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:16]
+
+
+def _parameter_schema(spec: StrategySpec) -> dict[str, str]:
+    names = set(spec.parameters) | set(spec.search_space)
+    schema: dict[str, str] = {}
+    for name in sorted(names):
+        if name in spec.search_space:
+            schema[name] = spec.search_space[name].kind
+        else:
+            value = spec.parameters[name]
+            schema[name] = "bool" if isinstance(value, bool) else type(value).__name__
+    return schema
+
+
+def _parameter_bounds(spec: StrategySpec) -> dict[str, Any]:
+    return {name: definition.model_dump(mode="json") for name, definition in spec.search_space.items()}
+
+
+def _research_only_symbols(spec: StrategySpec) -> list[str]:
+    research_symbols: list[str] = []
+    if spec.underlying_symbol == "WTI":
+        research_symbols.extend(["WTI", "WTI_CTX"])
+    elif spec.underlying_symbol != spec.tradable_symbol:
+        research_symbols.append(spec.underlying_symbol)
+    return sorted(set(research_symbols))
+
+
+def _contract_from_spec(spec: StrategySpec) -> StrategyContractMetadataView:
+    train_bars = int(spec.validation.train_bars)
+    test_bars = int(spec.validation.test_bars)
+    min_bars_required = spec.validation.warmup_bars + train_bars + test_bars
+    entry_rule_summary = spec.rules.get("entry", "unknown")
+    exit_rule_summary = spec.rules.get("exit", "unknown")
+    risk_rule_summary = (
+        f"paper/research sizing only; fees {spec.execution.fees_bps:g} bps, "
+        f"slippage {spec.execution.slippage_bps:g} bps, warmup {spec.validation.warmup_bars} bars"
+    )
+    payload: dict[str, Any] = {
+        "contract_schema_version": CONTRACT_SCHEMA_VERSION,
+        "strategy_key": spec.name,
+        "strategy_name": spec.name,
+        "strategy_version": spec.version,
+        "strategy_family": spec.template,
+        "deterministic": True,
+        "allowed_symbols": [spec.tradable_symbol],
+        "research_only_symbols": _research_only_symbols(spec),
+        "default_symbol": spec.tradable_symbol,
+        "supported_timeframes": [spec.timeframe],
+        "required_inputs": ["Open", "High", "Low", "Close", "Volume"],
+        "optional_inputs": ["macro_events"] if spec.template == "event_continuation" else [],
+        "entry_rule_summary": entry_rule_summary,
+        "exit_rule_summary": exit_rule_summary,
+        "risk_rule_summary": risk_rule_summary,
+        "compatible_candle_fill_rules": ["close_only"],
+        "required_assumption_fields": PHASE9B_REQUIRED_ASSUMPTIONS,
+        "forbidden_inputs": ["future_candles", "same_bar_signal_fill", "live_order_route", "real_account_balance"],
+        "lookahead_policy": "Indicators are computed from prior bars and Entry/Exit signals are shifted one bar forward before evaluation.",
+        "output_signal_type": "long_flat",
+        "min_bars_required": min_bars_required,
+        "warmup_bars": spec.validation.warmup_bars,
+        "parameter_schema": _parameter_schema(spec),
+        "parameter_defaults": spec.default_parameters,
+        "parameter_bounds": _parameter_bounds(spec),
+        "warnings": [],
+    }
+    payload["contract_hash"] = _contract_hash(payload)
+    return StrategyContractMetadataView.model_validate(payload)
+
+
+def _strategy_contract(entry: StrategyRegistryEntry) -> StrategyContractMetadataView:
+    try:
+        spec = StrategySpec.model_validate(entry.spec_json)
+        return _contract_from_spec(spec)
+    except Exception:
+        payload: dict[str, Any] = {
+            "contract_schema_version": "legacy.reconstructed",
+            "strategy_key": entry.name,
+            "strategy_name": entry.name,
+            "strategy_version": entry.version,
+            "strategy_family": entry.template,
+            "deterministic": False,
+            "allowed_symbols": [entry.tradable_symbol],
+            "research_only_symbols": ["WTI", "WTI_CTX"] if entry.underlying_symbol == "WTI" else [],
+            "default_symbol": entry.tradable_symbol,
+            "supported_timeframes": [entry.timeframe],
+            "required_inputs": ["Open", "High", "Low", "Close", "Volume"],
+            "optional_inputs": [],
+            "entry_rule_summary": "unknown",
+            "exit_rule_summary": "unknown",
+            "risk_rule_summary": "unknown",
+            "compatible_candle_fill_rules": ["close_only"],
+            "required_assumption_fields": PHASE9B_REQUIRED_ASSUMPTIONS,
+            "forbidden_inputs": ["future_candles", "same_bar_signal_fill", "live_order_route", "real_account_balance"],
+            "lookahead_policy": "unknown",
+            "output_signal_type": "unknown",
+            "min_bars_required": int(entry.warmup_bars),
+            "warmup_bars": int(entry.warmup_bars),
+            "parameter_schema": {},
+            "parameter_defaults": {},
+            "parameter_bounds": {},
+            "warnings": ["Strategy contract reconstructed from legacy registry data; rerun seed to persist the full spec contract."],
+        }
+        payload["contract_hash"] = _contract_hash(payload)
+        return StrategyContractMetadataView.model_validate(payload)
 
 
 def _parse_iso(value: str) -> datetime:
@@ -971,6 +1097,7 @@ def strategy_list_view(session: Session, row: StrategyRegistryEntry) -> Strategy
         lifecycle_note=row.lifecycle_note or "",
         tags=row.tags_json,
         validation=row.validation_json,
+        contract=_strategy_contract(row),
         data_reality=asset_reality(
             session,
             row.underlying_symbol,

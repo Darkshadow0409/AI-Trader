@@ -7,7 +7,7 @@ import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field, model_validator
 
 
-TemplateName = Literal["trend_breakout", "vol_expansion", "event_continuation"]
+TemplateName = Literal["trend_breakout", "vol_expansion", "event_continuation", "mean_reversion"]
 SearchMethod = Literal["grid", "random", "optuna"]
 
 

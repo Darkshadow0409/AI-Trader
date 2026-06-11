@@ -543,6 +543,36 @@ export interface ScenarioResearchView {
   availability_note: string;
 }
 
+export interface StrategyContractMetadataView {
+  contract_schema_version: string;
+  strategy_key: string;
+  strategy_name: string;
+  strategy_version: string;
+  strategy_family: string;
+  deterministic: boolean;
+  allowed_symbols: string[];
+  research_only_symbols: string[];
+  default_symbol: string;
+  supported_timeframes: string[];
+  required_inputs: string[];
+  optional_inputs: string[];
+  entry_rule_summary: string;
+  exit_rule_summary: string;
+  risk_rule_summary: string;
+  compatible_candle_fill_rules: string[];
+  required_assumption_fields: string[];
+  forbidden_inputs: string[];
+  lookahead_policy: string;
+  output_signal_type: string;
+  min_bars_required: number;
+  warmup_bars: number;
+  parameter_schema: Record<string, string>;
+  parameter_defaults: Record<string, unknown>;
+  parameter_bounds: Record<string, unknown>;
+  contract_hash: string;
+  warnings: string[];
+}
+
 export interface StrategyListView {
   name: string;
   version: string;
@@ -561,6 +591,7 @@ export interface StrategyListView {
   lifecycle_note: string;
   tags: string[];
   validation: Record<string, unknown>;
+  contract: StrategyContractMetadataView;
   data_reality: DataRealityView | null;
 }
 

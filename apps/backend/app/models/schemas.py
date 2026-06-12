@@ -994,6 +994,54 @@ class SimulatedOrderCreateRequest(BaseModel):
     reason: str = "manual paper simulation"
 
 
+class PaperRiskPolicyView(BaseModel):
+    policy_id: str
+    policy_schema_version: str
+    wallet_id: str
+    max_order_notional: float
+    max_position_notional_per_symbol: float
+    max_open_orders: int
+    max_daily_loss: float
+    max_drawdown_pct: float
+    max_strategy_allocation_pct: float
+    max_symbol_allocation_pct: float
+    allowed_symbols: list[str]
+    research_only_symbols: list[str]
+    min_cash_buffer: float
+    require_assumption_snapshot: bool
+    require_strategy_contract: bool
+    status: str
+    pause_reason: str = ""
+    updated_at: datetime
+    paper_only: bool = True
+    policy_note: str = "Paper-only risk governor for manual simulated orders. No scheduler or outside order path is attached."
+
+
+class PaperRiskDecisionView(BaseModel):
+    decision_id: str
+    wallet_id: str
+    simulated_order_id: str | None = None
+    accepted: bool
+    action: str
+    reason_code: str
+    reason: str
+    checked_rules: list[str]
+    breached_rules: list[str]
+    wallet_snapshot: dict[str, Any] = Field(default_factory=dict)
+    order_snapshot: dict[str, Any] = Field(default_factory=dict)
+    policy_snapshot: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    paper_only: bool = True
+
+
+class PaperRiskPolicyPauseRequest(BaseModel):
+    reason: str = "Manual paper risk pause."
+
+
+class PaperRiskPolicyResumeRequest(BaseModel):
+    reason: str = "Manual paper risk resume."
+
+
 class JournalReviewView(BaseModel):
     journal_id: str
     symbol: str

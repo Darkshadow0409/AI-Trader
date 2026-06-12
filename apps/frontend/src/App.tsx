@@ -2745,6 +2745,8 @@ export default function App() {
             rows={resources.walletBalance.data}
             paperWallet={resources.paperWallet.data}
             paperLedger={resources.paperLedger.data}
+            paperRiskPolicy={resources.paperRiskPolicy.data}
+            paperRiskDecisions={resources.paperRiskDecisions.data}
             simulatedOrders={resources.simulatedOrders.data}
           />
         );

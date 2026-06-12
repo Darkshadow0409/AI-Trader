@@ -1457,6 +1457,46 @@ export interface SimulatedOrderView {
   paper_only: boolean;
 }
 
+export interface PaperRiskPolicyView {
+  policy_id: string;
+  policy_schema_version: string;
+  wallet_id: string;
+  max_order_notional: number;
+  max_position_notional_per_symbol: number;
+  max_open_orders: number;
+  max_daily_loss: number;
+  max_drawdown_pct: number;
+  max_strategy_allocation_pct: number;
+  max_symbol_allocation_pct: number;
+  allowed_symbols: string[];
+  research_only_symbols: string[];
+  min_cash_buffer: number;
+  require_assumption_snapshot: boolean;
+  require_strategy_contract: boolean;
+  status: string;
+  pause_reason: string;
+  updated_at: string;
+  paper_only: boolean;
+  policy_note: string;
+}
+
+export interface PaperRiskDecisionView {
+  decision_id: string;
+  wallet_id: string;
+  simulated_order_id: string | null;
+  accepted: boolean;
+  action: string;
+  reason_code: string;
+  reason: string;
+  checked_rules: string[];
+  breached_rules: string[];
+  wallet_snapshot: Record<string, unknown>;
+  order_snapshot: Record<string, unknown>;
+  policy_snapshot: Record<string, unknown>;
+  created_at: string;
+  paper_only: boolean;
+}
+
 export interface JournalReviewView {
   journal_id: string;
   symbol: string;

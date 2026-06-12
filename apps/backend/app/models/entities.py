@@ -255,6 +255,46 @@ class SimulatedOrderRecord(SQLModel, table=True):
     paper_only: bool = True
 
 
+class PaperRiskPolicyRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    policy_id: str = Field(index=True, unique=True)
+    policy_schema_version: str = "phase9e.v1"
+    wallet_id: str = Field(index=True)
+    max_order_notional: float = 15000.0
+    max_position_notional_per_symbol: float = 25000.0
+    max_open_orders: int = 5
+    max_daily_loss: float = 500.0
+    max_drawdown_pct: float = 20.0
+    max_strategy_allocation_pct: float = 200.0
+    max_symbol_allocation_pct: float = 200.0
+    allowed_symbols_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    research_only_symbols_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    min_cash_buffer: float = 100.0
+    require_assumption_snapshot: bool = True
+    require_strategy_contract: bool = True
+    status: str = Field(default="active", index=True)
+    pause_reason: str = ""
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class PaperRiskDecisionRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    decision_id: str = Field(index=True, unique=True)
+    wallet_id: str = Field(index=True)
+    simulated_order_id: str | None = Field(default=None, index=True)
+    accepted: bool = Field(index=True)
+    action: str = Field(index=True)
+    reason_code: str = Field(index=True)
+    reason: str
+    checked_rules_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    breached_rules_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    wallet_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    order_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    policy_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    paper_only: bool = True
+
+
 class PaperTradeReviewRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     review_id: str = Field(index=True, unique=True)

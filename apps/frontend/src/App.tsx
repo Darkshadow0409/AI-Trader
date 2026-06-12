@@ -2740,7 +2740,14 @@ export default function App() {
           />
         );
       case "wallet_balance":
-        return <WalletBalanceTab rows={resources.walletBalance.data} />;
+        return (
+          <WalletBalanceTab
+            rows={resources.walletBalance.data}
+            paperWallet={resources.paperWallet.data}
+            paperLedger={resources.paperLedger.data}
+            simulatedOrders={resources.simulatedOrders.data}
+          />
+        );
       case "watchlist":
         return (
           <WatchlistTab

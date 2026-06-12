@@ -1386,6 +1386,77 @@ export interface WalletBalanceView {
   balances: WalletBalanceLineView[];
 }
 
+export interface PaperWalletView {
+  wallet_id: string;
+  account_label: string;
+  currency: string;
+  starting_balance: number;
+  cash_balance: number;
+  reserved_cash: number;
+  realized_pnl: number;
+  unrealized_pnl: number;
+  unrealized_pnl_available: boolean;
+  equity: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  paper_only: boolean;
+  accounting_note: string;
+}
+
+export interface PaperLedgerTransactionView {
+  transaction_id: string;
+  wallet_id: string;
+  sequence_number: number;
+  timestamp: string;
+  transaction_type: string;
+  symbol: string | null;
+  strategy_key: string | null;
+  backtest_run_id: string | null;
+  paper_trade_id: string | null;
+  simulated_order_id: string | null;
+  quantity: number;
+  price: number;
+  notional: number;
+  fee: number;
+  cash_delta: number;
+  reserved_delta: number;
+  realized_pnl_delta: number;
+  resulting_cash_balance: number;
+  resulting_reserved_cash: number;
+  resulting_equity: number;
+  reason: string;
+  assumption_snapshot: Record<string, unknown>;
+  audit_ref: string;
+  immutable: boolean;
+}
+
+export interface SimulatedOrderView {
+  simulated_order_id: string;
+  wallet_id: string;
+  strategy_key: string | null;
+  symbol: string;
+  side: string;
+  order_type: string;
+  quantity: number;
+  requested_price: number;
+  limit_price: number | null;
+  status: string;
+  rejection_reason: string;
+  fill_price: number | null;
+  fill_quantity: number;
+  fee: number;
+  slippage_bps: number;
+  spread_bps: number;
+  candle_fill_rule: string;
+  created_at: string;
+  updated_at: string;
+  filled_at: string | null;
+  assumption_snapshot: Record<string, unknown>;
+  source: string;
+  paper_only: boolean;
+}
+
 export interface JournalReviewView {
   journal_id: string;
   symbol: string;

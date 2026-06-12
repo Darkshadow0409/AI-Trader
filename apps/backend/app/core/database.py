@@ -289,7 +289,7 @@ def _ensure_contract_columns() -> None:
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, OpsActionRecord, PaperTradeRecord, PaperTradeReviewRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, OpsActionRecord, PaperLedgerTransactionRecord, PaperTradeRecord, PaperTradeReviewRecord, PaperWalletRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, SimulatedOrderRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
 
     last_error: OperationalError | None = None
     for attempt in range(5):

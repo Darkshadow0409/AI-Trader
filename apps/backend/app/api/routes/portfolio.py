@@ -15,8 +15,12 @@ from app.models.schemas import (
     PaperTradePartialExitRequest,
     PaperTradeProposalRequest,
     PaperTradeScaleRequest,
+    PaperLedgerTransactionView,
+    PaperWalletView,
     ScenarioStressItemView,
     PaperTradeView,
+    SimulatedOrderCreateRequest,
+    SimulatedOrderView,
     TradeTimelineView,
     WalletBalanceView,
 )
@@ -38,6 +42,13 @@ from app.services.paper_trading import (
     partial_exit_paper_trade,
     scale_paper_trade,
     timeout_paper_trade,
+)
+from app.services.paper_wallet import (
+    cancel_simulated_order,
+    create_simulated_order,
+    get_default_paper_wallet,
+    list_paper_ledger,
+    list_simulated_orders,
 )
 
 
@@ -77,6 +88,43 @@ def delete_trade(trade_id: str, session: Session = Depends(get_session)) -> Resp
 @router.get("/wallet-balance", response_model=list[WalletBalanceView])
 def wallet_balance() -> list[WalletBalanceView]:
     return list_wallet_balances()
+
+
+@router.get("/paper-wallet", response_model=PaperWalletView)
+def paper_wallet(session: Session = Depends(get_session)) -> PaperWalletView:
+    return get_default_paper_wallet(session)
+
+
+@router.get("/paper-ledger", response_model=list[PaperLedgerTransactionView])
+def paper_ledger(session: Session = Depends(get_session)) -> list[PaperLedgerTransactionView]:
+    return list_paper_ledger(session)
+
+
+@router.get("/simulated-orders", response_model=list[SimulatedOrderView])
+def simulated_orders(session: Session = Depends(get_session)) -> list[SimulatedOrderView]:
+    return list_simulated_orders(session)
+
+
+@router.post("/simulated-orders", response_model=SimulatedOrderView, status_code=status.HTTP_201_CREATED)
+def create_paper_simulated_order(
+    payload: SimulatedOrderCreateRequest,
+    session: Session = Depends(get_session),
+) -> SimulatedOrderView:
+    return create_simulated_order(session, payload)
+
+
+@router.post("/simulated-orders/{simulated_order_id}/cancel", response_model=SimulatedOrderView)
+def cancel_paper_simulated_order(
+    simulated_order_id: str,
+    session: Session = Depends(get_session),
+) -> SimulatedOrderView:
+    try:
+        cancelled = cancel_simulated_order(session, simulated_order_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if cancelled is None:
+        raise HTTPException(status_code=404, detail="Paper simulation order not found.")
+    return cancelled
 
 
 @router.get("/paper-trades/proposed", response_model=list[PaperTradeView])

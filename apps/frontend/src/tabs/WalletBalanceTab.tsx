@@ -1,9 +1,18 @@
-import type { PaperLedgerTransactionView, PaperWalletView, SimulatedOrderView, WalletBalanceView } from "../types/api";
+import type {
+  PaperLedgerTransactionView,
+  PaperRiskDecisionView,
+  PaperRiskPolicyView,
+  PaperWalletView,
+  SimulatedOrderView,
+  WalletBalanceView,
+} from "../types/api";
 
 interface WalletBalanceTabProps {
   rows: WalletBalanceView[];
   paperWallet?: PaperWalletView | null;
   paperLedger?: PaperLedgerTransactionView[];
+  paperRiskPolicy?: PaperRiskPolicyView | null;
+  paperRiskDecisions?: PaperRiskDecisionView[];
   simulatedOrders?: SimulatedOrderView[];
 }
 
@@ -19,6 +28,8 @@ export function WalletBalanceTab({
   rows,
   paperWallet,
   paperLedger = [],
+  paperRiskPolicy,
+  paperRiskDecisions = [],
   simulatedOrders = [],
 }: WalletBalanceTabProps) {
   return (
@@ -60,6 +71,72 @@ export function WalletBalanceTab({
             ) : null}
           </>
         ) : null}
+      </article>
+
+      <article className="panel compact-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Paper risk governor</p>
+            <h3>Manual Simulation Limits</h3>
+          </div>
+          <span className="status-pill">{paperRiskPolicy?.status ?? "loading"}</span>
+        </div>
+        <p className="muted-copy">
+          {paperRiskPolicy?.policy_note ??
+            "Paper-only risk policy will appear when the local API is ready. No scheduler or outside order path is attached."}
+        </p>
+        {paperRiskPolicy ? (
+          <>
+            <div className="metric-grid">
+              <div className="metric-card">
+                <span>Max order</span>
+                <strong>{formatMoney(paperRiskPolicy.max_order_notional, paperWallet?.currency ?? "USD")}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Open orders</span>
+                <strong>{paperRiskPolicy.max_open_orders}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Daily loss cap</span>
+                <strong>{formatMoney(paperRiskPolicy.max_daily_loss, paperWallet?.currency ?? "USD")}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Cash buffer</span>
+                <strong>{formatMoney(paperRiskPolicy.min_cash_buffer, paperWallet?.currency ?? "USD")}</strong>
+              </div>
+            </div>
+            <div className="tag-row compact-link-row">
+              <span>Allowed: {paperRiskPolicy.allowed_symbols.join(", ")}</span>
+              <span>Research-only blocked: {paperRiskPolicy.research_only_symbols.join(", ")}</span>
+              <span>Max drawdown {paperRiskPolicy.max_drawdown_pct.toFixed(1)}%</span>
+            </div>
+            {paperRiskPolicy.pause_reason ? <p className="muted-copy">Pause note: {paperRiskPolicy.pause_reason}</p> : null}
+          </>
+        ) : null}
+        {paperRiskDecisions.length > 0 ? (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Decision</th>
+                <th>Action</th>
+                <th>Reason</th>
+                <th>Order</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paperRiskDecisions.slice(0, 5).map((decision) => (
+                <tr key={decision.decision_id}>
+                  <td>{decision.accepted ? "accepted" : "rejected"}</td>
+                  <td>{decision.action}</td>
+                  <td>{decision.reason}</td>
+                  <td>{decision.simulated_order_id ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="muted-copy">No paper risk decisions have been recorded yet.</p>
+        )}
       </article>
 
       <article className="panel compact-panel">

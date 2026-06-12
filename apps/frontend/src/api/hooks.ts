@@ -28,6 +28,8 @@ import type {
   ReplayView,
   PaperTradeAnalyticsView,
   PaperLedgerTransactionView,
+  PaperRiskDecisionView,
+  PaperRiskPolicyView,
   PaperTradeDetailView,
   PaperTradeReviewView,
   PaperTradeView,
@@ -1323,6 +1325,14 @@ export function useDashboardData(
   const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), [], { enabled: showWallet });
   const paperWallet = usePollingResource<PaperWalletView | null>(() => apiClient.paperWallet(), null, { enabled: showWallet, preserveData: true });
   const paperLedger = usePollingResource<PaperLedgerTransactionView[]>(() => apiClient.paperLedger(), [], { enabled: showWallet, preserveData: true });
+  const paperRiskPolicy = usePollingResource<PaperRiskPolicyView | null>(() => apiClient.paperRiskPolicy(), null, {
+    enabled: showWallet,
+    preserveData: true,
+  });
+  const paperRiskDecisions = usePollingResource<PaperRiskDecisionView[]>(() => apiClient.paperRiskDecisions(), [], {
+    enabled: showWallet,
+    preserveData: true,
+  });
   const simulatedOrders = usePollingResource<SimulatedOrderView[]>(() => apiClient.simulatedOrders(), [], { enabled: showWallet, preserveData: true });
   const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
@@ -1537,6 +1547,8 @@ export function useDashboardData(
     walletBalance,
     paperWallet,
     paperLedger,
+    paperRiskPolicy,
+    paperRiskDecisions,
     simulatedOrders,
     journal,
     scenario,

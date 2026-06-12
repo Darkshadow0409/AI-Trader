@@ -16,6 +16,10 @@ from app.models.schemas import (
     PaperTradeProposalRequest,
     PaperTradeScaleRequest,
     PaperLedgerTransactionView,
+    PaperRiskDecisionView,
+    PaperRiskPolicyPauseRequest,
+    PaperRiskPolicyResumeRequest,
+    PaperRiskPolicyView,
     PaperWalletView,
     ScenarioStressItemView,
     PaperTradeView,
@@ -47,8 +51,12 @@ from app.services.paper_wallet import (
     cancel_simulated_order,
     create_simulated_order,
     get_default_paper_wallet,
+    get_paper_risk_policy,
     list_paper_ledger,
+    list_paper_risk_decisions,
     list_simulated_orders,
+    pause_paper_risk_policy,
+    resume_paper_risk_policy,
 )
 
 
@@ -98,6 +106,32 @@ def paper_wallet(session: Session = Depends(get_session)) -> PaperWalletView:
 @router.get("/paper-ledger", response_model=list[PaperLedgerTransactionView])
 def paper_ledger(session: Session = Depends(get_session)) -> list[PaperLedgerTransactionView]:
     return list_paper_ledger(session)
+
+
+@router.get("/paper-risk-policy", response_model=PaperRiskPolicyView)
+def paper_risk_policy(session: Session = Depends(get_session)) -> PaperRiskPolicyView:
+    return get_paper_risk_policy(session)
+
+
+@router.get("/paper-risk-decisions", response_model=list[PaperRiskDecisionView])
+def paper_risk_decisions(session: Session = Depends(get_session)) -> list[PaperRiskDecisionView]:
+    return list_paper_risk_decisions(session)
+
+
+@router.post("/paper-risk-policy/pause", response_model=PaperRiskPolicyView)
+def pause_paper_risk(
+    payload: PaperRiskPolicyPauseRequest,
+    session: Session = Depends(get_session),
+) -> PaperRiskPolicyView:
+    return pause_paper_risk_policy(session, payload)
+
+
+@router.post("/paper-risk-policy/resume", response_model=PaperRiskPolicyView)
+def resume_paper_risk(
+    payload: PaperRiskPolicyResumeRequest,
+    session: Session = Depends(get_session),
+) -> PaperRiskPolicyView:
+    return resume_paper_risk_policy(session, payload)
 
 
 @router.get("/simulated-orders", response_model=list[SimulatedOrderView])

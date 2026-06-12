@@ -6,6 +6,15 @@ from app.core.database import engine
 from app.models.entities import PaperLedgerTransactionRecord
 
 
+ASSUMPTIONS = {
+    "assumption_schema_version": "phase9e.test",
+    "fee_bps": 1.0,
+    "spread_bps": 2.0,
+    "slippage_bps": 3.0,
+    "candle_fill_rule": "close_only",
+}
+
+
 def _cash_sum(wallet_id: str) -> float:
     with Session(engine) as session:
         rows = session.exec(
@@ -42,6 +51,7 @@ def test_simulated_buy_order_fills_and_preserves_accounting_invariants(client) -
             "quantity": 2,
             "requested_price": 120,
             "strategy_key": "trend_following_baseline",
+            "assumption_snapshot": ASSUMPTIONS,
         },
     )
 
@@ -72,6 +82,7 @@ def test_simulated_sell_order_records_cash_credit_without_inventory_claim(client
             "order_type": "market",
             "quantity": 5,
             "requested_price": 29.5,
+            "assumption_snapshot": ASSUMPTIONS,
         },
     )
 
@@ -88,7 +99,14 @@ def test_simulated_sell_order_records_cash_credit_without_inventory_claim(client
 def test_invalid_or_unfunded_simulated_orders_are_audited_as_rejected(client) -> None:
     invalid = client.post(
         "/api/portfolio/simulated-orders",
-        json={"symbol": "USOUSD", "side": "buy", "order_type": "market", "quantity": 1, "requested_price": -1},
+        json={
+            "symbol": "USOUSD",
+            "side": "buy",
+            "order_type": "market",
+            "quantity": 1,
+            "requested_price": -1,
+            "assumption_snapshot": ASSUMPTIONS,
+        },
     )
     assert invalid.status_code == 201
     assert invalid.json()["status"] == "rejected"
@@ -96,7 +114,14 @@ def test_invalid_or_unfunded_simulated_orders_are_audited_as_rejected(client) ->
 
     unfunded = client.post(
         "/api/portfolio/simulated-orders",
-        json={"symbol": "USOUSD", "side": "buy", "order_type": "market", "quantity": 1000, "requested_price": 1000},
+        json={
+            "symbol": "USOUSD",
+            "side": "buy",
+            "order_type": "market",
+            "quantity": 100,
+            "requested_price": 100,
+            "assumption_snapshot": ASSUMPTIONS,
+        },
     )
     assert unfunded.status_code == 201
     assert unfunded.json()["status"] == "rejected"
@@ -110,7 +135,14 @@ def test_research_context_symbols_are_rejected_but_trader_facing_symbols_are_acc
     for symbol in ["WTI", "WTI_CTX"]:
         rejected = client.post(
             "/api/portfolio/simulated-orders",
-            json={"symbol": symbol, "side": "buy", "order_type": "market", "quantity": 1, "requested_price": 70},
+            json={
+                "symbol": symbol,
+                "side": "buy",
+                "order_type": "market",
+                "quantity": 1,
+                "requested_price": 70,
+                "assumption_snapshot": ASSUMPTIONS,
+            },
         )
         assert rejected.status_code == 201
         assert rejected.json()["status"] == "rejected"
@@ -119,7 +151,14 @@ def test_research_context_symbols_are_rejected_but_trader_facing_symbols_are_acc
     for symbol in ["USOUSD", "XAGUSD"]:
         accepted = client.post(
             "/api/portfolio/simulated-orders",
-            json={"symbol": symbol, "side": "buy", "order_type": "market", "quantity": 1, "requested_price": 20},
+            json={
+                "symbol": symbol,
+                "side": "buy",
+                "order_type": "market",
+                "quantity": 1,
+                "requested_price": 20,
+                "assumption_snapshot": ASSUMPTIONS,
+            },
         )
         assert accepted.status_code == 201
         assert accepted.json()["status"] == "filled"

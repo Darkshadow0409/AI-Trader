@@ -27,9 +27,11 @@ import type {
   OpportunityHunterView,
   ReplayView,
   PaperTradeAnalyticsView,
+  PaperLedgerTransactionView,
   PaperTradeDetailView,
   PaperTradeReviewView,
   PaperTradeView,
+  PaperWalletView,
   PilotSummaryView,
   ResearchView,
   ResearchRunView,
@@ -50,6 +52,7 @@ import type {
   SignalDetailView,
   SignalsSummaryView,
   SignalView,
+  SimulatedOrderView,
   TradeTimelineView,
   TradeTicketDetailView,
   TicketSummaryView,
@@ -1318,6 +1321,9 @@ export function useDashboardData(
   const activePaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.activePaperTrades(), [], { enabled: (needsTradeHydration || Boolean(selectedTradeId)) && !restoringResearch, preserveData: true });
   const closedPaperTrades = usePollingResource<PaperTradeView[]>(() => apiClient.closedPaperTrades(), [], { enabled: (needsTradeHydration || Boolean(selectedTradeId)) && !restoringResearch, preserveData: true });
   const walletBalance = usePollingResource<WalletBalanceView[]>(() => apiClient.walletBalance(), [], { enabled: showWallet });
+  const paperWallet = usePollingResource<PaperWalletView | null>(() => apiClient.paperWallet(), null, { enabled: showWallet, preserveData: true });
+  const paperLedger = usePollingResource<PaperLedgerTransactionView[]>(() => apiClient.paperLedger(), [], { enabled: showWallet, preserveData: true });
+  const simulatedOrders = usePollingResource<SimulatedOrderView[]>(() => apiClient.simulatedOrders(), [], { enabled: showWallet, preserveData: true });
   const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
     () => apiClient.paperTradeAnalytics(),
@@ -1529,6 +1535,9 @@ export function useDashboardData(
     replay,
     scenarioStress,
     walletBalance,
+    paperWallet,
+    paperLedger,
+    simulatedOrders,
     journal,
     scenario,
     alerts,

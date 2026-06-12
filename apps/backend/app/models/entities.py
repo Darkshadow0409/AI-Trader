@@ -184,6 +184,77 @@ class PaperTradeRecord(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class PaperWalletRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    wallet_id: str = Field(index=True, unique=True)
+    account_label: str = Field(default="Default paper wallet")
+    currency: str = Field(default="USD")
+    starting_balance: float = 10000.0
+    cash_balance: float = 10000.0
+    reserved_cash: float = 0.0
+    realized_pnl: float = 0.0
+    unrealized_pnl: float = 0.0
+    equity: float = 10000.0
+    status: str = Field(default="active", index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class PaperLedgerTransactionRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    transaction_id: str = Field(index=True, unique=True)
+    wallet_id: str = Field(index=True)
+    sequence_number: int = Field(index=True)
+    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    transaction_type: str = Field(index=True)
+    symbol: str | None = Field(default=None, index=True)
+    strategy_key: str | None = Field(default=None, index=True)
+    backtest_run_id: str | None = Field(default=None, index=True)
+    paper_trade_id: str | None = Field(default=None, index=True)
+    simulated_order_id: str | None = Field(default=None, index=True)
+    quantity: float = 0.0
+    price: float = 0.0
+    notional: float = 0.0
+    fee: float = 0.0
+    cash_delta: float = 0.0
+    reserved_delta: float = 0.0
+    realized_pnl_delta: float = 0.0
+    resulting_cash_balance: float = 0.0
+    resulting_reserved_cash: float = 0.0
+    resulting_equity: float = 0.0
+    reason: str = ""
+    assumption_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    audit_ref: str = ""
+    immutable: bool = True
+
+
+class SimulatedOrderRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    simulated_order_id: str = Field(index=True, unique=True)
+    wallet_id: str = Field(index=True)
+    strategy_key: str | None = Field(default=None, index=True)
+    symbol: str = Field(index=True)
+    side: str = Field(index=True)
+    order_type: str = Field(index=True)
+    quantity: float
+    requested_price: float
+    limit_price: float | None = None
+    status: str = Field(default="created", index=True)
+    rejection_reason: str = ""
+    fill_price: float | None = None
+    fill_quantity: float = 0.0
+    fee: float = 0.0
+    slippage_bps: float = 0.0
+    spread_bps: float = 0.0
+    candle_fill_rule: str = "manual_price_immediate"
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    filled_at: datetime | None = Field(default=None, index=True)
+    assumption_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    source: str = Field(default="manual_simulation", index=True)
+    paper_only: bool = True
+
+
 class PaperTradeReviewRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     review_id: str = Field(index=True, unique=True)

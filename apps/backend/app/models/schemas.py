@@ -907,6 +907,93 @@ class WalletBalanceView(BaseModel):
     balances: list[WalletBalanceLineView]
 
 
+class PaperWalletView(BaseModel):
+    wallet_id: str
+    account_label: str
+    currency: str
+    starting_balance: float
+    cash_balance: float
+    reserved_cash: float
+    realized_pnl: float
+    unrealized_pnl: float
+    unrealized_pnl_available: bool = False
+    equity: float
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    paper_only: bool = True
+    accounting_note: str = "Paper-only simulated cash ledger. No external order routing is attached."
+
+
+class PaperLedgerTransactionView(BaseModel):
+    transaction_id: str
+    wallet_id: str
+    sequence_number: int
+    timestamp: datetime
+    transaction_type: str
+    symbol: str | None = None
+    strategy_key: str | None = None
+    backtest_run_id: str | None = None
+    paper_trade_id: str | None = None
+    simulated_order_id: str | None = None
+    quantity: float
+    price: float
+    notional: float
+    fee: float
+    cash_delta: float
+    reserved_delta: float
+    realized_pnl_delta: float
+    resulting_cash_balance: float
+    resulting_reserved_cash: float
+    resulting_equity: float
+    reason: str
+    assumption_snapshot: dict[str, Any] = Field(default_factory=dict)
+    audit_ref: str
+    immutable: bool
+
+
+class SimulatedOrderView(BaseModel):
+    simulated_order_id: str
+    wallet_id: str
+    strategy_key: str | None = None
+    symbol: str
+    side: str
+    order_type: str
+    quantity: float
+    requested_price: float
+    limit_price: float | None = None
+    status: str
+    rejection_reason: str = ""
+    fill_price: float | None = None
+    fill_quantity: float
+    fee: float
+    slippage_bps: float
+    spread_bps: float
+    candle_fill_rule: str
+    created_at: datetime
+    updated_at: datetime
+    filled_at: datetime | None = None
+    assumption_snapshot: dict[str, Any] = Field(default_factory=dict)
+    source: str
+    paper_only: bool = True
+
+
+class SimulatedOrderCreateRequest(BaseModel):
+    symbol: str
+    side: str
+    order_type: str = "market"
+    quantity: float
+    requested_price: float
+    limit_price: float | None = None
+    wallet_id: str | None = None
+    strategy_key: str | None = None
+    backtest_run_id: str | None = None
+    paper_trade_id: str | None = None
+    assumption_snapshot: dict[str, Any] | None = None
+    source: str = "manual_simulation"
+    reason: str = "manual paper simulation"
+
+
 class JournalReviewView(BaseModel):
     journal_id: str
     symbol: str

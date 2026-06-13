@@ -3,7 +3,13 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "esnext",
+    },
+  },
   build: {
+    target: "esnext",
     rollupOptions: {
       output: {
         manualChunks(id) {

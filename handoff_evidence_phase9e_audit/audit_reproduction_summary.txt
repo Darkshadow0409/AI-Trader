@@ -1,0 +1,129 @@
+PACKAGE_JSON_DEV_DEPENDENCIES
+{
+  "@testing-library/jest-dom": "^6.6.3",
+  "@testing-library/react": "^16.1.0",
+  "@testing-library/user-event": "^14.5.2",
+  "@types/react": "^18.3.12",
+  "@types/react-dom": "^18.3.1",
+  "@vitejs/plugin-react": "^4.3.4",
+  "jsdom": "^25.0.1",
+  "typescript": "^5.6.3",
+  "vite": "^6.0.5",
+  "vitest": "^4.1.7"
+}
+
+PACKAGE_LOCK_RELEVANT_VERSIONS
+node_modules/vite: 6.4.2
+node_modules/@vitejs/plugin-react: 4.7.0
+node_modules/esbuild: 0.25.12
+
+NPM_LS_VITE_PLUGIN_ESBUILD
+ai-trader-frontend@0.1.0 C:\Users\sajal\OneDrive\Desktop\Codex Projects\AI Trader\phase9e_audit_triage_20260613-105858\apps\frontend
+`-- (empty)
+
+
+NPM_AUDIT_JSON
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@vitejs/plugin-react": {
+      "name": "@vitejs/plugin-react",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "vite"
+      ],
+      "effects": [],
+      "range": "4.0.0-beta.0 - 5.1.4",
+      "nodes": [
+        "node_modules/@vitejs/plugin-react"
+      ],
+      "fixAvailable": {
+        "name": "@vitejs/plugin-react",
+        "version": "6.0.2",
+        "isSemVerMajor": true
+      }
+    },
+    "esbuild": {
+      "name": "esbuild",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1120679,
+          "name": "esbuild",
+          "dependency": "esbuild",
+          "title": "esbuild: Missing binary integrity verification in Deno module enables remote code execution via NPM_CONFIG_REGISTRY",
+          "url": "https://github.com/advisories/GHSA-gv7w-rqvm-qjhr",
+          "severity": "high",
+          "cwe": [
+            "CWE-426",
+            "CWE-494"
+          ],
+          "cvss": {
+            "score": 8.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": ">=0.17.0 <0.28.1"
+        }
+      ],
+      "effects": [
+        "vite"
+      ],
+      "range": "0.17.0 - 0.28.0",
+      "nodes": [
+        "node_modules/esbuild"
+      ],
+      "fixAvailable": {
+        "name": "vite",
+        "version": "8.0.16",
+        "isSemVerMajor": true
+      }
+    },
+    "vite": {
+      "name": "vite",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "esbuild"
+      ],
+      "effects": [
+        "@vitejs/plugin-react"
+      ],
+      "range": "4.2.0-beta.0 - 8.0.3",
+      "nodes": [
+        "node_modules/vite"
+      ],
+      "fixAvailable": {
+        "name": "vite",
+        "version": "8.0.16",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 3,
+      "critical": 0,
+      "total": 3
+    },
+    "dependencies": {
+      "prod": 6,
+      "dev": 220,
+      "optional": 52,
+      "peer": 12,
+      "peerOptional": 0,
+      "total": 227
+    }
+  }
+}
+
+FINAL_FIX_SUMMARY
+Fix approach: package override plus Vite target compatibility config.
+Final versions: vite 6.4.3; @vitejs/plugin-react 4.7.0; esbuild 0.28.1 overridden.
+Audit after fix: 0 vulnerabilities.
+Build after fix: passed; main chunk 457.33 kB; no Vite chunk warning.
+Runtime proof: isolated API 5461 and frontend 5198 passed API probes and 9/9 browser route checks.

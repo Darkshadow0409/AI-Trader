@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import pytest
+from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from app.core.database import engine
-from app.models.entities import PaperLedgerTransactionRecord
+from app.models.entities import (
+    PaperLedgerTransactionRecord,
+    PaperRiskDecisionRecord,
+    PaperRiskPolicyRecord,
+    PaperWalletRecord,
+    SimulatedOrderRecord,
+)
+from app.services.paper_wallet import _ensure_paper_wallet_tables
 
 
 ASSUMPTIONS = {
@@ -13,6 +22,21 @@ ASSUMPTIONS = {
     "slippage_bps": 3.0,
     "candle_fill_rule": "close_only",
 }
+
+
+@pytest.fixture(autouse=True)
+def isolated_paper_wallet_state() -> None:
+    _ensure_paper_wallet_tables()
+    with Session(engine) as session:
+        for model in (
+            PaperRiskDecisionRecord,
+            SimulatedOrderRecord,
+            PaperLedgerTransactionRecord,
+            PaperRiskPolicyRecord,
+            PaperWalletRecord,
+        ):
+            session.exec(delete(model))
+        session.commit()
 
 
 def _cash_sum(wallet_id: str) -> float:

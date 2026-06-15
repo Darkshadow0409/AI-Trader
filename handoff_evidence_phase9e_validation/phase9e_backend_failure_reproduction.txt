@@ -1,0 +1,43 @@
+Phase 9E backend validation failure reproduction
+
+Baseline origin/main:
+07bd8a1679c7c625c243a6a3160103a97d442907
+
+Worktree:
+C:\Users\sajal\OneDrive\Desktop\Codex Projects\AI Trader\phase9e_backend_validation_triage_20260615-011314
+
+Branch:
+fix/phase9e-paper-risk-validation
+
+Initial combined command:
+python -m pytest apps/backend/tests/test_paper_wallet_ledger.py apps/backend/tests/test_paper_risk_governor.py -q -vv
+
+Initial combined result:
+5 failed, 6 passed
+
+Failing tests:
+- apps/backend/tests/test_paper_wallet_ledger.py::test_simulated_buy_order_fills_and_preserves_accounting_invariants
+  Expected filled simulated order; actual rejected.
+- apps/backend/tests/test_paper_wallet_ledger.py::test_invalid_or_unfunded_simulated_orders_are_audited_as_rejected
+  Expected unfunded simulated order rejected; actual filled.
+- apps/backend/tests/test_paper_wallet_ledger.py::test_research_context_symbols_are_rejected_but_trader_facing_symbols_are_accepted
+  Expected trader-facing symbols to fill after WTI/WTI_CTX rejection; actual rejection occurred.
+- apps/backend/tests/test_paper_risk_governor.py::test_risk_decisions_are_recorded_for_accept_and_reject
+  Expected accepted paper risk decision from filled order; actual order rejected.
+- apps/backend/tests/test_paper_risk_governor.py::test_risk_governor_rejects_max_notional_and_open_order_limit
+  Expected setup limit orders accepted until max-open-order threshold; actual rejection occurred.
+
+Individual file checks:
+- python -m pytest apps/backend/tests/test_paper_wallet_ledger.py -q -vv: passed, 6 passed
+- python -m pytest apps/backend/tests/test_paper_risk_governor.py -q -vv: passed, 5 passed
+
+Root cause:
+The paper wallet and paper risk governor tests shared the process-level SQLite test database. Durable wallet, ledger, order, risk policy, and risk decision rows could leak between test modules in a combined run, causing order status expectations to depend on prior test execution order.
+
+Fix:
+Added test-only autouse fixtures in both paper wallet/risk test modules. The fixtures ensure paper wallet tables exist and delete paper risk decisions, simulated orders, ledger rows, risk policies, and wallets before each test.
+
+Post-fix proof:
+- Paper wallet/risk suite: 11 passed
+- Strategy/DSL/walk-forward/contract suite: 7 passed
+- Combined backend suite: 18 passed

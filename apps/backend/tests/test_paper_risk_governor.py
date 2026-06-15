@@ -1,5 +1,19 @@
 from __future__ import annotations
 
+import pytest
+from sqlalchemy import delete
+from sqlmodel import Session
+
+from app.core.database import engine
+from app.models.entities import (
+    PaperLedgerTransactionRecord,
+    PaperRiskDecisionRecord,
+    PaperRiskPolicyRecord,
+    PaperWalletRecord,
+    SimulatedOrderRecord,
+)
+from app.services.paper_wallet import _ensure_paper_wallet_tables
+
 
 ASSUMPTIONS = {
     "assumption_schema_version": "phase9e.test",
@@ -8,6 +22,21 @@ ASSUMPTIONS = {
     "slippage_bps": 2,
     "candle_fill_rule": "close_only",
 }
+
+
+@pytest.fixture(autouse=True)
+def isolated_paper_wallet_state() -> None:
+    _ensure_paper_wallet_tables()
+    with Session(engine) as session:
+        for model in (
+            PaperRiskDecisionRecord,
+            SimulatedOrderRecord,
+            PaperLedgerTransactionRecord,
+            PaperRiskPolicyRecord,
+            PaperWalletRecord,
+        ):
+            session.exec(delete(model))
+        session.commit()
 
 
 def test_default_paper_risk_policy_is_visible_and_paper_only(client) -> None:

@@ -11,8 +11,11 @@ from app.models.schemas import (
     PaperTradeAnalyticsView,
     PaperTradeCloseRequest,
     PaperTradeDetailView,
+    PaperEquityCurvePointView,
     PaperTradeOpenRequest,
     PaperTradePartialExitRequest,
+    PaperPerformanceSummaryView,
+    PaperRejectionAnalysisItemView,
     PaperTradeProposalRequest,
     PaperTradeScaleRequest,
     PaperLedgerTransactionView,
@@ -20,6 +23,7 @@ from app.models.schemas import (
     PaperRiskPolicyPauseRequest,
     PaperRiskPolicyResumeRequest,
     PaperRiskPolicyView,
+    PaperReviewQueueItemView,
     PaperWalletView,
     ScenarioStressItemView,
     PaperTradeView,
@@ -52,6 +56,10 @@ from app.services.paper_wallet import (
     create_simulated_order,
     get_default_paper_wallet,
     get_paper_risk_policy,
+    paper_equity_curve,
+    paper_performance_summary,
+    paper_rejection_analysis,
+    paper_review_queue,
     list_paper_ledger,
     list_paper_risk_decisions,
     list_simulated_orders,
@@ -116,6 +124,26 @@ def paper_risk_policy(session: Session = Depends(get_session)) -> PaperRiskPolic
 @router.get("/paper-risk-decisions", response_model=list[PaperRiskDecisionView])
 def paper_risk_decisions(session: Session = Depends(get_session)) -> list[PaperRiskDecisionView]:
     return list_paper_risk_decisions(session)
+
+
+@router.get("/paper-performance", response_model=PaperPerformanceSummaryView)
+def paper_performance(session: Session = Depends(get_session)) -> PaperPerformanceSummaryView:
+    return paper_performance_summary(session)
+
+
+@router.get("/paper-equity-curve", response_model=list[PaperEquityCurvePointView])
+def paper_equity(session: Session = Depends(get_session)) -> list[PaperEquityCurvePointView]:
+    return paper_equity_curve(session)
+
+
+@router.get("/paper-rejection-analysis", response_model=list[PaperRejectionAnalysisItemView])
+def paper_rejections(session: Session = Depends(get_session)) -> list[PaperRejectionAnalysisItemView]:
+    return paper_rejection_analysis(session)
+
+
+@router.get("/paper-review-queue", response_model=list[PaperReviewQueueItemView])
+def paper_reviews(session: Session = Depends(get_session)) -> list[PaperReviewQueueItemView]:
+    return paper_review_queue(session)
 
 
 @router.post("/paper-risk-policy/pause", response_model=PaperRiskPolicyView)

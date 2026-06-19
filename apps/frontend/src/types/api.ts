@@ -1497,6 +1497,87 @@ export interface PaperRiskDecisionView {
   paper_only: boolean;
 }
 
+export interface PaperEquityCurvePointView {
+  timestamp: string;
+  sequence_number: number;
+  cash_balance: number;
+  reserved_cash: number;
+  realized_pnl: number;
+  equity: number;
+  unrealized_pnl_available: boolean;
+  paper_only: boolean;
+}
+
+export interface PaperRejectionDetailView {
+  simulated_order_id: string | null;
+  decision_id: string | null;
+  symbol: string;
+  strategy_key: string | null;
+  reason_code: string;
+  rejection_reason: string;
+  notional: number;
+  created_at: string;
+  policy_rule: string;
+  paper_only: boolean;
+}
+
+export interface PaperRejectionAnalysisItemView {
+  reason_code: string;
+  count: number;
+  latest_reason: string;
+  symbols: string[];
+  policy_rules: string[];
+  latest_at: string | null;
+  details: PaperRejectionDetailView[];
+  paper_only: boolean;
+}
+
+export interface PaperReviewQueueItemView {
+  review_id: string;
+  source_type: string;
+  source_id: string;
+  severity: string;
+  status: string;
+  title: string;
+  reason: string;
+  symbol: string | null;
+  strategy_key: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  paper_only: boolean;
+}
+
+export interface PaperPerformanceSummaryView {
+  wallet_id: string;
+  account_label: string;
+  currency: string;
+  starting_balance: number;
+  cash_balance: number;
+  reserved_cash: number;
+  realized_pnl: number;
+  realized_pnl_pct: number;
+  equity: number;
+  unrealized_pnl_available: boolean;
+  total_orders: number;
+  filled_orders: number;
+  rejected_orders: number;
+  cancelled_orders: number;
+  acceptance_rate: number;
+  rejection_rate: number;
+  fees_paid: number;
+  gross_notional_traded: number;
+  net_cash_flow: number;
+  largest_single_loss: number | null;
+  largest_single_gain: number | null;
+  risk_rejections_by_reason: Record<string, number>;
+  orders_by_symbol: Record<string, number>;
+  orders_by_strategy: Record<string, number>;
+  latest_risk_decisions: PaperRiskDecisionView[];
+  performance_warnings: string[];
+  generated_at: string;
+  paper_only: boolean;
+}
+
 export interface JournalReviewView {
   journal_id: string;
   symbol: string;

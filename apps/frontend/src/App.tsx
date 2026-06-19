@@ -2747,6 +2747,10 @@ export default function App() {
             paperLedger={resources.paperLedger.data}
             paperRiskPolicy={resources.paperRiskPolicy.data}
             paperRiskDecisions={resources.paperRiskDecisions.data}
+            paperPerformance={resources.paperPerformance.data}
+            paperEquityCurve={resources.paperEquityCurve.data}
+            paperRejectionAnalysis={resources.paperRejectionAnalysis.data}
+            paperReviewQueue={resources.paperReviewQueue.data}
             simulatedOrders={resources.simulatedOrders.data}
           />
         );

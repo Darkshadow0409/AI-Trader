@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 from uuid import uuid4
 
 from sqlalchemy.exc import OperationalError
@@ -16,11 +17,16 @@ from app.models.entities import (
     SimulatedOrderRecord,
 )
 from app.models.schemas import (
+    PaperEquityCurvePointView,
     PaperLedgerTransactionView,
+    PaperPerformanceSummaryView,
+    PaperRejectionAnalysisItemView,
+    PaperRejectionDetailView,
     PaperRiskDecisionView,
     PaperRiskPolicyPauseRequest,
     PaperRiskPolicyResumeRequest,
     PaperRiskPolicyView,
+    PaperReviewQueueItemView,
     PaperWalletView,
     SimulatedOrderCreateRequest,
     SimulatedOrderView,
@@ -398,6 +404,221 @@ def list_paper_risk_decisions(session: Session, limit: int = 100) -> list[PaperR
         .limit(limit)
     ).all()
     return [_risk_decision_to_view(record) for record in records]
+
+
+def _wallet_ledger_records(session: Session, wallet_id: str) -> list[PaperLedgerTransactionRecord]:
+    return session.exec(
+        select(PaperLedgerTransactionRecord)
+        .where(PaperLedgerTransactionRecord.wallet_id == wallet_id)
+        .order_by(PaperLedgerTransactionRecord.sequence_number)
+    ).all()
+
+
+def _wallet_order_records(session: Session, wallet_id: str) -> list[SimulatedOrderRecord]:
+    return session.exec(
+        select(SimulatedOrderRecord)
+        .where(SimulatedOrderRecord.wallet_id == wallet_id)
+        .order_by(SimulatedOrderRecord.created_at)
+    ).all()
+
+
+def _wallet_decision_records(session: Session, wallet_id: str) -> list[PaperRiskDecisionRecord]:
+    return session.exec(
+        select(PaperRiskDecisionRecord)
+        .where(PaperRiskDecisionRecord.wallet_id == wallet_id)
+        .order_by(PaperRiskDecisionRecord.created_at)
+    ).all()
+
+
+def paper_equity_curve(session: Session) -> list[PaperEquityCurvePointView]:
+    _ensure_paper_wallet_tables()
+    wallet = _get_or_create_default_wallet(session)
+    realized_pnl = 0.0
+    points: list[PaperEquityCurvePointView] = []
+    for row in _wallet_ledger_records(session, wallet.wallet_id):
+        realized_pnl = round(realized_pnl + float(row.realized_pnl_delta or 0.0), 8)
+        points.append(
+            PaperEquityCurvePointView(
+                timestamp=row.timestamp,
+                sequence_number=row.sequence_number,
+                cash_balance=row.resulting_cash_balance,
+                reserved_cash=row.resulting_reserved_cash,
+                realized_pnl=realized_pnl,
+                equity=row.resulting_equity,
+                unrealized_pnl_available=False,
+                paper_only=True,
+            )
+        )
+    return points
+
+
+def _order_notional(order: SimulatedOrderRecord) -> float:
+    price = order.fill_price if order.fill_price is not None else order.requested_price
+    return round(max(float(price or 0.0), 0.0) * max(float(order.quantity or 0.0), 0.0), 8)
+
+
+def paper_performance_summary(session: Session) -> PaperPerformanceSummaryView:
+    _ensure_paper_wallet_tables()
+    wallet = _get_or_create_default_wallet(session)
+    ledgers = _wallet_ledger_records(session, wallet.wallet_id)
+    orders = _wallet_order_records(session, wallet.wallet_id)
+    decisions = _wallet_decision_records(session, wallet.wallet_id)
+    order_status_counts = Counter(order.status for order in orders)
+    filled_orders = order_status_counts.get("filled", 0)
+    rejected_orders = order_status_counts.get("rejected", 0)
+    cancelled_orders = order_status_counts.get("cancelled", 0)
+    total_orders = len(orders)
+    accepted_count = sum(1 for order in orders if order.status in {"accepted", "filled"})
+    fees_paid = round(sum(float(row.fee or 0.0) for row in ledgers if row.transaction_type == "fee"), 8)
+    gross_notional = round(
+        sum(float(row.notional or 0.0) for row in ledgers if row.transaction_type in {"simulated_buy", "simulated_sell"}),
+        8,
+    )
+    net_cash_flow = round(sum(float(row.cash_delta or 0.0) for row in ledgers), 8)
+    orders_by_symbol = Counter(order.symbol for order in orders)
+    orders_by_strategy = Counter(order.strategy_key or "manual_simulation" for order in orders)
+    rejected_decisions = [decision for decision in decisions if not decision.accepted]
+    warnings = [
+        "Unrealized PnL is unavailable until inventory and mark-to-market accounting are implemented.",
+        "Largest single gain/loss are unavailable because Phase 9D does not yet close inventory-linked positions.",
+        "Performance is paper-only and derived from deterministic simulated order and ledger records.",
+    ]
+    return PaperPerformanceSummaryView(
+        wallet_id=wallet.wallet_id,
+        account_label=wallet.account_label,
+        currency=wallet.currency,
+        starting_balance=wallet.starting_balance,
+        cash_balance=wallet.cash_balance,
+        reserved_cash=wallet.reserved_cash,
+        realized_pnl=wallet.realized_pnl,
+        realized_pnl_pct=round((wallet.realized_pnl / wallet.starting_balance * 100.0) if wallet.starting_balance else 0.0, 8),
+        equity=wallet.equity,
+        unrealized_pnl_available=False,
+        total_orders=total_orders,
+        filled_orders=filled_orders,
+        rejected_orders=rejected_orders,
+        cancelled_orders=cancelled_orders,
+        acceptance_rate=round((accepted_count / total_orders * 100.0) if total_orders else 0.0, 8),
+        rejection_rate=round((rejected_orders / total_orders * 100.0) if total_orders else 0.0, 8),
+        fees_paid=fees_paid,
+        gross_notional_traded=gross_notional,
+        net_cash_flow=net_cash_flow,
+        largest_single_loss=None,
+        largest_single_gain=None,
+        risk_rejections_by_reason=dict(Counter(decision.reason_code for decision in rejected_decisions)),
+        orders_by_symbol=dict(orders_by_symbol),
+        orders_by_strategy=dict(orders_by_strategy),
+        latest_risk_decisions=[_risk_decision_to_view(record) for record in sorted(decisions, key=lambda row: row.created_at, reverse=True)[:5]],
+        performance_warnings=warnings,
+        generated_at=naive_utc_now(),
+        paper_only=True,
+    )
+
+
+def paper_rejection_analysis(session: Session) -> list[PaperRejectionAnalysisItemView]:
+    _ensure_paper_wallet_tables()
+    wallet = _get_or_create_default_wallet(session)
+    orders_by_id = {order.simulated_order_id: order for order in _wallet_order_records(session, wallet.wallet_id)}
+    rejected_decisions = [decision for decision in _wallet_decision_records(session, wallet.wallet_id) if not decision.accepted]
+    grouped: dict[str, list[PaperRejectionDetailView]] = defaultdict(list)
+    for decision in rejected_decisions:
+        order = orders_by_id.get(decision.simulated_order_id or "")
+        order_snapshot = decision.order_snapshot_json or {}
+        symbol_value = order_snapshot.get("symbol") or (order.symbol if order else "")
+        strategy_value = order_snapshot.get("strategy_key") or (order.strategy_key if order else None)
+        breached = ", ".join(decision.breached_rules_json)
+        detail = PaperRejectionDetailView(
+            simulated_order_id=decision.simulated_order_id,
+            decision_id=decision.decision_id,
+            symbol=str(symbol_value or "unknown"),
+            strategy_key=str(strategy_value) if strategy_value else None,
+            reason_code=decision.reason_code,
+            rejection_reason=decision.reason,
+            notional=float(order_snapshot.get("estimated_notional") or (_order_notional(order) if order else 0.0)),
+            created_at=decision.created_at,
+            policy_rule=breached,
+            paper_only=True,
+        )
+        grouped[decision.reason_code].append(detail)
+    analysis: list[PaperRejectionAnalysisItemView] = []
+    for reason_code, details in grouped.items():
+        ordered = sorted(details, key=lambda row: row.created_at, reverse=True)
+        analysis.append(
+            PaperRejectionAnalysisItemView(
+                reason_code=reason_code,
+                count=len(ordered),
+                latest_reason=ordered[0].rejection_reason,
+                symbols=sorted({detail.symbol for detail in ordered if detail.symbol}),
+                policy_rules=sorted({rule for detail in ordered for rule in [detail.policy_rule] if rule}),
+                latest_at=ordered[0].created_at,
+                details=ordered[:10],
+                paper_only=True,
+            )
+        )
+    return sorted(analysis, key=lambda row: (row.count, row.latest_at or naive_utc_now()), reverse=True)
+
+
+def paper_review_queue(session: Session) -> list[PaperReviewQueueItemView]:
+    _ensure_paper_wallet_tables()
+    wallet = _get_or_create_default_wallet(session)
+    policy = _get_or_create_risk_policy(session, wallet)
+    items: list[PaperReviewQueueItemView] = []
+    rejected_analysis = paper_rejection_analysis(session)
+    for group in rejected_analysis:
+        severity = "critical" if group.reason_code in {"policy_paused", "wallet_paused", "max_daily_loss", "max_drawdown"} else "warning"
+        for detail in group.details[:3]:
+            items.append(
+                PaperReviewQueueItemView(
+                    review_id=f"prq_{detail.decision_id or detail.simulated_order_id}",
+                    source_type="risk_decision",
+                    source_id=detail.decision_id or detail.simulated_order_id or group.reason_code,
+                    severity=severity,
+                    status="open",
+                    title=f"Review paper rejection: {group.reason_code}",
+                    reason=detail.rejection_reason,
+                    symbol=detail.symbol,
+                    strategy_key=detail.strategy_key,
+                    created_at=detail.created_at,
+                    resolved_at=None,
+                    paper_only=True,
+                )
+            )
+        if group.count >= 2:
+            latest_at = group.latest_at or naive_utc_now()
+            items.append(
+                PaperReviewQueueItemView(
+                    review_id=f"prq_repeat_{group.reason_code}",
+                    source_type="risk_decision",
+                    source_id=group.reason_code,
+                    severity="warning",
+                    status="open",
+                    title=f"Repeated paper rejection: {group.reason_code}",
+                    reason=f"{group.count} paper-only simulated orders were rejected for this reason.",
+                    symbol=", ".join(group.symbols) if group.symbols else None,
+                    strategy_key=None,
+                    created_at=latest_at,
+                    resolved_at=None,
+                    paper_only=True,
+                )
+            )
+    if policy.status != "active":
+        items.append(
+            PaperReviewQueueItemView(
+                review_id=f"prq_policy_{policy.policy_id}",
+                source_type="risk_policy",
+                source_id=policy.policy_id,
+                severity="critical",
+                status="open",
+                title="Paper risk policy is paused",
+                reason=policy.pause_reason or "Manual paper risk pause requires review.",
+                symbol=None,
+                strategy_key=None,
+                created_at=policy.updated_at,
+                resolved_at=None,
+                paper_only=True,
+            )
+        )
+    return sorted(items, key=lambda item: item.created_at, reverse=True)
 
 
 def pause_paper_risk_policy(session: Session, payload: PaperRiskPolicyPauseRequest) -> PaperRiskPolicyView:

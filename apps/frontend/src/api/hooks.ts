@@ -26,10 +26,14 @@ import type {
   PolymarketHunterView,
   OpportunityHunterView,
   ReplayView,
+  PaperEquityCurvePointView,
   PaperTradeAnalyticsView,
   PaperLedgerTransactionView,
+  PaperPerformanceSummaryView,
+  PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
   PaperRiskPolicyView,
+  PaperReviewQueueItemView,
   PaperTradeDetailView,
   PaperTradeReviewView,
   PaperTradeView,
@@ -1333,6 +1337,22 @@ export function useDashboardData(
     enabled: showWallet,
     preserveData: true,
   });
+  const paperPerformance = usePollingResource<PaperPerformanceSummaryView | null>(() => apiClient.paperPerformance(), null, {
+    enabled: showWallet,
+    preserveData: true,
+  });
+  const paperEquityCurve = usePollingResource<PaperEquityCurvePointView[]>(() => apiClient.paperEquityCurve(), [], {
+    enabled: showWallet,
+    preserveData: true,
+  });
+  const paperRejectionAnalysis = usePollingResource<PaperRejectionAnalysisItemView[]>(() => apiClient.paperRejectionAnalysis(), [], {
+    enabled: showWallet,
+    preserveData: true,
+  });
+  const paperReviewQueue = usePollingResource<PaperReviewQueueItemView[]>(() => apiClient.paperReviewQueue(), [], {
+    enabled: showWallet,
+    preserveData: true,
+  });
   const simulatedOrders = usePollingResource<SimulatedOrderView[]>(() => apiClient.simulatedOrders(), [], { enabled: showWallet, preserveData: true });
   const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
@@ -1549,6 +1569,10 @@ export function useDashboardData(
     paperLedger,
     paperRiskPolicy,
     paperRiskDecisions,
+    paperPerformance,
+    paperEquityCurve,
+    paperRejectionAnalysis,
+    paperReviewQueue,
     simulatedOrders,
     journal,
     scenario,

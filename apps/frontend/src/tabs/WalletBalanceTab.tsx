@@ -1,7 +1,11 @@
 import type {
+  PaperEquityCurvePointView,
   PaperLedgerTransactionView,
+  PaperPerformanceSummaryView,
+  PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
   PaperRiskPolicyView,
+  PaperReviewQueueItemView,
   PaperWalletView,
   SimulatedOrderView,
   WalletBalanceView,
@@ -13,6 +17,10 @@ interface WalletBalanceTabProps {
   paperLedger?: PaperLedgerTransactionView[];
   paperRiskPolicy?: PaperRiskPolicyView | null;
   paperRiskDecisions?: PaperRiskDecisionView[];
+  paperPerformance?: PaperPerformanceSummaryView | null;
+  paperEquityCurve?: PaperEquityCurvePointView[];
+  paperRejectionAnalysis?: PaperRejectionAnalysisItemView[];
+  paperReviewQueue?: PaperReviewQueueItemView[];
   simulatedOrders?: SimulatedOrderView[];
 }
 
@@ -30,6 +38,10 @@ export function WalletBalanceTab({
   paperLedger = [],
   paperRiskPolicy,
   paperRiskDecisions = [],
+  paperPerformance,
+  paperEquityCurve = [],
+  paperRejectionAnalysis = [],
+  paperReviewQueue = [],
   simulatedOrders = [],
 }: WalletBalanceTabProps) {
   return (
@@ -71,6 +83,162 @@ export function WalletBalanceTab({
             ) : null}
           </>
         ) : null}
+      </article>
+
+      <article className="panel compact-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Paper performance review</p>
+            <h3>Paper Performance</h3>
+          </div>
+          <span className="status-pill">paper-only</span>
+        </div>
+        {paperPerformance ? (
+          <>
+            <div className="metric-grid">
+              <div className="metric-card">
+                <span>Orders</span>
+                <strong>{paperPerformance.total_orders}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Filled</span>
+                <strong>{paperPerformance.filled_orders}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Rejected</span>
+                <strong>{paperPerformance.rejected_orders}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Acceptance</span>
+                <strong>{paperPerformance.acceptance_rate.toFixed(1)}%</strong>
+              </div>
+              <div className="metric-card">
+                <span>Fees paid</span>
+                <strong>{formatMoney(paperPerformance.fees_paid, paperPerformance.currency)}</strong>
+              </div>
+              <div className="metric-card">
+                <span>Gross notional</span>
+                <strong>{formatMoney(paperPerformance.gross_notional_traded, paperPerformance.currency)}</strong>
+              </div>
+            </div>
+            <p className="muted-copy">
+              Unrealized PnL is {paperPerformance.unrealized_pnl_available ? "available" : "unavailable"}; this panel does not
+              invent mark-to-market performance.
+            </p>
+            {paperPerformance.performance_warnings.length > 0 ? (
+              <div className="tag-row compact-link-row">
+                {paperPerformance.performance_warnings.slice(0, 3).map((warning) => (
+                  <span key={warning}>{warning}</span>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="muted-copy">Paper performance summary will appear when the local API is ready.</p>
+        )}
+      </article>
+
+      <article className="panel compact-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Ledger-derived curve</p>
+            <h3>Paper Equity Curve</h3>
+          </div>
+        </div>
+        {paperEquityCurve.length === 0 ? (
+          <p className="muted-copy">No equity curve points are available yet.</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Seq</th>
+                <th>Cash</th>
+                <th>Reserved</th>
+                <th>Realized PnL</th>
+                <th>Equity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paperEquityCurve.slice(-6).map((point) => (
+                <tr key={`${point.sequence_number}-${point.timestamp}`}>
+                  <td>{point.sequence_number}</td>
+                  <td>{point.cash_balance.toFixed(2)}</td>
+                  <td>{point.reserved_cash.toFixed(2)}</td>
+                  <td>{point.realized_pnl.toFixed(2)}</td>
+                  <td>{point.equity.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </article>
+
+      <article className="panel compact-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Rejected-order analysis</p>
+            <h3>Paper Rejections</h3>
+          </div>
+        </div>
+        {paperRejectionAnalysis.length === 0 ? (
+          <p className="muted-copy">No rejected paper orders have been grouped yet.</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Reason</th>
+                <th>Count</th>
+                <th>Symbols</th>
+                <th>Latest note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paperRejectionAnalysis.slice(0, 6).map((group) => (
+                <tr key={group.reason_code}>
+                  <td>{group.reason_code}</td>
+                  <td>{group.count}</td>
+                  <td>{group.symbols.join(", ") || "-"}</td>
+                  <td>{group.latest_reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </article>
+
+      <article className="panel compact-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Operator review queue</p>
+            <h3>Paper Review Queue</h3>
+          </div>
+        </div>
+        {paperReviewQueue.length === 0 ? (
+          <p className="muted-copy">No paper review tasks are open.</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Title</th>
+                <th>Symbol</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paperReviewQueue.slice(0, 6).map((item) => (
+                <tr key={item.review_id}>
+                  <td>{item.severity}</td>
+                  <td>{item.status}</td>
+                  <td>{item.title}</td>
+                  <td>{item.symbol ?? "-"}</td>
+                  <td>{item.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </article>
 
       <article className="panel compact-panel">

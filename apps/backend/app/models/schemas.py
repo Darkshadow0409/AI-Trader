@@ -1034,6 +1034,87 @@ class PaperRiskDecisionView(BaseModel):
     paper_only: bool = True
 
 
+class PaperEquityCurvePointView(BaseModel):
+    timestamp: datetime
+    sequence_number: int
+    cash_balance: float
+    reserved_cash: float
+    realized_pnl: float
+    equity: float
+    unrealized_pnl_available: bool = False
+    paper_only: bool = True
+
+
+class PaperRejectionDetailView(BaseModel):
+    simulated_order_id: str | None = None
+    decision_id: str | None = None
+    symbol: str
+    strategy_key: str | None = None
+    reason_code: str
+    rejection_reason: str
+    notional: float
+    created_at: datetime
+    policy_rule: str = ""
+    paper_only: bool = True
+
+
+class PaperRejectionAnalysisItemView(BaseModel):
+    reason_code: str
+    count: int
+    latest_reason: str
+    symbols: list[str] = Field(default_factory=list)
+    policy_rules: list[str] = Field(default_factory=list)
+    latest_at: datetime | None = None
+    details: list[PaperRejectionDetailView] = Field(default_factory=list)
+    paper_only: bool = True
+
+
+class PaperReviewQueueItemView(BaseModel):
+    review_id: str
+    source_type: str
+    source_id: str
+    severity: str
+    status: str
+    title: str
+    reason: str
+    symbol: str | None = None
+    strategy_key: str | None = None
+    created_at: datetime
+    resolved_at: datetime | None = None
+    paper_only: bool = True
+
+
+class PaperPerformanceSummaryView(BaseModel):
+    wallet_id: str
+    account_label: str
+    currency: str
+    starting_balance: float
+    cash_balance: float
+    reserved_cash: float
+    realized_pnl: float
+    realized_pnl_pct: float
+    equity: float
+    unrealized_pnl_available: bool = False
+    total_orders: int
+    filled_orders: int
+    rejected_orders: int
+    cancelled_orders: int
+    acceptance_rate: float
+    rejection_rate: float
+    fees_paid: float
+    gross_notional_traded: float
+    net_cash_flow: float
+    largest_single_loss: float | None = None
+    largest_single_gain: float | None = None
+    risk_rejections_by_reason: dict[str, int] = Field(default_factory=dict)
+    orders_by_symbol: dict[str, int] = Field(default_factory=dict)
+    orders_by_strategy: dict[str, int] = Field(default_factory=dict)
+    latest_risk_decisions: list[PaperRiskDecisionView] = Field(default_factory=list)
+    performance_warnings: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    paper_only: bool = True
+
+
 class PaperRiskPolicyPauseRequest(BaseModel):
     reason: str = "Manual paper risk pause."
 

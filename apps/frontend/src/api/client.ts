@@ -31,9 +31,11 @@ import {
   mockSessionOverview,
   mockExecutionGate,
   mockAdapterHealth,
+  mockAIBrain,
   mockAIAdvisor,
   mockAIStatus,
   mockAuditLogs,
+  mockAvailabilityStatus,
   mockSignalDetail,
   mockSignals,
   mockSignalsSummary,
@@ -71,12 +73,15 @@ import type {
   ActiveTradeCreateRequest,
   ActiveTradeUpdateRequest,
   ActiveTradeView,
+  AIBrainQueryRequest,
+  AIBrainResponseView,
   AIAdvisorRequest,
   AIAdvisorResponseView,
   AIAdvisorRunStatusView,
   AIProviderStatusView,
   AlertEnvelope,
   AssetContextView,
+  AvailabilityStatusView,
   BacktestDetailView,
   BacktestListView,
   BacktestRunRequest,
@@ -414,6 +419,12 @@ function aiCredentials(openAiApiKey?: string | null): RequestCredentials | undef
 
 export const apiClient = {
   health: () => requestJson<HealthView>("/health", mockHealth),
+  availabilityStatus: () => requestJson<AvailabilityStatusView>("/availability/status", mockAvailabilityStatus),
+  aiBrainQuery: (payload: AIBrainQueryRequest) =>
+    requestJson<AIBrainResponseView>("/ai-brain/query", mockAIBrain, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   aiStatus: (provider?: string | null, model?: string | null, openAiApiKey?: string | null) =>
     requestJson<AIProviderStatusView>(
       `/ai/status${

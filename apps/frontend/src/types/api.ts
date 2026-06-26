@@ -25,6 +25,66 @@ export interface HealthView {
   commodity_truth?: CommodityTruthStatusView | null;
 }
 
+export interface AvailabilityTableCheckView {
+  table_name: string;
+  reachable: boolean;
+  row_count: number | null;
+  detail: string;
+}
+
+export interface AvailabilityStatusView {
+  status: string;
+  generated_at: string;
+  app_ok: boolean;
+  database_reachable: boolean;
+  persistence_path: string;
+  persistence_mode: string;
+  paper_wallet_table_reachable: boolean;
+  paper_ledger_table_reachable: boolean;
+  simulated_orders_table_reachable: boolean;
+  paper_risk_policy_table_reachable: boolean;
+  paper_performance_endpoints_reachable: boolean;
+  tables: AvailabilityTableCheckView[];
+  warnings: string[];
+}
+
+export interface AIBrainQueryRequest {
+  query: string;
+  symbol: string;
+  timeframe: string;
+}
+
+export interface AIBrainEvidenceCardView {
+  title: string;
+  status: string;
+  summary: string;
+  details: string[];
+  degraded: boolean;
+}
+
+export interface AIBrainResponseView {
+  generated_at: string;
+  query: string;
+  symbol: string;
+  timeframe: string;
+  mode: string;
+  answer: string;
+  market_context: string;
+  strategy_contract_summary: string;
+  latest_backtest_assumptions_summary: string;
+  paper_wallet_state: string;
+  risk_policy_decision_summary: string;
+  performance_review_summary: string;
+  suggested_next_inspection: string;
+  uncertainty_notes: string[];
+  evidence_cards: AIBrainEvidenceCardView[];
+  warnings: string[];
+  paper_only: boolean;
+  orders_created: number;
+  ledger_rows_created: number;
+  risk_decisions_created: number;
+}
+
 export interface CommodityTruthStatusView {
   truth_state: string;
   truth_label: string;

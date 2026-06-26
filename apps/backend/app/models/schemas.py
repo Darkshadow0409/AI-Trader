@@ -13,6 +13,46 @@ class HealthResponse(BaseModel):
     parquet_dir: str
 
 
+class AvailabilityTableCheckView(BaseModel):
+    table_name: str
+    reachable: bool
+    row_count: int | None = None
+    detail: str = ""
+
+
+class AvailabilityStatusView(BaseModel):
+    status: str
+    generated_at: datetime
+    app_ok: bool
+    database_reachable: bool
+    persistence_path: str
+    persistence_mode: str
+    paper_wallet_table_reachable: bool
+    paper_ledger_table_reachable: bool
+    simulated_orders_table_reachable: bool
+    paper_risk_policy_table_reachable: bool
+    paper_performance_endpoints_reachable: bool
+    tables: list[AvailabilityTableCheckView] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PaperStateExportView(BaseModel):
+    generated_at: datetime
+    paper_only: bool = True
+    export_note: str = "Read-only paper/research state export. It does not import, restore, or create orders."
+    wallet_count: int
+    ledger_count: int
+    simulated_order_count: int
+    risk_policy_count: int
+    risk_decision_count: int
+    performance_summary_available: bool
+    wallets: list[dict[str, Any]] = Field(default_factory=list)
+    ledger_transactions: list[dict[str, Any]] = Field(default_factory=list)
+    simulated_orders: list[dict[str, Any]] = Field(default_factory=list)
+    risk_policies: list[dict[str, Any]] = Field(default_factory=list)
+    risk_decisions: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class BarView(BaseModel):
     symbol: str
     timestamp: datetime
@@ -1453,6 +1493,43 @@ class AIAdvisorRequest(BaseModel):
     active_tab: str | None = None
     selected_signal_id: str | None = None
     selected_risk_report_id: str | None = None
+
+
+class AIBrainQueryRequest(BaseModel):
+    query: str
+    symbol: str = "USOUSD"
+    timeframe: str = "1d"
+
+
+class AIBrainEvidenceCardView(BaseModel):
+    title: str
+    status: str
+    summary: str
+    details: list[str] = Field(default_factory=list)
+    degraded: bool = False
+
+
+class AIBrainResponseView(BaseModel):
+    generated_at: datetime
+    query: str
+    symbol: str
+    timeframe: str
+    mode: str = "deterministic_local"
+    answer: str
+    market_context: str
+    strategy_contract_summary: str
+    latest_backtest_assumptions_summary: str
+    paper_wallet_state: str
+    risk_policy_decision_summary: str
+    performance_review_summary: str
+    suggested_next_inspection: str
+    uncertainty_notes: list[str] = Field(default_factory=list)
+    evidence_cards: list[AIBrainEvidenceCardView] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    paper_only: bool = True
+    orders_created: int = 0
+    ledger_rows_created: int = 0
+    risk_decisions_created: int = 0
 
 
 class AIDeskContextSnapshotView(BaseModel):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from time import perf_counter
@@ -9,7 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import ai, alerts, backtests, dashboard, health, journal, market, news, polymarket, portfolio, replay, research, risk, session, signals, strategies, system, tickets, watchlist
+from app.api.routes import ai, ai_brain, alerts, availability, backtests, dashboard, health, journal, market, news, polymarket, portfolio, replay, research, risk, session, signals, strategies, system, tickets, watchlist
 from app.core.settings import get_settings
 from app.core.telemetry import record_route_timing
 from app.services.pipeline import seed_and_refresh
@@ -18,6 +19,7 @@ from app.websocket.manager import manager
 
 settings = get_settings()
 scheduler = AsyncIOScheduler(timezone="UTC")
+logger = logging.getLogger("ai_trader.startup")
 
 
 def _scheduled_refresh() -> None:
@@ -26,6 +28,12 @@ def _scheduled_refresh() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    logger.info(
+        "AI Trader persistence configured: sqlite_path=%s parquet_dir=%s scheduler_enabled=%s",
+        settings.sqlite_full_path,
+        settings.parquet_full_path,
+        settings.enable_scheduler,
+    )
     startup_refresh = asyncio.create_task(asyncio.to_thread(seed_and_refresh))
     if settings.enable_scheduler:
         scheduler.add_job(
@@ -66,6 +74,8 @@ async def route_timing_middleware(request: Request, call_next):
 
 app.include_router(health.router, prefix="/api")
 app.include_router(ai.router, prefix="/api")
+app.include_router(ai_brain.router, prefix="/api")
+app.include_router(availability.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")

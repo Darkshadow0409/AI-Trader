@@ -1,8 +1,10 @@
 import type {
   ActiveTradeView,
+  AIBrainResponseView,
   AIAdvisorResponseView,
   AIProviderStatusView,
   AlertEnvelope,
+  AvailabilityStatusView,
   AssetContextView,
   BacktestDetailView,
   BacktestListView,
@@ -80,6 +82,27 @@ export const mockHealth: HealthView = {
   sqlite_path: "mock/sqlite.db",
   duckdb_path: "mock/analytics.duckdb",
   parquet_dir: "mock/parquet",
+};
+
+export const mockAvailabilityStatus: AvailabilityStatusView = {
+  status: "ok",
+  generated_at: "2026-03-15T11:30:00Z",
+  app_ok: true,
+  database_reachable: true,
+  persistence_path: "data/sqlite/ai_trader.db",
+  persistence_mode: "sqlite_on_configured_data_path",
+  paper_wallet_table_reachable: true,
+  paper_ledger_table_reachable: true,
+  simulated_orders_table_reachable: true,
+  paper_risk_policy_table_reachable: true,
+  paper_performance_endpoints_reachable: true,
+  tables: [
+    { table_name: "paper_wallet", reachable: true, row_count: 1, detail: "reachable" },
+    { table_name: "paper_ledger", reachable: true, row_count: 4, detail: "reachable" },
+    { table_name: "simulated_orders", reachable: true, row_count: 2, detail: "reachable" },
+    { table_name: "paper_risk_policy", reachable: true, row_count: 1, detail: "reachable" },
+  ],
+  warnings: [],
 };
 
 const btcDataReality: DataRealityView = {
@@ -4386,6 +4409,55 @@ export const mockResearchRun: ResearchRunView = {
 };
 
 export const mockResearchRuns: ResearchRunView[] = [mockResearchRun];
+
+export const mockAIBrain: AIBrainResponseView = {
+  generated_at: "2026-03-15T11:30:00Z",
+  query: "What should I inspect before the next paper test?",
+  symbol: "USOUSD",
+  timeframe: "1d",
+  mode: "deterministic_local",
+  answer:
+    "Paper/research cockpit read for USOUSD: signal context is available, paper wallet and risk policy are loaded, and the next useful inspection is risk rejections plus Backtests assumptions.",
+  market_context: "USOUSD has fixture-backed local signal context with stale/degraded timing notes.",
+  strategy_contract_summary: "trend_following_baseline v1 covers USOUSD on 1d; deterministic=true; warmup=30 bars.",
+  latest_backtest_assumptions_summary: "Latest trend_following_baseline backtest exposes fee, spread, slippage, candle-fill, and no-lookahead metadata.",
+  paper_wallet_state: "Default paper wallet: cash 9875.20 USD, reserved 0.00, equity 9875.20, status active.",
+  risk_policy_decision_summary: "Risk policy paper_risk_default is active; recent rejection reasons include missing_assumptions.",
+  performance_review_summary: "Recent paper orders: 2 filled, 1 rejected. Unrealized PnL remains unavailable until inventory accounting is added.",
+  suggested_next_inspection: "Inspect risk rejections and the latest Backtests assumptions before creating another manual paper simulation.",
+  uncertainty_notes: [
+    "This cockpit uses local AI Trader records and deterministic fallback text.",
+    "It does not create proposals, simulated orders, ledger rows, or risk decisions.",
+  ],
+  evidence_cards: [
+    {
+      title: "Paper Wallet",
+      status: "available",
+      summary: "Cash, reserved cash, and equity are readable from paper records.",
+      details: ["Paper-only simulated cash ledger.", "Unrealized PnL is unavailable."],
+      degraded: false,
+    },
+    {
+      title: "Risk And Review",
+      status: "available",
+      summary: "Risk decisions and review queue are visible.",
+      details: ["Missing assumptions rejections are review-visible."],
+      degraded: false,
+    },
+    {
+      title: "Availability",
+      status: "available",
+      summary: "Persistent SQLite path is configured and paper tables are reachable.",
+      details: ["Docker mounts ./data to /app/data in production compose."],
+      degraded: false,
+    },
+  ],
+  warnings: ["Paper/research only. The AI Brain query is read-only and creates no paper orders."],
+  paper_only: true,
+  orders_created: 0,
+  ledger_rows_created: 0,
+  risk_decisions_created: 0,
+};
 
 export const mockAIAdvisor: AIAdvisorResponseView = {
   generated_at: "2026-03-15T11:30:00Z",

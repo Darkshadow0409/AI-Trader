@@ -13,11 +13,13 @@ import { ResearchRunPanel } from "../components/ResearchRunPanel";
 import { WorkspaceJumpRow } from "../components/WorkspaceJumpRow";
 import { assetWorkspaceTarget, riskContextTarget, signalContextTarget, type WorkspaceRouteState, type WorkspaceTarget } from "../lib/workspaceNavigation";
 import type {
+  AIBrainResponseView,
   AIAdvisorResponseView,
   AIAdvisorRunStatusView,
   AIDeskContextSnapshotView,
   AIProviderStatusView,
   AssetContextView,
+  AvailabilityStatusView,
   MarketChartView,
   OperationalBacklogView,
   PaperTradeDetailView,
@@ -139,6 +141,13 @@ function aiDeskThreadKey(symbol: string, signalId: string | null, riskReportId: 
 interface AIViewState {
   status: AIProviderStatusView;
   response: AIAdvisorResponseView | null;
+  loading: boolean;
+  error: string | null;
+}
+
+interface AIBrainViewState {
+  availability: AvailabilityStatusView | null;
+  response: AIBrainResponseView | null;
   loading: boolean;
   error: string | null;
 }
@@ -442,6 +451,13 @@ export function AIDeskTab({
     loading: false,
     error: null,
   });
+  const [brainQuestion, setBrainQuestion] = useState("What should I inspect before the next paper test?");
+  const [brainState, setBrainState] = useState<AIBrainViewState>({
+    availability: null,
+    response: null,
+    loading: false,
+    error: null,
+  });
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [runElapsedMs, setRunElapsedMs] = useState(0);
   const [activeRun, setActiveRun] = useState<AIAdvisorRunStatusView | null>(null);
@@ -483,6 +499,10 @@ export function AIDeskTab({
   useEffect(() => {
     void loadStatus();
   }, [selectedAIModel, selectedAIProvider]);
+
+  useEffect(() => {
+    void loadAvailabilityStatus();
+  }, []);
 
   useEffect(() => {
     try {
@@ -547,6 +567,44 @@ export function AIDeskTab({
         ...current,
         status: emptyStatus,
         error: friendlyAiError(error, "Unable to load AI provider status."),
+      }));
+    }
+  }
+
+  async function loadAvailabilityStatus() {
+    try {
+      const availability = await apiClient.availabilityStatus();
+      setBrainState((current) => ({ ...current, availability, error: null }));
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "Availability status is unavailable."),
+      }));
+    }
+  }
+
+  async function runAIBrainQuery() {
+    setBrainState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [response, availability] = await Promise.all([
+        apiClient.aiBrainQuery({
+          query: brainQuestion,
+          symbol: selectedSymbol,
+          timeframe,
+        }),
+        apiClient.availabilityStatus(),
+      ]);
+      setBrainState({
+        response,
+        availability,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        loading: false,
+        error: friendlyAiError(error, "AI Brain cockpit query failed."),
       }));
     }
   }
@@ -754,6 +812,97 @@ export function AIDeskTab({
         tickets={tickets}
         timeframe={timeframe}
       />
+
+      <article className="panel compact-panel hero-panel terminal-console-panel ai-brain-cockpit">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">AI Brain Cockpit</p>
+            <h3>Paper Research Command Center</h3>
+          </div>
+          <span className="tag">Paper/research only</span>
+        </div>
+        <div className="field">
+          <span>Ask about the local system, strategy evidence, risk, or paper performance</span>
+          <textarea
+            aria-label="AI Brain cockpit question"
+            value={brainQuestion}
+            onChange={(event) => setBrainQuestion(event.target.value)}
+          />
+        </div>
+        <div className="workspace-cta-group">
+          <button type="button" className="primary" onClick={runAIBrainQuery} disabled={brainState.loading || brainQuestion.trim().length === 0}>
+            {brainState.loading ? "Reading local evidence..." : "Ask AI Brain"}
+          </button>
+          <button type="button" onClick={loadAvailabilityStatus}>Refresh Availability</button>
+        </div>
+        {brainState.error ? <p className="error">{brainState.error}</p> : null}
+        <div className="metric-grid" data-testid="ai-brain-command-center">
+          <div>
+            <span>Availability</span>
+            <strong>{brainState.availability?.status ?? "Unknown"}</strong>
+            <small>{brainState.availability?.database_reachable ? "Database reachable" : "Awaiting status"}</small>
+          </div>
+          <div>
+            <span>Persistence</span>
+            <strong>{brainState.availability?.persistence_mode ?? "Not checked"}</strong>
+            <small>{brainState.availability?.persistence_path ?? "Path unavailable"}</small>
+          </div>
+          <div>
+            <span>Paper Tables</span>
+            <strong>{brainState.availability?.paper_performance_endpoints_reachable ? "Ready" : "Unchecked"}</strong>
+            <small>Wallet, ledger, orders, risk policy</small>
+          </div>
+          <div>
+            <span>Query Safety</span>
+            <strong>{brainState.response?.paper_only ? "Paper only" : "Read-only"}</strong>
+            <small>No orders are created by this query</small>
+          </div>
+        </div>
+        {brainState.response ? (
+          <div className="stack">
+            <div className="panel-note">
+              <strong>Brain Answer</strong>
+              <p>{brainState.response.answer}</p>
+              <small>Generated {formatDateTimeIST(brainState.response.generated_at)} · {brainState.response.mode.replace(/_/g, " ")}</small>
+            </div>
+            <div className="metric-grid">
+              {brainState.response.evidence_cards.map((card) => (
+                <div key={card.title}>
+                  <span>{card.title}</span>
+                  <strong>{card.status}</strong>
+                  <small>{card.summary}</small>
+                  {card.details.map((detail) => <small key={detail}>{detail}</small>)}
+                </div>
+              ))}
+            </div>
+            <div className="metric-grid">
+              <div>
+                <span>Strategy Contracts</span>
+                <small>{brainState.response.strategy_contract_summary}</small>
+              </div>
+              <div>
+                <span>Backtests</span>
+                <small>{brainState.response.latest_backtest_assumptions_summary}</small>
+              </div>
+              <div>
+                <span>Risk + Review</span>
+                <small>{brainState.response.risk_policy_decision_summary}</small>
+              </div>
+              <div>
+                <span>Next Inspection</span>
+                <small>{brainState.response.suggested_next_inspection}</small>
+              </div>
+            </div>
+            {brainState.response.uncertainty_notes.length ? (
+              <ul className="compact-list">
+                {brainState.response.uncertainty_notes.map((note) => <li key={note}>{note}</li>)}
+              </ul>
+            ) : null}
+          </div>
+        ) : (
+          <small>Ask a question to assemble local market, strategy, backtest, wallet, risk, performance, and review evidence.</small>
+        )}
+      </article>
 
       <article className="panel compact-panel hero-panel terminal-console-panel">
         <div className="panel-header">

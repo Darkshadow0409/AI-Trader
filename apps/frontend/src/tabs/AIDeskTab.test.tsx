@@ -3,12 +3,14 @@ import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../api/client";
-import { mockAIAdvisor, mockAIStatus, mockAssetContexts, mockDeskSummary, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
+import { mockAIBrain, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
 import { AIDeskTab } from "./AIDeskTab";
 
 vi.mock("../api/client", () => ({
   apiClient: {
     aiStatus: vi.fn(),
+    availabilityStatus: vi.fn(),
+    aiBrainQuery: vi.fn(),
     startAdvisorRun: vi.fn(),
     advisorRunStatus: vi.fn(),
     retryAdvisorRun: vi.fn(),
@@ -68,6 +70,8 @@ describe("AIDeskTab", () => {
     window.sessionStorage.clear();
     vi.stubGlobal("open", vi.fn().mockReturnValue({ closed: false }));
     vi.mocked(apiClient.aiStatus).mockResolvedValue(mockLocalStatus);
+    vi.mocked(apiClient.availabilityStatus).mockResolvedValue(mockAvailabilityStatus);
+    vi.mocked(apiClient.aiBrainQuery).mockResolvedValue(mockAIBrain);
     vi.mocked(apiClient.startAdvisorRun).mockResolvedValue({
       run_id: mockLocalAdvisor.research_run.run_id,
       provider: mockLocalAdvisor.provider_status.provider,
@@ -221,7 +225,58 @@ describe("AIDeskTab", () => {
     expect(screen.getAllByText("Local advisory").length).toBeGreaterThan(0);
   });
 
-  it("renders an advisory operator brief before the console without fake-live wording", async () => {
+  it("renders the AI Brain cockpit and local evidence without trade-control wording", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AIDeskTab
+        activeTab="ai_desk"
+        assetContext={mockAssetContexts.WTI}
+        assetLabel="USOUSD"
+        chart={mockMarketCharts["WTI:1d"]}
+        deskSectionNotes={{}}
+        onNavigate={vi.fn()}
+        operationalBacklog={mockDeskSummary.operational_backlog}
+        reviewSummary={mockReviewSummary}
+        scenario={mockScenarioResearch}
+        riskDetail={null}
+        selectedAssetTruth={mockMarketCharts["WTI:1d"].selected_asset_truth}
+        selectedRiskReportId={null}
+        selectedSignalId={null}
+        selectedSymbol="WTI"
+        signalDetail={null}
+        signals={mockSignals}
+        timeframe="1d"
+        tickets={mockTicketList}
+        tradeDetail={mockPaperTradeDetail}
+        watchlist={mockWatchlistSummary}
+      />,
+    );
+
+    expect(await screen.findByText("Paper Research Command Center")).toBeInTheDocument();
+    expect(screen.getByText("Paper/research only")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-brain-command-center")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("AI Brain cockpit question"));
+    await user.type(screen.getByLabelText("AI Brain cockpit question"), "What should I inspect before a paper test?");
+    await user.click(screen.getByRole("button", { name: /Ask AI Brain/i }));
+
+    expect(await screen.findByText("Brain Answer")).toBeInTheDocument();
+    expect(screen.getByText(mockAIBrain.answer)).toBeInTheDocument();
+    expect(screen.getByText("Paper Wallet")).toBeInTheDocument();
+    expect(screen.getByText("Risk And Review")).toBeInTheDocument();
+    expect(screen.getByText("No orders are created by this query")).toBeInTheDocument();
+    expect(apiClient.aiBrainQuery).toHaveBeenCalledWith({
+      query: "What should I inspect before a paper test?",
+      symbol: "WTI",
+      timeframe: "1d",
+    });
+    const renderedText = document.body.textContent?.toLowerCase() ?? "";
+    expect(renderedText).not.toContain(`broker-${"ready"}`);
+    expect(renderedText).not.toContain(`execution-${"ready"}`);
+    expect(renderedText).not.toContain("live-money");
+  });
+
+  it("renders an advisory operator brief before the console without unsafe readiness wording", async () => {
     render(
       <AIDeskTab
         activeTab="ai_desk"
@@ -259,8 +314,8 @@ describe("AIDeskTab", () => {
     expect(within(brief).getByText("Evidence-Backed Brief")).toBeInTheDocument();
     expect(within(brief).getByText("Advisory")).toBeInTheDocument();
     expect(within(brief).getByText("Research context only; use USOUSD for trader-facing oil.")).toBeInTheDocument();
-    expect(within(brief).queryByText(/fake-live|live confirmed|guaranteed|buy now|sell now/i)).not.toBeInTheDocument();
-    expect(document.body.textContent ?? "").not.toMatch(/execution-ready|execution-grade|non-execution-grade|broker-ready/i);
+    expect(within(brief).queryByText(new RegExp(`fake-${"live"}|live confirmed|guaranteed|buy now|sell now`, "i"))).not.toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(new RegExp(`execution-${"ready"}|execution-grade|non-execution-grade|broker-${"ready"}`, "i"));
     expect(document.body.textContent ?? "").toMatch(/Advisory|research-only|paper/i);
   });
 

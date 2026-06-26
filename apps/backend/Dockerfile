@@ -23,7 +23,8 @@ COPY .env.example /app/.env.example
 RUN mkdir -p /app/data/sqlite /app/data/parquet /app/data/diagnostics /app/data/exports /app/data/local_runtime
 
 COPY apps/backend/docker-entrypoint.sh /usr/local/bin/docker-backend-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-backend-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-backend-entrypoint.sh \
+    && chmod +x /usr/local/bin/docker-backend-entrypoint.sh
 
 EXPOSE 8000
 

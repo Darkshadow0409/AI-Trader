@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections import Counter
+from uuid import uuid4
 
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, desc, select
 
 from app.core.clock import naive_utc_now
 from app.models.entities import (
+    AiBrainOperatorNoteRecord,
+    AiBrainQueryRecord,
     BacktestResult,
     PaperLedgerTransactionRecord,
     PaperRiskDecisionRecord,
@@ -16,7 +19,14 @@ from app.models.entities import (
     SimulatedOrderRecord,
     StrategyRegistryEntry,
 )
-from app.models.schemas import AIBrainEvidenceCardView, AIBrainResponseView
+from app.models.schemas import (
+    AIBrainEvidenceCardView,
+    AIBrainHistoryDetailView,
+    AIBrainHistoryItemView,
+    AIBrainOperatorNoteView,
+    AIBrainResponseView,
+)
+from app.services.availability import availability_status
 from app.services.paper_wallet import _ensure_paper_wallet_tables
 
 
@@ -43,9 +53,129 @@ def _all_or_empty(session: Session, statement) -> list:
         return []
 
 
+def _audit_id() -> str:
+    return f"ai_brain_{uuid4().hex[:16]}"
+
+
+def _note_id() -> str:
+    return f"ai_brain_note_{uuid4().hex[:16]}"
+
+
+def _ensure_ai_brain_tables() -> None:
+    from app.core.database import init_db
+
+    init_db()
+
+
+def _note_count(session: Session, audit_id: str) -> int:
+    return len(_all_or_empty(session, select(AiBrainOperatorNoteRecord).where(AiBrainOperatorNoteRecord.ai_brain_query_id == audit_id, AiBrainOperatorNoteRecord.archived == False)))
+
+
+def _history_item_view(session: Session, row: AiBrainQueryRecord) -> AIBrainHistoryItemView:
+    return AIBrainHistoryItemView(
+        audit_id=row.audit_id,
+        created_at=row.created_at,
+        question=row.question,
+        answer_summary=row.answer_summary,
+        mode=row.mode,
+        paper_only=row.paper_only,
+        created_order_count=row.created_order_count,
+        created_ledger_count=row.created_ledger_count,
+        created_risk_decision_count=row.created_risk_decision_count,
+        note_count=_note_count(session, row.audit_id),
+        archived=row.archived,
+    )
+
+
+def _history_detail_view(session: Session, row: AiBrainQueryRecord) -> AIBrainHistoryDetailView:
+    base = _history_item_view(session, row).model_dump()
+    return AIBrainHistoryDetailView(
+        **base,
+        evidence_snapshot=row.evidence_snapshot_json,
+        availability_snapshot=row.availability_snapshot_json,
+        wallet_snapshot=row.wallet_snapshot_json,
+        risk_snapshot=row.risk_snapshot_json,
+        performance_snapshot=row.performance_snapshot_json,
+        review_snapshot=row.review_snapshot_json,
+        uncertainty_notes=row.uncertainty_notes_json,
+        degraded_notes=row.degraded_notes_json,
+        source_route=row.source_route,
+        operator_label=row.operator_label,
+    )
+
+
+def _note_view(row: AiBrainOperatorNoteRecord) -> AIBrainOperatorNoteView:
+    return AIBrainOperatorNoteView(
+        note_id=row.note_id,
+        ai_brain_query_id=row.ai_brain_query_id,
+        created_at=row.created_at,
+        note=row.note,
+        status=row.status,
+        paper_only=row.paper_only,
+        created_by=row.created_by,
+        archived=row.archived,
+    )
+
+
+def list_ai_brain_history(session: Session, limit: int = 20) -> list[AIBrainHistoryItemView]:
+    _ensure_ai_brain_tables()
+    rows = _all_or_empty(
+        session,
+        select(AiBrainQueryRecord)
+        .where(AiBrainQueryRecord.archived == False)
+        .order_by(desc(AiBrainQueryRecord.created_at))
+        .limit(max(1, min(limit, 100))),
+    )
+    return [_history_item_view(session, row) for row in rows]
+
+
+def get_ai_brain_history_detail(session: Session, audit_id: str) -> AIBrainHistoryDetailView | None:
+    _ensure_ai_brain_tables()
+    row = _first_or_none(
+        session,
+        select(AiBrainQueryRecord).where(AiBrainQueryRecord.audit_id == audit_id, AiBrainQueryRecord.archived == False),
+    )
+    return _history_detail_view(session, row) if row else None
+
+
+def list_ai_brain_notes(session: Session, audit_id: str) -> list[AIBrainOperatorNoteView]:
+    _ensure_ai_brain_tables()
+    rows = _all_or_empty(
+        session,
+        select(AiBrainOperatorNoteRecord)
+        .where(AiBrainOperatorNoteRecord.ai_brain_query_id == audit_id, AiBrainOperatorNoteRecord.archived == False)
+        .order_by(desc(AiBrainOperatorNoteRecord.created_at)),
+    )
+    return [_note_view(row) for row in rows]
+
+
+def create_ai_brain_note(session: Session, audit_id: str, note: str, status: str = "observation", created_by: str = "local_operator") -> AIBrainOperatorNoteView | None:
+    _ensure_ai_brain_tables()
+    audit = _first_or_none(
+        session,
+        select(AiBrainQueryRecord).where(AiBrainQueryRecord.audit_id == audit_id, AiBrainQueryRecord.archived == False),
+    )
+    if audit is None:
+        return None
+    normalized_status = status if status in {"observation", "follow_up", "dismissed", "reviewed"} else "observation"
+    row = AiBrainOperatorNoteRecord(
+        note_id=_note_id(),
+        ai_brain_query_id=audit_id,
+        note=note.strip(),
+        status=normalized_status,
+        created_by=(created_by or "local_operator").strip() or "local_operator",
+        paper_only=True,
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _note_view(row)
+
+
 def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str) -> AIBrainResponseView:
     """Return a deterministic local cockpit answer without creating paper records."""
 
+    _ensure_ai_brain_tables()
     _ensure_paper_wallet_tables()
     requested_symbol = _canonical_symbol(symbol)
     latest_signal = _first_or_none(
@@ -172,8 +302,10 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         f"Paper/research cockpit read for {requested_symbol}: {market_context} "
         f"{paper_wallet_state} {risk_policy_decision_summary} {suggested_next_inspection}"
     )
-    return AIBrainResponseView(
-        generated_at=naive_utc_now(),
+    generated_at = naive_utc_now()
+    response = AIBrainResponseView(
+        audit_id=None,
+        generated_at=generated_at,
         query=query,
         symbol=requested_symbol,
         timeframe=timeframe,
@@ -190,3 +322,49 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         warnings=["Paper/research only. The AI Brain query is read-only and creates no paper orders."],
         paper_only=True,
     )
+    degraded_notes = [card.summary for card in evidence_cards if card.degraded]
+    audit_row = AiBrainQueryRecord(
+        audit_id=_audit_id(),
+        created_at=generated_at,
+        question=query,
+        answer_summary=answer[:600],
+        mode=response.mode,
+        paper_only=True,
+        evidence_snapshot_json={"cards": [card.model_dump(mode="json") for card in evidence_cards]},
+        availability_snapshot_json=availability_status(session).model_dump(mode="json"),
+        wallet_snapshot_json={
+            "wallet_id": wallet.wallet_id if wallet else None,
+            "account_label": wallet.account_label if wallet else None,
+            "cash_balance": wallet.cash_balance if wallet else None,
+            "reserved_cash": wallet.reserved_cash if wallet else None,
+            "equity": wallet.equity if wallet else None,
+            "status": wallet.status if wallet else "unavailable",
+        },
+        risk_snapshot_json={
+            "policy_id": policy.policy_id if policy else None,
+            "policy_status": policy.status if policy else "unavailable",
+            "recent_decision_count": len(decisions),
+            "recent_rejection_reasons": dict(rejection_counts),
+        },
+        performance_snapshot_json={
+            "filled_orders": filled_orders,
+            "rejected_orders": rejected_orders,
+            "recent_ledger_rows": len(ledgers),
+            "unrealized_pnl": "unavailable_without_inventory_accounting",
+        },
+        review_snapshot_json={
+            "suggested_next_inspection": suggested_next_inspection,
+            "rejected_decision_count": len(rejected_decisions),
+        },
+        uncertainty_notes_json=uncertainty_notes,
+        degraded_notes_json=degraded_notes,
+        created_order_count=0,
+        created_ledger_count=0,
+        created_risk_decision_count=0,
+        source_route="/api/ai-brain/query",
+        archived=False,
+    )
+    session.add(audit_row)
+    session.commit()
+    response.audit_id = audit_row.audit_id
+    return response

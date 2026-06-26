@@ -32,6 +32,8 @@ import {
   mockExecutionGate,
   mockAdapterHealth,
   mockAIBrain,
+  mockAIBrainHistory,
+  mockAIBrainNotes,
   mockAIAdvisor,
   mockAIStatus,
   mockAuditLogs,
@@ -73,6 +75,10 @@ import type {
   ActiveTradeCreateRequest,
   ActiveTradeUpdateRequest,
   ActiveTradeView,
+  AIBrainHistoryDetailView,
+  AIBrainHistoryItemView,
+  AIBrainOperatorNoteCreateRequest,
+  AIBrainOperatorNoteView,
   AIBrainQueryRequest,
   AIBrainResponseView,
   AIAdvisorRequest,
@@ -422,6 +428,28 @@ export const apiClient = {
   availabilityStatus: () => requestJson<AvailabilityStatusView>("/availability/status", mockAvailabilityStatus),
   aiBrainQuery: (payload: AIBrainQueryRequest) =>
     requestJson<AIBrainResponseView>("/ai-brain/query", mockAIBrain, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  aiBrainHistory: () => requestJson<AIBrainHistoryItemView[]>("/ai-brain/history", mockAIBrainHistory),
+  aiBrainHistoryDetail: (auditId: string) =>
+    requestJson<AIBrainHistoryDetailView>(`/ai-brain/history/${auditId}`, {
+      ...mockAIBrainHistory[0],
+      evidence_snapshot: { cards: mockAIBrain.evidence_cards },
+      availability_snapshot: mockAvailabilityStatus as unknown as Record<string, unknown>,
+      wallet_snapshot: {},
+      risk_snapshot: {},
+      performance_snapshot: {},
+      review_snapshot: {},
+      uncertainty_notes: mockAIBrain.uncertainty_notes,
+      degraded_notes: [],
+      source_route: "/api/ai-brain/query",
+      operator_label: null,
+    }),
+  aiBrainHistoryNotes: (auditId: string) =>
+    requestJson<AIBrainOperatorNoteView[]>(`/ai-brain/history/${auditId}/notes`, mockAIBrainNotes),
+  createAIBrainHistoryNote: (auditId: string, payload: AIBrainOperatorNoteCreateRequest) =>
+    requestJson<AIBrainOperatorNoteView>(`/ai-brain/history/${auditId}/notes`, mockAIBrainNotes[0], {
       method: "POST",
       body: JSON.stringify(payload),
     }),

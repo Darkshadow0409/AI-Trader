@@ -1510,6 +1510,7 @@ class AIBrainEvidenceCardView(BaseModel):
 
 
 class AIBrainResponseView(BaseModel):
+    audit_id: str | None = None
     generated_at: datetime
     query: str
     symbol: str
@@ -1530,6 +1531,50 @@ class AIBrainResponseView(BaseModel):
     orders_created: int = 0
     ledger_rows_created: int = 0
     risk_decisions_created: int = 0
+
+
+class AIBrainHistoryItemView(BaseModel):
+    audit_id: str
+    created_at: datetime
+    question: str
+    answer_summary: str
+    mode: str
+    paper_only: bool = True
+    created_order_count: int = 0
+    created_ledger_count: int = 0
+    created_risk_decision_count: int = 0
+    note_count: int = 0
+    archived: bool = False
+
+
+class AIBrainHistoryDetailView(AIBrainHistoryItemView):
+    evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
+    availability_snapshot: dict[str, Any] = Field(default_factory=dict)
+    wallet_snapshot: dict[str, Any] = Field(default_factory=dict)
+    risk_snapshot: dict[str, Any] = Field(default_factory=dict)
+    performance_snapshot: dict[str, Any] = Field(default_factory=dict)
+    review_snapshot: dict[str, Any] = Field(default_factory=dict)
+    uncertainty_notes: list[str] = Field(default_factory=list)
+    degraded_notes: list[str] = Field(default_factory=list)
+    source_route: str = "/api/ai-brain/query"
+    operator_label: str | None = None
+
+
+class AIBrainOperatorNoteCreateRequest(BaseModel):
+    note: str
+    status: str = "observation"
+    created_by: str = "local_operator"
+
+
+class AIBrainOperatorNoteView(BaseModel):
+    note_id: str
+    ai_brain_query_id: str
+    created_at: datetime
+    note: str
+    status: str
+    paper_only: bool = True
+    created_by: str = "local_operator"
+    archived: bool = False
 
 
 class AIDeskContextSnapshotView(BaseModel):

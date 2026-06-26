@@ -295,6 +295,42 @@ class PaperRiskDecisionRecord(SQLModel, table=True):
     paper_only: bool = True
 
 
+class AiBrainQueryRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    audit_id: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    question: str
+    answer_summary: str = ""
+    mode: str = Field(default="deterministic_local", index=True)
+    paper_only: bool = True
+    evidence_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    availability_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    wallet_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    risk_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    performance_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    review_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    uncertainty_notes_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    degraded_notes_json: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_order_count: int = 0
+    created_ledger_count: int = 0
+    created_risk_decision_count: int = 0
+    source_route: str = Field(default="/api/ai-brain/query", index=True)
+    operator_label: str | None = Field(default=None, index=True)
+    archived: bool = Field(default=False, index=True)
+
+
+class AiBrainOperatorNoteRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    note_id: str = Field(index=True, unique=True)
+    ai_brain_query_id: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    note: str
+    status: str = Field(default="observation", index=True)
+    paper_only: bool = True
+    created_by: str = Field(default="local_operator", index=True)
+    archived: bool = Field(default=False, index=True)
+
+
 class PaperTradeReviewRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     review_id: str = Field(index=True, unique=True)

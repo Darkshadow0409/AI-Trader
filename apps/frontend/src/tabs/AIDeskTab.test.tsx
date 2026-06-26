@@ -3,7 +3,7 @@ import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../api/client";
-import { mockAIBrain, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
+import { mockAIBrain, mockAIBrainHistory, mockAIBrainNotes, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
 import { AIDeskTab } from "./AIDeskTab";
 
 vi.mock("../api/client", () => ({
@@ -11,6 +11,10 @@ vi.mock("../api/client", () => ({
     aiStatus: vi.fn(),
     availabilityStatus: vi.fn(),
     aiBrainQuery: vi.fn(),
+    aiBrainHistory: vi.fn(),
+    aiBrainHistoryDetail: vi.fn(),
+    aiBrainHistoryNotes: vi.fn(),
+    createAIBrainHistoryNote: vi.fn(),
     startAdvisorRun: vi.fn(),
     advisorRunStatus: vi.fn(),
     retryAdvisorRun: vi.fn(),
@@ -72,6 +76,27 @@ describe("AIDeskTab", () => {
     vi.mocked(apiClient.aiStatus).mockResolvedValue(mockLocalStatus);
     vi.mocked(apiClient.availabilityStatus).mockResolvedValue(mockAvailabilityStatus);
     vi.mocked(apiClient.aiBrainQuery).mockResolvedValue(mockAIBrain);
+    vi.mocked(apiClient.aiBrainHistory).mockResolvedValue(mockAIBrainHistory);
+    vi.mocked(apiClient.aiBrainHistoryDetail).mockResolvedValue({
+      ...mockAIBrainHistory[0],
+      evidence_snapshot: { cards: mockAIBrain.evidence_cards },
+      availability_snapshot: mockAvailabilityStatus as unknown as Record<string, unknown>,
+      wallet_snapshot: { status: "active", cash_balance: 9875.2 },
+      risk_snapshot: { policy_status: "active", recent_decision_count: 1 },
+      performance_snapshot: { filled_orders: 2, rejected_orders: 1 },
+      review_snapshot: { suggested_next_inspection: mockAIBrain.suggested_next_inspection },
+      uncertainty_notes: mockAIBrain.uncertainty_notes,
+      degraded_notes: [],
+      source_route: "/api/ai-brain/query",
+      operator_label: null,
+    });
+    vi.mocked(apiClient.aiBrainHistoryNotes).mockResolvedValue(mockAIBrainNotes);
+    vi.mocked(apiClient.createAIBrainHistoryNote).mockResolvedValue({
+      ...mockAIBrainNotes[0],
+      note_id: "ai_brain_note_mock_002",
+      note: "Confirm assumptions before the next paper test.",
+      status: "reviewed",
+    });
     vi.mocked(apiClient.startAdvisorRun).mockResolvedValue({
       run_id: mockLocalAdvisor.research_run.run_id,
       provider: mockLocalAdvisor.provider_status.provider,
@@ -261,10 +286,24 @@ describe("AIDeskTab", () => {
     await user.click(screen.getByRole("button", { name: /Ask AI Brain/i }));
 
     expect(await screen.findByText("Brain Answer")).toBeInTheDocument();
-    expect(screen.getByText(mockAIBrain.answer)).toBeInTheDocument();
+    expect(screen.getAllByText(mockAIBrain.answer).length).toBeGreaterThan(0);
     expect(screen.getByText("Paper Wallet")).toBeInTheDocument();
     expect(screen.getByText("Risk And Review")).toBeInTheDocument();
     expect(screen.getByText("No orders are created by this query")).toBeInTheDocument();
+    expect(screen.getByText("Audit Trail")).toBeInTheDocument();
+    expect(screen.getByText("Selected Audit Evidence")).toBeInTheDocument();
+    expect(screen.getAllByText("Operator Notes").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Created 0 orders \/ 0 ledger rows \/ 0 risk decisions/i)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("AI Brain operator note"));
+    await user.type(screen.getByLabelText("AI Brain operator note"), "Confirm assumptions before the next paper test.");
+    await user.selectOptions(screen.getByLabelText("AI Brain note status"), "reviewed");
+    await user.click(screen.getByRole("button", { name: /Save Note/i }));
+    expect(await screen.findByText(/Confirm assumptions before the next paper test/i)).toBeInTheDocument();
+    expect(apiClient.createAIBrainHistoryNote).toHaveBeenCalledWith("ai_brain_mock_001", {
+      note: "Confirm assumptions before the next paper test.",
+      status: "reviewed",
+      created_by: "local_operator",
+    });
     expect(apiClient.aiBrainQuery).toHaveBeenCalledWith({
       query: "What should I inspect before a paper test?",
       symbol: "WTI",

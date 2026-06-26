@@ -139,7 +139,7 @@ export function DeskTab({
   const snapshotNote = desk.runtime_snapshot?.using_last_good_snapshot
     ? `Using the last good operator snapshot from ${desk.runtime_snapshot.age_minutes}m ago while refresh completes.`
     : null;
-  const rankedGateBlockers = [...executionGate.blocker_details].sort((left, right) => left.rank - right.rank || left.code.localeCompare(right.code));
+  const rankedGateBlockers = [...(executionGate.blocker_details ?? [])].sort((left, right) => left.rank - right.rank || left.code.localeCompare(right.code));
   const topGateBlocker = rankedGateBlockers[0] ?? null;
   const selectedAssetHeading = selectedUnderlyingLabel ? `${selectedInstrumentLabel} using ${selectedUnderlyingLabel} context` : selectedInstrumentLabel;
   const recovery = desk.recovery_telemetry;
@@ -149,7 +149,7 @@ export function DeskTab({
   const operatorBriefSignal = signal ?? topSignals.find((row) => row.symbol === selectedSymbol) ?? assetContext.latest_signal ?? null;
   const accountabilityMetrics = reviewSummary?.accountability_metrics ?? null;
   const gateImpact = reviewSummary?.gate_impact ?? null;
-  const clearTheseFirst = gateImpact?.clear_these_first.slice(0, 2) ?? [];
+  const clearTheseFirst = gateImpact?.clear_these_first?.slice(0, 2) ?? [];
   const reviewQueueBlocking = (gateImpact?.gate_blocking_count ?? 0) > 0 || topGateBlocker?.category === "review";
   const baselineOrDataBlocking = !reviewQueueBlocking && executionGate.status !== "execution_candidate" && topGateBlocker !== null;
   const nextActionHeading =
@@ -264,7 +264,7 @@ export function DeskTab({
         <div className="stack">
           <small>{reviewHeadline}</small>
           {snapshotNote ? <small>{snapshotNote}</small> : null}
-          {executionGate.blockers.slice(0, 2).map((item) => (
+          {(executionGate.blockers ?? []).slice(0, 2).map((item) => (
             <small key={item}>{item}</small>
           ))}
         </div>

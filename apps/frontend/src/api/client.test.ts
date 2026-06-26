@@ -279,4 +279,28 @@ describe("apiClient", () => {
     expect(payload.macro_regime).toBe("risk-on");
     delete window.__AI_TRADER_RUNTIME__;
   });
+
+  it("ignores blank runtime-config values so isolated Vite smoke can use the intended API base", async () => {
+    vi.resetModules();
+    window.__AI_TRADER_RUNTIME__ = {
+      apiBase: "",
+      backendUrl: "",
+      frontendUrl: "",
+      generatedAt: "dev-fallback",
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ macro_regime: "risk-on" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtimeClient = await import("./client");
+    await runtimeClient.apiClient.overview();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/dashboard/overview?symbol=USOUSD", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    delete window.__AI_TRADER_RUNTIME__;
+  });
 });

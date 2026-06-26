@@ -1,5 +1,7 @@
 import type {
   ActiveTradeView,
+  AIBrainHistoryItemView,
+  AIBrainOperatorNoteView,
   AIBrainResponseView,
   AIAdvisorResponseView,
   AIProviderStatusView,
@@ -4411,6 +4413,7 @@ export const mockResearchRun: ResearchRunView = {
 export const mockResearchRuns: ResearchRunView[] = [mockResearchRun];
 
 export const mockAIBrain: AIBrainResponseView = {
+  audit_id: "ai_brain_mock_001",
   generated_at: "2026-03-15T11:30:00Z",
   query: "What should I inspect before the next paper test?",
   symbol: "USOUSD",
@@ -4458,6 +4461,35 @@ export const mockAIBrain: AIBrainResponseView = {
   ledger_rows_created: 0,
   risk_decisions_created: 0,
 };
+
+export const mockAIBrainHistory: AIBrainHistoryItemView[] = [
+  {
+    audit_id: "ai_brain_mock_001",
+    created_at: "2026-03-15T11:30:00Z",
+    question: "What should I inspect before the next paper test?",
+    answer_summary: mockAIBrain.answer,
+    mode: "deterministic_local",
+    paper_only: true,
+    created_order_count: 0,
+    created_ledger_count: 0,
+    created_risk_decision_count: 0,
+    note_count: 1,
+    archived: false,
+  },
+];
+
+export const mockAIBrainNotes: AIBrainOperatorNoteView[] = [
+  {
+    note_id: "ai_brain_note_mock_001",
+    ai_brain_query_id: "ai_brain_mock_001",
+    created_at: "2026-03-15T11:32:00Z",
+    note: "Review missing-assumption rejection before the next paper simulation.",
+    status: "follow_up",
+    paper_only: true,
+    created_by: "local_operator",
+    archived: false,
+  },
+];
 
 export const mockAIAdvisor: AIAdvisorResponseView = {
   generated_at: "2026-03-15T11:30:00Z",

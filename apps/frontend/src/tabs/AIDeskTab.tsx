@@ -13,6 +13,9 @@ import { ResearchRunPanel } from "../components/ResearchRunPanel";
 import { WorkspaceJumpRow } from "../components/WorkspaceJumpRow";
 import { assetWorkspaceTarget, riskContextTarget, signalContextTarget, type WorkspaceRouteState, type WorkspaceTarget } from "../lib/workspaceNavigation";
 import type {
+  AIBrainHistoryDetailView,
+  AIBrainHistoryItemView,
+  AIBrainOperatorNoteView,
   AIBrainResponseView,
   AIAdvisorResponseView,
   AIAdvisorRunStatusView,
@@ -148,6 +151,9 @@ interface AIViewState {
 interface AIBrainViewState {
   availability: AvailabilityStatusView | null;
   response: AIBrainResponseView | null;
+  history: AIBrainHistoryItemView[];
+  selectedDetail: AIBrainHistoryDetailView | null;
+  notes: AIBrainOperatorNoteView[];
   loading: boolean;
   error: string | null;
 }
@@ -455,9 +461,14 @@ export function AIDeskTab({
   const [brainState, setBrainState] = useState<AIBrainViewState>({
     availability: null,
     response: null,
+    history: [],
+    selectedDetail: null,
+    notes: [],
     loading: false,
     error: null,
   });
+  const [brainNoteDraft, setBrainNoteDraft] = useState("");
+  const [brainNoteStatus, setBrainNoteStatus] = useState("observation");
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [runElapsedMs, setRunElapsedMs] = useState(0);
   const [activeRun, setActiveRun] = useState<AIAdvisorRunStatusView | null>(null);
@@ -502,6 +513,7 @@ export function AIDeskTab({
 
   useEffect(() => {
     void loadAvailabilityStatus();
+    void loadAIBrainHistory();
   }, []);
 
   useEffect(() => {
@@ -583,6 +595,65 @@ export function AIDeskTab({
     }
   }
 
+  async function loadAIBrainHistory() {
+    try {
+      const history = await apiClient.aiBrainHistory();
+      setBrainState((current) => ({ ...current, history, error: null }));
+      if (!brainState.selectedDetail && history[0]) {
+        void selectAIBrainAudit(history[0].audit_id);
+      }
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "AI Brain history is unavailable."),
+      }));
+    }
+  }
+
+  async function selectAIBrainAudit(auditId: string) {
+    try {
+      const [selectedDetail, notes] = await Promise.all([
+        apiClient.aiBrainHistoryDetail(auditId),
+        apiClient.aiBrainHistoryNotes(auditId),
+      ]);
+      setBrainState((current) => ({ ...current, selectedDetail, notes, error: null }));
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "AI Brain audit detail is unavailable."),
+      }));
+    }
+  }
+
+  async function addAIBrainNote() {
+    const auditId = brainState.selectedDetail?.audit_id ?? brainState.response?.audit_id;
+    const note = brainNoteDraft.trim();
+    if (!auditId || !note) {
+      return;
+    }
+    try {
+      const created = await apiClient.createAIBrainHistoryNote(auditId, {
+        note,
+        status: brainNoteStatus,
+        created_by: "local_operator",
+      });
+      setBrainState((current) => ({
+        ...current,
+        notes: [created, ...current.notes],
+        history: current.history.map((item) =>
+          item.audit_id === auditId ? { ...item, note_count: item.note_count + 1 } : item,
+        ),
+        error: null,
+      }));
+      setBrainNoteDraft("");
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "AI Brain note could not be saved."),
+      }));
+    }
+  }
+
   async function runAIBrainQuery() {
     setBrainState((current) => ({ ...current, loading: true, error: null }));
     try {
@@ -597,9 +668,16 @@ export function AIDeskTab({
       setBrainState({
         response,
         availability,
+        history: brainState.history,
+        selectedDetail: brainState.selectedDetail,
+        notes: brainState.notes,
         loading: false,
         error: null,
       });
+      await loadAIBrainHistory();
+      if (response.audit_id) {
+        await selectAIBrainAudit(response.audit_id);
+      }
     } catch (error) {
       setBrainState((current) => ({
         ...current,
@@ -863,7 +941,10 @@ export function AIDeskTab({
             <div className="panel-note">
               <strong>Brain Answer</strong>
               <p>{brainState.response.answer}</p>
-              <small>Generated {formatDateTimeIST(brainState.response.generated_at)} · {brainState.response.mode.replace(/_/g, " ")}</small>
+              <small>Audit {brainState.response.audit_id ?? "pending"} · Generated {formatDateTimeIST(brainState.response.generated_at)} · {brainState.response.mode.replace(/_/g, " ")}</small>
+              <small>
+                Created {brainState.response.orders_created} orders / {brainState.response.ledger_rows_created} ledger rows / {brainState.response.risk_decisions_created} risk decisions.
+              </small>
             </div>
             <div className="metric-grid">
               {brainState.response.evidence_cards.map((card) => (
@@ -902,6 +983,120 @@ export function AIDeskTab({
         ) : (
           <small>Ask a question to assemble local market, strategy, backtest, wallet, risk, performance, and review evidence.</small>
         )}
+        <div className="metric-grid">
+          <div>
+            <span>Audit History</span>
+            <strong>{brainState.history.length ? `${brainState.history.length} saved` : "No saved audits"}</strong>
+            <small>AI Brain questions are stored as local paper/research review evidence.</small>
+          </div>
+          <div>
+            <span>Selected Audit</span>
+            <strong>{brainState.selectedDetail?.audit_id ?? brainState.response?.audit_id ?? "None selected"}</strong>
+            <small>{brainState.selectedDetail ? formatDateTimeIST(brainState.selectedDetail.created_at) : "Select a history item after asking a question."}</small>
+          </div>
+          <div>
+            <span>Mutation Proof</span>
+            <strong>
+              {brainState.selectedDetail
+                ? `${brainState.selectedDetail.created_order_count}/${brainState.selectedDetail.created_ledger_count}/${brainState.selectedDetail.created_risk_decision_count}`
+                : "0/0/0"}
+            </strong>
+            <small>Orders / ledger rows / risk decisions created by AI Brain.</small>
+          </div>
+          <div>
+            <span>Operator Notes</span>
+            <strong>{brainState.notes.length}</strong>
+            <small>Local review notes only; no proposals or orders are created.</small>
+          </div>
+        </div>
+        {brainState.history.length ? (
+          <div className="stack">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Audit Trail</p>
+                <h4>Recent AI Brain Questions</h4>
+              </div>
+              <button type="button" onClick={loadAIBrainHistory}>Refresh History</button>
+            </div>
+            <div className="compact-list">
+              {brainState.history.slice(0, 5).map((item) => (
+                <button
+                  type="button"
+                  key={item.audit_id}
+                  className="list-button"
+                  onClick={() => selectAIBrainAudit(item.audit_id)}
+                >
+                  <strong>{item.question}</strong>
+                  <small>{item.audit_id} · {item.mode.replace(/_/g, " ")} · notes {item.note_count}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {brainState.selectedDetail ? (
+          <div className="stack">
+            <div className="panel-note">
+              <strong>Selected Audit Evidence</strong>
+              <p>{brainState.selectedDetail.answer_summary}</p>
+              <small>{brainState.selectedDetail.source_route} · paper only: {brainState.selectedDetail.paper_only ? "true" : "false"}</small>
+              {brainState.selectedDetail.degraded_notes.length ? (
+                <small>Degraded notes: {brainState.selectedDetail.degraded_notes.join(" · ")}</small>
+              ) : null}
+            </div>
+            <div className="metric-grid">
+              <div>
+                <span>Wallet Snapshot</span>
+                <small>{JSON.stringify(brainState.selectedDetail.wallet_snapshot).slice(0, 180)}</small>
+              </div>
+              <div>
+                <span>Risk Snapshot</span>
+                <small>{JSON.stringify(brainState.selectedDetail.risk_snapshot).slice(0, 180)}</small>
+              </div>
+              <div>
+                <span>Performance Snapshot</span>
+                <small>{JSON.stringify(brainState.selectedDetail.performance_snapshot).slice(0, 180)}</small>
+              </div>
+              <div>
+                <span>Review Snapshot</span>
+                <small>{JSON.stringify(brainState.selectedDetail.review_snapshot).slice(0, 180)}</small>
+              </div>
+            </div>
+            <div className="panel-note">
+              <strong>Operator Notes</strong>
+              {brainState.notes.length ? (
+                <ul className="compact-list">
+                  {brainState.notes.map((note) => (
+                    <li key={note.note_id}>
+                      <strong>{titleCase(note.status)}</strong> · {note.note}
+                      <small>{formatDateTimeIST(note.created_at)} · {note.created_by}</small>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <small>No notes have been attached to this AI Brain audit yet.</small>
+              )}
+              <div className="field">
+                <span>Add paper/research review note</span>
+                <textarea
+                  aria-label="AI Brain operator note"
+                  value={brainNoteDraft}
+                  onChange={(event) => setBrainNoteDraft(event.target.value)}
+                />
+              </div>
+              <div className="workspace-cta-group">
+                <select aria-label="AI Brain note status" value={brainNoteStatus} onChange={(event) => setBrainNoteStatus(event.target.value)}>
+                  <option value="observation">Observation</option>
+                  <option value="follow_up">Follow up</option>
+                  <option value="reviewed">Reviewed</option>
+                  <option value="dismissed">Dismissed</option>
+                </select>
+                <button type="button" onClick={addAIBrainNote} disabled={brainNoteDraft.trim().length === 0}>
+                  Save Note
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </article>
 
       <article className="panel compact-panel hero-panel terminal-console-panel">

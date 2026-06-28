@@ -175,15 +175,15 @@ export function OperatorBrief({
   const openTickets = ticketRows.filter(ticketIsOpen).length;
   const reviewReadyTickets = ticketRows.filter((row) => ticketIsOpen(row) && ticketNeedsReview(row)).length;
   const gateBlockingReviews =
-    reviewSummary?.gate_impact.gate_blocking_count
-    ?? reviewSummary?.accountability_metrics.gate_blocking_count
+    reviewSummary?.gate_impact?.gate_blocking_count
+    ?? reviewSummary?.accountability_metrics?.gate_blocking_count
     ?? 0;
   const overdueReviews =
-    reviewSummary?.task_counts.overdue
-    ?? reviewSummary?.accountability_metrics.overdue_count
+    reviewSummary?.task_counts?.overdue
+    ?? reviewSummary?.accountability_metrics?.overdue_count
     ?? operationalBacklog?.overdue_count
     ?? 0;
-  const highPriorityReviews = operationalBacklog?.high_priority_count ?? reviewSummary?.task_counts.high_priority ?? 0;
+  const highPriorityReviews = operationalBacklog?.high_priority_count ?? reviewSummary?.task_counts?.high_priority ?? 0;
   const chartTruth = `${chartStateLabel(chart.status)} / ${traderFreshnessStateLabel(chart.freshness_state, chart.data_reality?.execution_grade_allowed)}`;
   const bullets = whyItMattersBullets({ assetContext, chart, riskDetail, selectedAssetTruth, signal });
   const nextStep = advisoryNextStep({ assetLabel, selectedSymbol, selectedAssetTruth, riskDetail, tickets: ticketRows, selectedMappingNote });

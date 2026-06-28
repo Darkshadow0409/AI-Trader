@@ -63,6 +63,7 @@ export interface AIBrainEvidenceCardView {
 }
 
 export interface AIBrainResponseView {
+  audit_id: string | null;
   generated_at: string;
   query: string;
   symbol: string;
@@ -83,6 +84,50 @@ export interface AIBrainResponseView {
   orders_created: number;
   ledger_rows_created: number;
   risk_decisions_created: number;
+}
+
+export interface AIBrainHistoryItemView {
+  audit_id: string;
+  created_at: string;
+  question: string;
+  answer_summary: string;
+  mode: string;
+  paper_only: boolean;
+  created_order_count: number;
+  created_ledger_count: number;
+  created_risk_decision_count: number;
+  note_count: number;
+  archived: boolean;
+}
+
+export interface AIBrainHistoryDetailView extends AIBrainHistoryItemView {
+  evidence_snapshot: Record<string, unknown>;
+  availability_snapshot: Record<string, unknown>;
+  wallet_snapshot: Record<string, unknown>;
+  risk_snapshot: Record<string, unknown>;
+  performance_snapshot: Record<string, unknown>;
+  review_snapshot: Record<string, unknown>;
+  uncertainty_notes: string[];
+  degraded_notes: string[];
+  source_route: string;
+  operator_label: string | null;
+}
+
+export interface AIBrainOperatorNoteCreateRequest {
+  note: string;
+  status?: string;
+  created_by?: string;
+}
+
+export interface AIBrainOperatorNoteView {
+  note_id: string;
+  ai_brain_query_id: string;
+  created_at: string;
+  note: string;
+  status: string;
+  paper_only: boolean;
+  created_by: string;
+  archived: boolean;
 }
 
 export interface CommodityTruthStatusView {

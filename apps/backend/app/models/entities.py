@@ -304,6 +304,7 @@ class AiBrainQueryRecord(SQLModel, table=True):
     mode: str = Field(default="deterministic_local", index=True)
     paper_only: bool = True
     evidence_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    market_evidence_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     availability_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     wallet_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     risk_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))

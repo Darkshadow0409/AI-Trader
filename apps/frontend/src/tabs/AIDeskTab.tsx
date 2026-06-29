@@ -24,6 +24,7 @@ import type {
   AssetContextView,
   AvailabilityStatusView,
   MarketChartView,
+  MarketEvidenceProviderDescriptor,
   OperationalBacklogView,
   PaperTradeDetailView,
   ReviewSummaryView,
@@ -150,6 +151,7 @@ interface AIViewState {
 
 interface AIBrainViewState {
   availability: AvailabilityStatusView | null;
+  marketEvidenceProviders: MarketEvidenceProviderDescriptor[];
   response: AIBrainResponseView | null;
   history: AIBrainHistoryItemView[];
   selectedDetail: AIBrainHistoryDetailView | null;
@@ -460,6 +462,7 @@ export function AIDeskTab({
   const [brainQuestion, setBrainQuestion] = useState("What should I inspect before the next paper test?");
   const [brainState, setBrainState] = useState<AIBrainViewState>({
     availability: null,
+    marketEvidenceProviders: [],
     response: null,
     history: [],
     selectedDetail: null,
@@ -513,6 +516,7 @@ export function AIDeskTab({
 
   useEffect(() => {
     void loadAvailabilityStatus();
+    void loadMarketEvidenceProviders();
     void loadAIBrainHistory();
   }, []);
 
@@ -595,6 +599,18 @@ export function AIDeskTab({
     }
   }
 
+  async function loadMarketEvidenceProviders() {
+    try {
+      const marketEvidenceProviders = await apiClient.marketEvidenceProviders();
+      setBrainState((current) => ({ ...current, marketEvidenceProviders, error: null }));
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "Market evidence provider status is unavailable."),
+      }));
+    }
+  }
+
   async function loadAIBrainHistory() {
     try {
       const history = await apiClient.aiBrainHistory();
@@ -668,6 +684,7 @@ export function AIDeskTab({
       setBrainState({
         response,
         availability,
+        marketEvidenceProviders: brainState.marketEvidenceProviders,
         history: brainState.history,
         selectedDetail: brainState.selectedDetail,
         notes: brainState.notes,
@@ -936,6 +953,28 @@ export function AIDeskTab({
             <small>No orders are created by this query</small>
           </div>
         </div>
+        <div className="metric-grid" data-testid="market-evidence-quality">
+          <div>
+            <span>Market Evidence Provider</span>
+            <strong>{brainState.response?.market_evidence_provider?.display_name ?? brainState.marketEvidenceProviders[0]?.display_name ?? "Not loaded"}</strong>
+            <small>{brainState.response?.market_evidence_provider?.provider_type ?? brainState.marketEvidenceProviders[0]?.provider_type ?? "Provider status pending"}</small>
+          </div>
+          <div>
+            <span>Source / Freshness</span>
+            <strong>{brainState.response?.market_evidence?.source_family ?? "unknown"} / {brainState.response?.market_evidence?.freshness_status ?? "unchecked"}</strong>
+            <small>Data quality: {brainState.response?.market_evidence?.data_quality ?? "unchecked"}</small>
+          </div>
+          <div>
+            <span>Missing Inputs</span>
+            <strong>{brainState.response?.market_evidence?.missing_inputs.length ?? 0}</strong>
+            <small>{brainState.response?.market_evidence?.missing_inputs.join(", ") || "No missing local inputs reported yet."}</small>
+          </div>
+          <div>
+            <span>Future Provider</span>
+            <strong>{brainState.marketEvidenceProviders.find((provider) => provider.provider_type === "unavailable_external")?.display_name ?? "External placeholder unavailable"}</strong>
+            <small>Not configured; no dependency or network call in this phase.</small>
+          </div>
+        </div>
         {brainState.response ? (
           <div className="stack">
             <div className="panel-note">
@@ -958,6 +997,11 @@ export function AIDeskTab({
             </div>
             <div className="metric-grid">
               <div>
+                <span>Market Evidence</span>
+                <small>{brainState.response.market_evidence?.trend_summary ?? "Trend summary unavailable."}</small>
+                <small>{brainState.response.market_evidence?.volatility_summary ?? "Volatility summary unavailable."}</small>
+              </div>
+              <div>
                 <span>Strategy Contracts</span>
                 <small>{brainState.response.strategy_contract_summary}</small>
               </div>
@@ -978,6 +1022,14 @@ export function AIDeskTab({
               <ul className="compact-list">
                 {brainState.response.uncertainty_notes.map((note) => <li key={note}>{note}</li>)}
               </ul>
+            ) : null}
+            {brainState.response.market_evidence?.degraded_notes.length ? (
+              <div className="panel-note">
+                <strong>Market Evidence Degraded Notes</strong>
+                <ul className="compact-list">
+                  {brainState.response.market_evidence.degraded_notes.map((note) => <li key={note}>{note}</li>)}
+                </ul>
+              </div>
             ) : null}
           </div>
         ) : (
@@ -1044,6 +1096,10 @@ export function AIDeskTab({
               ) : null}
             </div>
             <div className="metric-grid">
+              <div>
+                <span>Market Evidence Snapshot</span>
+                <small>{JSON.stringify(brainState.selectedDetail.market_evidence_snapshot).slice(0, 180)}</small>
+              </div>
               <div>
                 <span>Wallet Snapshot</span>
                 <small>{JSON.stringify(brainState.selectedDetail.wallet_snapshot).slice(0, 180)}</small>

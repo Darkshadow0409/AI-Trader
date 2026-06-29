@@ -35,6 +35,8 @@ import type {
   PolymarketHunterView,
   OpportunityHunterView,
   MarketChartView,
+  MarketEvidenceProviderDescriptor,
+  MarketEvidenceSnapshot,
   PaperEquityCurvePointView,
   PaperLedgerTransactionView,
   PaperPerformanceSummaryView,
@@ -4412,6 +4414,58 @@ export const mockResearchRun: ResearchRunView = {
 
 export const mockResearchRuns: ResearchRunView[] = [mockResearchRun];
 
+export const mockMarketEvidenceProviders: MarketEvidenceProviderDescriptor[] = [
+  {
+    provider_id: "local_ai_trader_snapshot",
+    display_name: "AI Trader local snapshot",
+    provider_type: "local_snapshot",
+    enabled: true,
+    configured: true,
+    paper_research_only: true,
+    supports_symbols: ["USOUSD", "XAGUSD", "XAUUSD"],
+    supports_timeframes: ["15m", "1h", "4h", "1d"],
+    freshness_policy: "Uses local chart, signal, strategy, and backtest records.",
+    limitations: ["No external API is called.", "Fixture or proxy-grade rows remain degraded research evidence."],
+    last_checked_at: "2026-03-15T11:30:00Z",
+  },
+  {
+    provider_id: "openbb_future_adapter",
+    display_name: "OpenBB future data adapter",
+    provider_type: "unavailable_external",
+    enabled: false,
+    configured: false,
+    paper_research_only: true,
+    supports_symbols: [],
+    supports_timeframes: [],
+    freshness_policy: "Placeholder only. No dependency, credential, or network call is configured.",
+    limitations: ["Not configured in this phase.", "Shown only to document future adapter direction."],
+    last_checked_at: null,
+  },
+];
+
+export const mockMarketEvidenceSnapshot: MarketEvidenceSnapshot = {
+  snapshot_id: "market_evidence_mock_001",
+  created_at: "2026-03-15T11:30:00Z",
+  symbol: "USOUSD",
+  timeframe: "1d",
+  source_family: "sample",
+  provider_id: "local_ai_trader_snapshot",
+  provider_display_name: "AI Trader local snapshot",
+  freshness_status: "degraded",
+  data_quality: "partial",
+  latest_price: 88.1,
+  latest_timestamp: "2026-03-15T10:42:00Z",
+  trend_summary: "Last 20 local closes are higher by 2.14%.",
+  volatility_summary: "Average local high-low range is 1.18% of latest close.",
+  signal_summary: "trend_breakout / long score 78.0: fixture-backed oil continuation setup.",
+  backtest_summary: "trend_following_baseline completed: return 5.20%, max drawdown -7.90%.",
+  assumptions_summary: "fee=9 bps, slippage=7 bps, no-lookahead=true",
+  missing_inputs: ["external_provider"],
+  degraded_notes: ["Local chart context is fixture or sample-backed."],
+  suggested_next_inspection: "Compare Strategy Lab contract requirements with the latest Backtests assumptions before the next paper/research decision.",
+  paper_research_only: true,
+};
+
 export const mockAIBrain: AIBrainResponseView = {
   audit_id: "ai_brain_mock_001",
   generated_at: "2026-03-15T11:30:00Z",
@@ -4428,11 +4482,20 @@ export const mockAIBrain: AIBrainResponseView = {
   risk_policy_decision_summary: "Risk policy paper_risk_default is active; recent rejection reasons include missing_assumptions.",
   performance_review_summary: "Recent paper orders: 2 filled, 1 rejected. Unrealized PnL remains unavailable until inventory accounting is added.",
   suggested_next_inspection: "Inspect risk rejections and the latest Backtests assumptions before creating another manual paper simulation.",
+  market_evidence: mockMarketEvidenceSnapshot,
+  market_evidence_provider: mockMarketEvidenceProviders[0],
   uncertainty_notes: [
     "This cockpit uses local AI Trader records and deterministic fallback text.",
     "It does not create proposals, simulated orders, ledger rows, or risk decisions.",
   ],
   evidence_cards: [
+    {
+      title: "Market Evidence",
+      status: "partial",
+      summary: "USOUSD market evidence uses AI Trader local snapshot; freshness=degraded, quality=partial.",
+      details: ["Last 20 local closes are higher by 2.14%.", "Missing inputs: external_provider"],
+      degraded: true,
+    },
     {
       title: "Paper Wallet",
       status: "available",

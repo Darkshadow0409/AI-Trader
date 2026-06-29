@@ -129,6 +129,33 @@ describe("apiClient", () => {
     });
   });
 
+  it("loads market evidence providers and snapshots from read-only routes", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ([{ provider_id: "local_ai_trader_snapshot", paper_research_only: true }]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ snapshot_id: "market_evidence_test", symbol: "USOUSD", paper_research_only: true }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const providers = await apiClient.marketEvidenceProviders();
+    const snapshot = await apiClient.marketEvidenceSnapshot("USOUSD", "1d");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://127.0.0.1:8000/api/market-evidence/providers", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://127.0.0.1:8000/api/market-evidence/snapshot?symbol=USOUSD&timeframe=1d", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(providers[0].paper_research_only).toBe(true);
+    expect(snapshot.symbol).toBe("USOUSD");
+  });
+
   it("posts active trade creates with the operator-console contract", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

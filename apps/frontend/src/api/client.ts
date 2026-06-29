@@ -38,6 +38,8 @@ import {
   mockAIStatus,
   mockAuditLogs,
   mockAvailabilityStatus,
+  mockMarketEvidenceProviders,
+  mockMarketEvidenceSnapshot,
   mockSignalDetail,
   mockSignals,
   mockSignalsSummary,
@@ -93,6 +95,8 @@ import type {
   BacktestRunRequest,
   BarView,
   MarketChartView,
+  MarketEvidenceProviderDescriptor,
+  MarketEvidenceSnapshot,
   DailyBriefingView,
   DeskSummaryView,
   HomeOperatorSummaryView,
@@ -426,6 +430,13 @@ function aiCredentials(openAiApiKey?: string | null): RequestCredentials | undef
 export const apiClient = {
   health: () => requestJson<HealthView>("/health", mockHealth),
   availabilityStatus: () => requestJson<AvailabilityStatusView>("/availability/status", mockAvailabilityStatus),
+  marketEvidenceProviders: () =>
+    requestJson<MarketEvidenceProviderDescriptor[]>("/market-evidence/providers", mockMarketEvidenceProviders),
+  marketEvidenceSnapshot: (symbol: string, timeframe = "1d") =>
+    requestJson<MarketEvidenceSnapshot>(
+      `/market-evidence/snapshot?${new URLSearchParams({ symbol, timeframe }).toString()}`,
+      mockMarketEvidenceSnapshot,
+    ),
   aiBrainQuery: (payload: AIBrainQueryRequest) =>
     requestJson<AIBrainResponseView>("/ai-brain/query", mockAIBrain, {
       method: "POST",
@@ -436,6 +447,10 @@ export const apiClient = {
     requestJson<AIBrainHistoryDetailView>(`/ai-brain/history/${auditId}`, {
       ...mockAIBrainHistory[0],
       evidence_snapshot: { cards: mockAIBrain.evidence_cards },
+      market_evidence_snapshot: {
+        provider: mockAIBrain.market_evidence_provider,
+        snapshot: mockAIBrain.market_evidence,
+      },
       availability_snapshot: mockAvailabilityStatus as unknown as Record<string, unknown>,
       wallet_snapshot: {},
       risk_snapshot: {},

@@ -62,6 +62,43 @@ export interface AIBrainEvidenceCardView {
   degraded: boolean;
 }
 
+export interface MarketEvidenceProviderDescriptor {
+  provider_id: string;
+  display_name: string;
+  provider_type: string;
+  enabled: boolean;
+  configured: boolean;
+  paper_research_only: boolean;
+  supports_symbols: string[];
+  supports_timeframes: string[];
+  freshness_policy: string;
+  limitations: string[];
+  last_checked_at: string | null;
+}
+
+export interface MarketEvidenceSnapshot {
+  snapshot_id: string;
+  created_at: string;
+  symbol: string;
+  timeframe: string;
+  source_family: string;
+  provider_id: string;
+  provider_display_name: string;
+  freshness_status: string;
+  data_quality: string;
+  latest_price: number | null;
+  latest_timestamp: string | null;
+  trend_summary: string | null;
+  volatility_summary: string | null;
+  signal_summary: string | null;
+  backtest_summary: string | null;
+  assumptions_summary: string | null;
+  missing_inputs: string[];
+  degraded_notes: string[];
+  suggested_next_inspection: string;
+  paper_research_only: boolean;
+}
+
 export interface AIBrainResponseView {
   audit_id: string | null;
   generated_at: string;
@@ -77,6 +114,8 @@ export interface AIBrainResponseView {
   risk_policy_decision_summary: string;
   performance_review_summary: string;
   suggested_next_inspection: string;
+  market_evidence: MarketEvidenceSnapshot | null;
+  market_evidence_provider: MarketEvidenceProviderDescriptor | null;
   uncertainty_notes: string[];
   evidence_cards: AIBrainEvidenceCardView[];
   warnings: string[];
@@ -102,6 +141,7 @@ export interface AIBrainHistoryItemView {
 
 export interface AIBrainHistoryDetailView extends AIBrainHistoryItemView {
   evidence_snapshot: Record<string, unknown>;
+  market_evidence_snapshot: Record<string, unknown>;
   availability_snapshot: Record<string, unknown>;
   wallet_snapshot: Record<string, unknown>;
   risk_snapshot: Record<string, unknown>;

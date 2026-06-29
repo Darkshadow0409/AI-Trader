@@ -204,6 +204,9 @@ def _ensure_contract_columns() -> None:
             "log_path": "TEXT",
             "details_json": "TEXT DEFAULT '{}'",
         },
+        "aibrainqueryrecord": {
+            "market_evidence_snapshot_json": "TEXT DEFAULT '{}'",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in table_columns.items():

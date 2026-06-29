@@ -3,13 +3,14 @@ import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../api/client";
-import { mockAIBrain, mockAIBrainHistory, mockAIBrainNotes, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
+import { mockAIBrain, mockAIBrainHistory, mockAIBrainNotes, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockMarketEvidenceProviders, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
 import { AIDeskTab } from "./AIDeskTab";
 
 vi.mock("../api/client", () => ({
   apiClient: {
     aiStatus: vi.fn(),
     availabilityStatus: vi.fn(),
+    marketEvidenceProviders: vi.fn(),
     aiBrainQuery: vi.fn(),
     aiBrainHistory: vi.fn(),
     aiBrainHistoryDetail: vi.fn(),
@@ -75,11 +76,16 @@ describe("AIDeskTab", () => {
     vi.stubGlobal("open", vi.fn().mockReturnValue({ closed: false }));
     vi.mocked(apiClient.aiStatus).mockResolvedValue(mockLocalStatus);
     vi.mocked(apiClient.availabilityStatus).mockResolvedValue(mockAvailabilityStatus);
+    vi.mocked(apiClient.marketEvidenceProviders).mockResolvedValue(mockMarketEvidenceProviders);
     vi.mocked(apiClient.aiBrainQuery).mockResolvedValue(mockAIBrain);
     vi.mocked(apiClient.aiBrainHistory).mockResolvedValue(mockAIBrainHistory);
     vi.mocked(apiClient.aiBrainHistoryDetail).mockResolvedValue({
       ...mockAIBrainHistory[0],
       evidence_snapshot: { cards: mockAIBrain.evidence_cards },
+      market_evidence_snapshot: {
+        provider: mockAIBrain.market_evidence_provider,
+        snapshot: mockAIBrain.market_evidence,
+      },
       availability_snapshot: mockAvailabilityStatus as unknown as Record<string, unknown>,
       wallet_snapshot: { status: "active", cash_balance: 9875.2 },
       risk_snapshot: { policy_status: "active", recent_decision_count: 1 },
@@ -281,17 +287,26 @@ describe("AIDeskTab", () => {
     expect(await screen.findByText("Paper Research Command Center")).toBeInTheDocument();
     expect(screen.getByText("Paper/research only")).toBeInTheDocument();
     expect(screen.getByTestId("ai-brain-command-center")).toBeInTheDocument();
+    expect(await screen.findByTestId("market-evidence-quality")).toBeInTheDocument();
+    expect(screen.getByText("AI Trader local snapshot")).toBeInTheDocument();
+    expect(screen.getByText("OpenBB future data adapter")).toBeInTheDocument();
+    expect(screen.getByText(/Not configured; no dependency or network call/i)).toBeInTheDocument();
     await user.clear(screen.getByLabelText("AI Brain cockpit question"));
     await user.type(screen.getByLabelText("AI Brain cockpit question"), "What should I inspect before a paper test?");
     await user.click(screen.getByRole("button", { name: /Ask AI Brain/i }));
 
     expect(await screen.findByText("Brain Answer")).toBeInTheDocument();
     expect(screen.getAllByText(mockAIBrain.answer).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Market Evidence").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Source \/ Freshness/i)).toBeInTheDocument();
+    expect(screen.getByText(/Data quality: partial/i)).toBeInTheDocument();
+    expect(screen.getByText(/Local chart context is fixture or sample-backed/i)).toBeInTheDocument();
     expect(screen.getByText("Paper Wallet")).toBeInTheDocument();
     expect(screen.getByText("Risk And Review")).toBeInTheDocument();
     expect(screen.getByText("No orders are created by this query")).toBeInTheDocument();
     expect(screen.getByText("Audit Trail")).toBeInTheDocument();
     expect(screen.getByText("Selected Audit Evidence")).toBeInTheDocument();
+    expect(screen.getByText("Market Evidence Snapshot")).toBeInTheDocument();
     expect(screen.getAllByText("Operator Notes").length).toBeGreaterThan(0);
     expect(screen.getByText(/Created 0 orders \/ 0 ledger rows \/ 0 risk decisions/i)).toBeInTheDocument();
     await user.clear(screen.getByLabelText("AI Brain operator note"));

@@ -27,6 +27,7 @@ from app.models.schemas import (
     AIBrainResponseView,
 )
 from app.services.availability import availability_status
+from app.services.market_evidence import get_market_evidence_provider, market_evidence_snapshot
 from app.services.paper_wallet import _ensure_paper_wallet_tables
 
 
@@ -92,6 +93,7 @@ def _history_detail_view(session: Session, row: AiBrainQueryRecord) -> AIBrainHi
     return AIBrainHistoryDetailView(
         **base,
         evidence_snapshot=row.evidence_snapshot_json,
+        market_evidence_snapshot=row.market_evidence_snapshot_json,
         availability_snapshot=row.availability_snapshot_json,
         wallet_snapshot=row.wallet_snapshot_json,
         risk_snapshot=row.risk_snapshot_json,
@@ -123,7 +125,7 @@ def list_ai_brain_history(session: Session, limit: int = 20) -> list[AIBrainHist
         session,
         select(AiBrainQueryRecord)
         .where(AiBrainQueryRecord.archived == False)
-        .order_by(desc(AiBrainQueryRecord.created_at))
+        .order_by(desc(AiBrainQueryRecord.created_at), desc(AiBrainQueryRecord.id))
         .limit(max(1, min(limit, 100))),
     )
     return [_history_item_view(session, row) for row in rows]
@@ -199,12 +201,18 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
     ledgers = _all_or_empty(session, select(PaperLedgerTransactionRecord).order_by(desc(PaperLedgerTransactionRecord.sequence_number)).limit(50))
     policy = _first_or_none(session, select(PaperRiskPolicyRecord).order_by(desc(PaperRiskPolicyRecord.updated_at)).limit(1))
     decisions = _all_or_empty(session, select(PaperRiskDecisionRecord).order_by(desc(PaperRiskDecisionRecord.created_at)).limit(10))
+    market_evidence = market_evidence_snapshot(session, requested_symbol, timeframe)
+    market_evidence_provider = get_market_evidence_provider(market_evidence.provider_id)
 
     market_context = (
         f"{requested_symbol} has latest local signal {latest_signal.signal_type} / {latest_signal.direction} "
         f"with score {latest_signal.score:.1f}."
         if latest_signal
         else f"{requested_symbol} has no loaded signal in the local records for this cockpit query."
+    )
+    market_evidence_context = (
+        f"{requested_symbol} market evidence uses {market_evidence.provider_display_name}; "
+        f"freshness={market_evidence.freshness_status}, quality={market_evidence.data_quality}."
     )
     if strategy_for_symbol:
         contract = strategy_for_symbol.spec_json.get("contract_metadata", {}) if strategy_for_symbol.spec_json else {}
@@ -260,14 +268,22 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         uncertainty_notes.append("Paper wallet state is degraded because no wallet row exists yet.")
     if not latest_backtest:
         uncertainty_notes.append("Backtest context is degraded for the selected symbol.")
+    uncertainty_notes.extend(market_evidence.degraded_notes[:3])
 
     evidence_cards = [
         AIBrainEvidenceCardView(
-            title="Market Context",
-            status="available" if latest_signal else "degraded",
-            summary=market_context,
-            details=_first_detail([latest_signal.thesis if latest_signal else "No local signal row matched this symbol."]),
-            degraded=latest_signal is None,
+            title="Market Evidence",
+            status=market_evidence.data_quality,
+            summary=market_evidence_context,
+            details=_first_detail(
+                [
+                    market_evidence.trend_summary or "",
+                    market_evidence.volatility_summary or "",
+                    market_evidence.signal_summary or "No local signal row matched this symbol.",
+                    f"Missing inputs: {', '.join(market_evidence.missing_inputs)}" if market_evidence.missing_inputs else "",
+                ],
+            ),
+            degraded=market_evidence.data_quality in {"partial", "unavailable", "degraded"},
         ),
         AIBrainEvidenceCardView(
             title="Strategy Contracts",
@@ -299,7 +315,7 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         ),
     ]
     answer = (
-        f"Paper/research cockpit read for {requested_symbol}: {market_context} "
+        f"Paper/research cockpit read for {requested_symbol}: {market_context} {market_evidence_context} "
         f"{paper_wallet_state} {risk_policy_decision_summary} {suggested_next_inspection}"
     )
     generated_at = naive_utc_now()
@@ -317,6 +333,8 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         risk_policy_decision_summary=risk_policy_decision_summary,
         performance_review_summary=performance_review_summary,
         suggested_next_inspection=suggested_next_inspection,
+        market_evidence=market_evidence,
+        market_evidence_provider=market_evidence_provider,
         uncertainty_notes=uncertainty_notes,
         evidence_cards=evidence_cards,
         warnings=["Paper/research only. The AI Brain query is read-only and creates no paper orders."],
@@ -331,6 +349,10 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         mode=response.mode,
         paper_only=True,
         evidence_snapshot_json={"cards": [card.model_dump(mode="json") for card in evidence_cards]},
+        market_evidence_snapshot_json={
+            "provider": market_evidence_provider.model_dump(mode="json"),
+            "snapshot": market_evidence.model_dump(mode="json"),
+        },
         availability_snapshot_json=availability_status(session).model_dump(mode="json"),
         wallet_snapshot_json={
             "wallet_id": wallet.wallet_id if wallet else None,

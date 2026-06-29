@@ -1509,6 +1509,43 @@ class AIBrainEvidenceCardView(BaseModel):
     degraded: bool = False
 
 
+class MarketEvidenceProviderDescriptor(BaseModel):
+    provider_id: str
+    display_name: str
+    provider_type: str
+    enabled: bool = False
+    configured: bool = False
+    paper_research_only: bool = True
+    supports_symbols: list[str] = Field(default_factory=list)
+    supports_timeframes: list[str] = Field(default_factory=list)
+    freshness_policy: str
+    limitations: list[str] = Field(default_factory=list)
+    last_checked_at: datetime | None = None
+
+
+class MarketEvidenceSnapshot(BaseModel):
+    snapshot_id: str
+    created_at: datetime
+    symbol: str
+    timeframe: str
+    source_family: str
+    provider_id: str
+    provider_display_name: str
+    freshness_status: str
+    data_quality: str
+    latest_price: float | None = None
+    latest_timestamp: datetime | None = None
+    trend_summary: str | None = None
+    volatility_summary: str | None = None
+    signal_summary: str | None = None
+    backtest_summary: str | None = None
+    assumptions_summary: str | None = None
+    missing_inputs: list[str] = Field(default_factory=list)
+    degraded_notes: list[str] = Field(default_factory=list)
+    suggested_next_inspection: str
+    paper_research_only: bool = True
+
+
 class AIBrainResponseView(BaseModel):
     audit_id: str | None = None
     generated_at: datetime
@@ -1524,6 +1561,8 @@ class AIBrainResponseView(BaseModel):
     risk_policy_decision_summary: str
     performance_review_summary: str
     suggested_next_inspection: str
+    market_evidence: MarketEvidenceSnapshot | None = None
+    market_evidence_provider: MarketEvidenceProviderDescriptor | None = None
     uncertainty_notes: list[str] = Field(default_factory=list)
     evidence_cards: list[AIBrainEvidenceCardView] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -1549,6 +1588,7 @@ class AIBrainHistoryItemView(BaseModel):
 
 class AIBrainHistoryDetailView(AIBrainHistoryItemView):
     evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
+    market_evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
     availability_snapshot: dict[str, Any] = Field(default_factory=dict)
     wallet_snapshot: dict[str, Any] = Field(default_factory=dict)
     risk_snapshot: dict[str, Any] = Field(default_factory=dict)

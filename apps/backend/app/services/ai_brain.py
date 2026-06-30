@@ -8,6 +8,7 @@ from sqlmodel import Session, desc, select
 
 from app.core.clock import naive_utc_now
 from app.models.entities import (
+    AiBrainEvidenceReviewRecord,
     AiBrainOperatorNoteRecord,
     AiBrainQueryRecord,
     BacktestResult,
@@ -21,13 +22,15 @@ from app.models.entities import (
 )
 from app.models.schemas import (
     AIBrainEvidenceCardView,
+    AIBrainEvidenceReviewUpsertRequest,
+    AIBrainEvidenceReviewView,
     AIBrainHistoryDetailView,
     AIBrainHistoryItemView,
     AIBrainOperatorNoteView,
     AIBrainResponseView,
 )
 from app.services.availability import availability_status
-from app.services.market_evidence import get_market_evidence_provider, market_evidence_snapshot
+from app.services.market_evidence import get_market_evidence_provider, market_evidence_snapshot, provider_readiness_summary
 from app.services.paper_wallet import _ensure_paper_wallet_tables
 
 
@@ -62,6 +65,10 @@ def _note_id() -> str:
     return f"ai_brain_note_{uuid4().hex[:16]}"
 
 
+def _review_id() -> str:
+    return f"ai_brain_evidence_review_{uuid4().hex[:16]}"
+
+
 def _ensure_ai_brain_tables() -> None:
     from app.core.database import init_db
 
@@ -70,6 +77,71 @@ def _ensure_ai_brain_tables() -> None:
 
 def _note_count(session: Session, audit_id: str) -> int:
     return len(_all_or_empty(session, select(AiBrainOperatorNoteRecord).where(AiBrainOperatorNoteRecord.ai_brain_query_id == audit_id, AiBrainOperatorNoteRecord.archived == False)))
+
+
+def _latest_review_row(session: Session, audit_id: str) -> AiBrainEvidenceReviewRecord | None:
+    return _first_or_none(
+        session,
+        select(AiBrainEvidenceReviewRecord)
+        .where(AiBrainEvidenceReviewRecord.ai_brain_query_id == audit_id)
+        .order_by(desc(AiBrainEvidenceReviewRecord.updated_at), desc(AiBrainEvidenceReviewRecord.id))
+        .limit(1),
+    )
+
+
+def _market_snapshot_parts(row: AiBrainQueryRecord) -> tuple[str, str | None, str | None, str]:
+    snapshot = (row.market_evidence_snapshot_json or {}).get("snapshot", {})
+    provider = (row.market_evidence_snapshot_json or {}).get("provider", {})
+    return (
+        str(snapshot.get("provider_id") or provider.get("provider_id") or ""),
+        snapshot.get("symbol"),
+        snapshot.get("timeframe"),
+        str(snapshot.get("data_quality") or "unavailable"),
+    )
+
+
+def _review_view(row: AiBrainEvidenceReviewRecord) -> AIBrainEvidenceReviewView:
+    return AIBrainEvidenceReviewView(
+        review_id=row.review_id,
+        ai_brain_query_id=row.ai_brain_query_id,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        review_status=row.review_status,
+        reviewer_label=row.reviewer_label,
+        confidence_label=row.confidence_label,
+        evidence_quality_label=row.evidence_quality_label,
+        provider_id=row.provider_id,
+        symbol=row.symbol,
+        timeframe=row.timeframe,
+        review_note=row.review_note,
+        follow_up_action=row.follow_up_action,
+        paper_only=row.paper_only,
+        archived=row.archived,
+    )
+
+
+def _default_review_view(row: AiBrainQueryRecord) -> AIBrainEvidenceReviewView:
+    provider_id, symbol, timeframe, evidence_quality = _market_snapshot_parts(row)
+    return AIBrainEvidenceReviewView(
+        review_id=None,
+        ai_brain_query_id=row.audit_id,
+        review_status="unreviewed",
+        reviewer_label="local_operator",
+        confidence_label="unavailable",
+        evidence_quality_label=evidence_quality if evidence_quality in {"good", "partial", "degraded", "unavailable"} else "unavailable",
+        provider_id=provider_id,
+        symbol=symbol,
+        timeframe=timeframe,
+        review_note="",
+        follow_up_action="Inspect degraded or missing evidence before relying on this audit for paper/research decisions.",
+        paper_only=True,
+        archived=False,
+    )
+
+
+def _evidence_review_view(session: Session, row: AiBrainQueryRecord) -> AIBrainEvidenceReviewView:
+    review = _latest_review_row(session, row.audit_id)
+    return _review_view(review) if review else _default_review_view(row)
 
 
 def _history_item_view(session: Session, row: AiBrainQueryRecord) -> AIBrainHistoryItemView:
@@ -94,6 +166,8 @@ def _history_detail_view(session: Session, row: AiBrainQueryRecord) -> AIBrainHi
         **base,
         evidence_snapshot=row.evidence_snapshot_json,
         market_evidence_snapshot=row.market_evidence_snapshot_json,
+        provider_readiness_snapshot=row.provider_readiness_snapshot_json,
+        evidence_review=_evidence_review_view(session, row),
         availability_snapshot=row.availability_snapshot_json,
         wallet_snapshot=row.wallet_snapshot_json,
         risk_snapshot=row.risk_snapshot_json,
@@ -174,6 +248,60 @@ def create_ai_brain_note(session: Session, audit_id: str, note: str, status: str
     return _note_view(row)
 
 
+def get_ai_brain_evidence_review(session: Session, audit_id: str) -> AIBrainEvidenceReviewView | None:
+    _ensure_ai_brain_tables()
+    audit = _first_or_none(
+        session,
+        select(AiBrainQueryRecord).where(AiBrainQueryRecord.audit_id == audit_id, AiBrainQueryRecord.archived == False),
+    )
+    if audit is None:
+        return None
+    return _evidence_review_view(session, audit)
+
+
+def upsert_ai_brain_evidence_review(
+    session: Session,
+    audit_id: str,
+    payload: AIBrainEvidenceReviewUpsertRequest,
+) -> AIBrainEvidenceReviewView | None:
+    _ensure_ai_brain_tables()
+    audit = _first_or_none(
+        session,
+        select(AiBrainQueryRecord).where(AiBrainQueryRecord.audit_id == audit_id, AiBrainQueryRecord.archived == False),
+    )
+    if audit is None:
+        return None
+    review = _latest_review_row(session, audit_id)
+    provider_id, symbol, timeframe, evidence_quality = _market_snapshot_parts(audit)
+    valid_status = {"unreviewed", "needs_follow_up", "accepted_for_research", "rejected_as_incomplete", "archived"}
+    valid_confidence = {"low", "medium", "high", "unavailable"}
+    valid_quality = {"good", "partial", "degraded", "unavailable"}
+    now = naive_utc_now()
+    if review is None:
+        review = AiBrainEvidenceReviewRecord(
+            review_id=_review_id(),
+            ai_brain_query_id=audit_id,
+            created_at=now,
+            paper_only=True,
+        )
+        session.add(review)
+    review.updated_at = now
+    review.review_status = payload.review_status if payload.review_status in valid_status else "unreviewed"
+    review.reviewer_label = (payload.reviewer_label or "local_operator").strip() or "local_operator"
+    review.confidence_label = payload.confidence_label if payload.confidence_label in valid_confidence else "unavailable"
+    review.evidence_quality_label = payload.evidence_quality_label if payload.evidence_quality_label in valid_quality else (evidence_quality if evidence_quality in valid_quality else "unavailable")
+    review.provider_id = (payload.provider_id or provider_id).strip()
+    review.symbol = payload.symbol or symbol
+    review.timeframe = payload.timeframe or timeframe
+    review.review_note = payload.review_note.strip()
+    review.follow_up_action = payload.follow_up_action.strip()
+    review.paper_only = True
+    review.archived = review.review_status == "archived"
+    session.commit()
+    session.refresh(review)
+    return _review_view(review)
+
+
 def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str) -> AIBrainResponseView:
     """Return a deterministic local cockpit answer without creating paper records."""
 
@@ -203,6 +331,7 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
     decisions = _all_or_empty(session, select(PaperRiskDecisionRecord).order_by(desc(PaperRiskDecisionRecord.created_at)).limit(10))
     market_evidence = market_evidence_snapshot(session, requested_symbol, timeframe)
     market_evidence_provider = get_market_evidence_provider(market_evidence.provider_id)
+    provider_readiness = provider_readiness_summary(session)
 
     market_context = (
         f"{requested_symbol} has latest local signal {latest_signal.signal_type} / {latest_signal.direction} "
@@ -335,6 +464,7 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
         suggested_next_inspection=suggested_next_inspection,
         market_evidence=market_evidence,
         market_evidence_provider=market_evidence_provider,
+        provider_readiness=provider_readiness,
         uncertainty_notes=uncertainty_notes,
         evidence_cards=evidence_cards,
         warnings=["Paper/research only. The AI Brain query is read-only and creates no paper orders."],
@@ -353,6 +483,7 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
             "provider": market_evidence_provider.model_dump(mode="json"),
             "snapshot": market_evidence.model_dump(mode="json"),
         },
+        provider_readiness_snapshot_json=[item.model_dump(mode="json") for item in provider_readiness],
         availability_snapshot_json=availability_status(session).model_dump(mode="json"),
         wallet_snapshot_json={
             "wallet_id": wallet.wallet_id if wallet else None,
@@ -389,4 +520,5 @@ def run_ai_brain_query(session: Session, query: str, symbol: str, timeframe: str
     session.add(audit_row)
     session.commit()
     response.audit_id = audit_row.audit_id
+    response.evidence_review = _default_review_view(audit_row)
     return response

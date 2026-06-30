@@ -7,7 +7,11 @@ from sqlmodel import Session, desc, select
 
 from app.core.clock import naive_utc_now
 from app.models.entities import BacktestResult, SignalRecord, StrategyRegistryEntry
-from app.models.schemas import MarketEvidenceProviderDescriptor, MarketEvidenceSnapshot
+from app.models.schemas import (
+    MarketEvidenceProviderDescriptor,
+    MarketEvidenceProviderReadinessView,
+    MarketEvidenceSnapshot,
+)
 from app.services.market_views import market_chart_view
 from app.services.market_identity import resolve_symbol
 
@@ -76,6 +80,61 @@ def list_market_evidence_providers() -> list[MarketEvidenceProviderDescriptor]:
 def get_market_evidence_provider(provider_id: str = LOCAL_PROVIDER_ID) -> MarketEvidenceProviderDescriptor:
     providers = list_market_evidence_providers()
     return next((provider for provider in providers if provider.provider_id == provider_id), providers[0])
+
+
+def provider_readiness_summary(session: Session) -> list[MarketEvidenceProviderReadinessView]:
+    providers = list_market_evidence_providers()
+    local_snapshot = market_evidence_snapshot(session, "USOUSD", "1d")
+    readiness: list[MarketEvidenceProviderReadinessView] = []
+    for provider in providers:
+        if provider.provider_id == LOCAL_PROVIDER_ID:
+            degraded = local_snapshot.data_quality in {"partial", "degraded", "unavailable"} or local_snapshot.freshness_status in {"stale", "degraded", "unavailable"}
+            readiness.append(
+                MarketEvidenceProviderReadinessView(
+                    provider_id=provider.provider_id,
+                    display_name=provider.display_name,
+                    enabled=provider.enabled,
+                    configured=provider.configured,
+                    readiness_status="degraded" if degraded else "ready_local",
+                    paper_research_only=True,
+                    supported_symbols=provider.supports_symbols,
+                    supported_timeframes=provider.supports_timeframes,
+                    latest_snapshot_status=f"{local_snapshot.freshness_status}/{local_snapshot.data_quality}",
+                    missing_requirements=local_snapshot.missing_inputs,
+                    limitations=provider.limitations,
+                    next_setup_step=local_snapshot.suggested_next_inspection,
+                    external_dependency_required=False,
+                    network_calls_enabled=False,
+                    secrets_required=False,
+                    execution_capable=False,
+                )
+            )
+            continue
+        readiness.append(
+            MarketEvidenceProviderReadinessView(
+                provider_id=provider.provider_id,
+                display_name=provider.display_name,
+                enabled=provider.enabled,
+                configured=provider.configured,
+                readiness_status="not_configured",
+                paper_research_only=True,
+                supported_symbols=provider.supports_symbols,
+                supported_timeframes=provider.supports_timeframes,
+                latest_snapshot_status=None,
+                missing_requirements=[
+                    "future_dependency_not_installed",
+                    "provider_not_configured",
+                    "no_network_calls_enabled",
+                ],
+                limitations=provider.limitations,
+                next_setup_step="Keep this placeholder disabled until a later paper/research data-adapter phase explicitly adds configuration and tests.",
+                external_dependency_required=True,
+                network_calls_enabled=False,
+                secrets_required=True,
+                execution_capable=False,
+            )
+        )
+    return readiness
 
 
 def _trend_summary(closes: list[float]) -> str | None:

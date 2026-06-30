@@ -137,23 +137,74 @@ describe("apiClient", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => ([{ provider_id: "openbb_future_adapter", execution_capable: false }]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => ({ snapshot_id: "market_evidence_test", symbol: "USOUSD", paper_research_only: true }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
     const providers = await apiClient.marketEvidenceProviders();
+    const readiness = await apiClient.marketEvidenceProviderReadiness();
     const snapshot = await apiClient.marketEvidenceSnapshot("USOUSD", "1d");
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "http://127.0.0.1:8000/api/market-evidence/providers", {
       headers: { "Content-Type": "application/json" },
       signal: expect.any(AbortSignal),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://127.0.0.1:8000/api/market-evidence/snapshot?symbol=USOUSD&timeframe=1d", {
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://127.0.0.1:8000/api/market-evidence/provider-readiness", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://127.0.0.1:8000/api/market-evidence/snapshot?symbol=USOUSD&timeframe=1d", {
       headers: { "Content-Type": "application/json" },
       signal: expect.any(AbortSignal),
     });
     expect(providers[0].paper_research_only).toBe(true);
+    expect(readiness[0].execution_capable).toBe(false);
     expect(snapshot.symbol).toBe("USOUSD");
+  });
+
+  it("loads and saves AI Brain evidence review metadata without trade endpoints", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ review_id: null, ai_brain_query_id: "ai_brain_test", review_status: "unreviewed", paper_only: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ review_id: "review_test", ai_brain_query_id: "ai_brain_test", review_status: "needs_follow_up", paper_only: true }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const review = await apiClient.aiBrainEvidenceReview("ai_brain_test");
+    const saved = await apiClient.saveAIBrainEvidenceReview("ai_brain_test", {
+      review_status: "needs_follow_up",
+      confidence_label: "medium",
+      evidence_quality_label: "partial",
+      review_note: "Review fixture evidence before relying on timing.",
+      follow_up_action: "Refresh local chart context.",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://127.0.0.1:8000/api/ai-brain/history/ai_brain_test/evidence-review", {
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://127.0.0.1:8000/api/ai-brain/history/ai_brain_test/evidence-review", {
+      method: "POST",
+      body: JSON.stringify({
+        review_status: "needs_follow_up",
+        confidence_label: "medium",
+        evidence_quality_label: "partial",
+        review_note: "Review fixture evidence before relying on timing.",
+        follow_up_action: "Refresh local chart context.",
+      }),
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
+    expect(review.paper_only).toBe(true);
+    expect(saved.review_status).toBe("needs_follow_up");
   });
 
   it("posts active trade creates with the operator-console contract", async () => {

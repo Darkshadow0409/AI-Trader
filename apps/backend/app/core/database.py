@@ -206,6 +206,7 @@ def _ensure_contract_columns() -> None:
         },
         "aibrainqueryrecord": {
             "market_evidence_snapshot_json": "TEXT DEFAULT '{}'",
+            "provider_readiness_snapshot_json": "TEXT DEFAULT '[]'",
         },
     }
     with engine.begin() as connection:
@@ -292,7 +293,7 @@ def _ensure_contract_columns() -> None:
 
 
 def init_db() -> None:
-    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AiBrainOperatorNoteRecord, AiBrainQueryRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, OpsActionRecord, PaperLedgerTransactionRecord, PaperRiskDecisionRecord, PaperRiskPolicyRecord, PaperTradeRecord, PaperTradeReviewRecord, PaperWalletRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, SimulatedOrderRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
+    from app.models.entities import ActiveTradeRecord, AdapterHealthRecord, AiBrainEvidenceReviewRecord, AiBrainOperatorNoteRecord, AiBrainQueryRecord, AlertRecord, Asset, AuditLogRecord, BacktestResult, BacktestRun, CalibrationSnapshot, ForwardValidationRecord, JournalEntry, MacroEvent, ManualFillRecord, MarketBar, NewsItem, OpsActionRecord, PaperLedgerTransactionRecord, PaperRiskDecisionRecord, PaperRiskPolicyRecord, PaperTradeRecord, PaperTradeReviewRecord, PaperWalletRecord, PilotMetricSnapshotRecord, PipelineRun, ReviewTaskRecord, RiskReport, SignalRecord, SimulatedOrderRecord, StrategyRegistryEntry, StrategyStateTransition, TradeTicketRecord, WatchlistItem
 
     last_error: OperationalError | None = None
     for attempt in range(5):

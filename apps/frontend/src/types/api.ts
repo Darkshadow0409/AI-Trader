@@ -76,6 +76,25 @@ export interface MarketEvidenceProviderDescriptor {
   last_checked_at: string | null;
 }
 
+export interface MarketEvidenceProviderReadinessView {
+  provider_id: string;
+  display_name: string;
+  enabled: boolean;
+  configured: boolean;
+  readiness_status: string;
+  paper_research_only: boolean;
+  supported_symbols: string[];
+  supported_timeframes: string[];
+  latest_snapshot_status: string | null;
+  missing_requirements: string[];
+  limitations: string[];
+  next_setup_step: string;
+  external_dependency_required: boolean;
+  network_calls_enabled: boolean;
+  secrets_required: boolean;
+  execution_capable: boolean;
+}
+
 export interface MarketEvidenceSnapshot {
   snapshot_id: string;
   created_at: string;
@@ -99,6 +118,36 @@ export interface MarketEvidenceSnapshot {
   paper_research_only: boolean;
 }
 
+export interface AIBrainEvidenceReviewUpsertRequest {
+  review_status: string;
+  reviewer_label?: string;
+  confidence_label: string;
+  evidence_quality_label: string;
+  provider_id?: string;
+  symbol?: string | null;
+  timeframe?: string | null;
+  review_note?: string;
+  follow_up_action?: string;
+}
+
+export interface AIBrainEvidenceReviewView {
+  review_id: string | null;
+  ai_brain_query_id: string;
+  created_at: string | null;
+  updated_at: string | null;
+  review_status: string;
+  reviewer_label: string;
+  confidence_label: string;
+  evidence_quality_label: string;
+  provider_id: string;
+  symbol: string | null;
+  timeframe: string | null;
+  review_note: string;
+  follow_up_action: string;
+  paper_only: boolean;
+  archived: boolean;
+}
+
 export interface AIBrainResponseView {
   audit_id: string | null;
   generated_at: string;
@@ -116,6 +165,8 @@ export interface AIBrainResponseView {
   suggested_next_inspection: string;
   market_evidence: MarketEvidenceSnapshot | null;
   market_evidence_provider: MarketEvidenceProviderDescriptor | null;
+  provider_readiness: MarketEvidenceProviderReadinessView[];
+  evidence_review: AIBrainEvidenceReviewView | null;
   uncertainty_notes: string[];
   evidence_cards: AIBrainEvidenceCardView[];
   warnings: string[];
@@ -142,6 +193,8 @@ export interface AIBrainHistoryItemView {
 export interface AIBrainHistoryDetailView extends AIBrainHistoryItemView {
   evidence_snapshot: Record<string, unknown>;
   market_evidence_snapshot: Record<string, unknown>;
+  provider_readiness_snapshot: Record<string, unknown>[];
+  evidence_review: AIBrainEvidenceReviewView | null;
   availability_snapshot: Record<string, unknown>;
   wallet_snapshot: Record<string, unknown>;
   risk_snapshot: Record<string, unknown>;

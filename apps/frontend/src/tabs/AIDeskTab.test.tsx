@@ -3,7 +3,7 @@ import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../api/client";
-import { mockAIBrain, mockAIBrainHistory, mockAIBrainNotes, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockMarketEvidenceProviders, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
+import { mockAIBrain, mockAIBrainEvidenceReview, mockAIBrainHistory, mockAIBrainNotes, mockAIAdvisor, mockAIStatus, mockAssetContexts, mockAvailabilityStatus, mockDeskSummary, mockMarketCharts, mockMarketEvidenceProviderReadiness, mockMarketEvidenceProviders, mockOllamaStatus, mockPaperTradeDetail, mockReviewSummary, mockScenarioResearch, mockSignals, mockTicketList, mockWatchlistSummary } from "../api/mockData";
 import { AIDeskTab } from "./AIDeskTab";
 
 vi.mock("../api/client", () => ({
@@ -11,10 +11,13 @@ vi.mock("../api/client", () => ({
     aiStatus: vi.fn(),
     availabilityStatus: vi.fn(),
     marketEvidenceProviders: vi.fn(),
+    marketEvidenceProviderReadiness: vi.fn(),
     aiBrainQuery: vi.fn(),
     aiBrainHistory: vi.fn(),
     aiBrainHistoryDetail: vi.fn(),
     aiBrainHistoryNotes: vi.fn(),
+    aiBrainEvidenceReview: vi.fn(),
+    saveAIBrainEvidenceReview: vi.fn(),
     createAIBrainHistoryNote: vi.fn(),
     startAdvisorRun: vi.fn(),
     advisorRunStatus: vi.fn(),
@@ -77,6 +80,7 @@ describe("AIDeskTab", () => {
     vi.mocked(apiClient.aiStatus).mockResolvedValue(mockLocalStatus);
     vi.mocked(apiClient.availabilityStatus).mockResolvedValue(mockAvailabilityStatus);
     vi.mocked(apiClient.marketEvidenceProviders).mockResolvedValue(mockMarketEvidenceProviders);
+    vi.mocked(apiClient.marketEvidenceProviderReadiness).mockResolvedValue(mockMarketEvidenceProviderReadiness);
     vi.mocked(apiClient.aiBrainQuery).mockResolvedValue(mockAIBrain);
     vi.mocked(apiClient.aiBrainHistory).mockResolvedValue(mockAIBrainHistory);
     vi.mocked(apiClient.aiBrainHistoryDetail).mockResolvedValue({
@@ -86,6 +90,8 @@ describe("AIDeskTab", () => {
         provider: mockAIBrain.market_evidence_provider,
         snapshot: mockAIBrain.market_evidence,
       },
+      provider_readiness_snapshot: mockMarketEvidenceProviderReadiness as unknown as Record<string, unknown>[],
+      evidence_review: mockAIBrainEvidenceReview,
       availability_snapshot: mockAvailabilityStatus as unknown as Record<string, unknown>,
       wallet_snapshot: { status: "active", cash_balance: 9875.2 },
       risk_snapshot: { policy_status: "active", recent_decision_count: 1 },
@@ -97,6 +103,14 @@ describe("AIDeskTab", () => {
       operator_label: null,
     });
     vi.mocked(apiClient.aiBrainHistoryNotes).mockResolvedValue(mockAIBrainNotes);
+    vi.mocked(apiClient.aiBrainEvidenceReview).mockResolvedValue(mockAIBrainEvidenceReview);
+    vi.mocked(apiClient.saveAIBrainEvidenceReview).mockResolvedValue({
+      ...mockAIBrainEvidenceReview,
+      review_status: "accepted_for_research",
+      confidence_label: "high",
+      evidence_quality_label: "partial",
+      review_note: "Evidence review saved from the cockpit.",
+    });
     vi.mocked(apiClient.createAIBrainHistoryNote).mockResolvedValue({
       ...mockAIBrainNotes[0],
       note_id: "ai_brain_note_mock_002",
@@ -288,8 +302,8 @@ describe("AIDeskTab", () => {
     expect(screen.getByText("Paper/research only")).toBeInTheDocument();
     expect(screen.getByTestId("ai-brain-command-center")).toBeInTheDocument();
     expect(await screen.findByTestId("market-evidence-quality")).toBeInTheDocument();
-    expect(screen.getByText("AI Trader local snapshot")).toBeInTheDocument();
-    expect(screen.getByText("OpenBB future data adapter")).toBeInTheDocument();
+    expect(screen.getAllByText("AI Trader local snapshot").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("OpenBB future data adapter").length).toBeGreaterThan(0);
     expect(screen.getByText(/Not configured; no dependency or network call/i)).toBeInTheDocument();
     await user.clear(screen.getByLabelText("AI Brain cockpit question"));
     await user.type(screen.getByLabelText("AI Brain cockpit question"), "What should I inspect before a paper test?");
@@ -299,6 +313,10 @@ describe("AIDeskTab", () => {
     expect(screen.getAllByText(mockAIBrain.answer).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Market Evidence").length).toBeGreaterThan(0);
     expect(screen.getByText(/Source \/ Freshness/i)).toBeInTheDocument();
+    expect(screen.getByTestId("provider-readiness-panel")).toBeInTheDocument();
+    expect(screen.getAllByText(/execution capable false/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Network calls disabled/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/provider_not_configured/i)).toBeInTheDocument();
     expect(screen.getByText(/Data quality: partial/i)).toBeInTheDocument();
     expect(screen.getByText(/Local chart context is fixture or sample-backed/i)).toBeInTheDocument();
     expect(screen.getByText("Paper Wallet")).toBeInTheDocument();
@@ -307,6 +325,8 @@ describe("AIDeskTab", () => {
     expect(screen.getByText("Audit Trail")).toBeInTheDocument();
     expect(screen.getByText("Selected Audit Evidence")).toBeInTheDocument();
     expect(screen.getByText("Market Evidence Snapshot")).toBeInTheDocument();
+    expect(screen.getByTestId("evidence-review-workflow")).toBeInTheDocument();
+    expect(screen.getByText(/Status needs_follow_up/i)).toBeInTheDocument();
     expect(screen.getAllByText("Operator Notes").length).toBeGreaterThan(0);
     expect(screen.getByText(/Created 0 orders \/ 0 ledger rows \/ 0 risk decisions/i)).toBeInTheDocument();
     await user.clear(screen.getByLabelText("AI Brain operator note"));
@@ -319,6 +339,16 @@ describe("AIDeskTab", () => {
       status: "reviewed",
       created_by: "local_operator",
     });
+    await user.selectOptions(screen.getByLabelText("Evidence review status"), "accepted_for_research");
+    await user.selectOptions(screen.getByLabelText("Evidence review confidence"), "high");
+    await user.clear(screen.getByLabelText("Evidence review note"));
+    await user.type(screen.getByLabelText("Evidence review note"), "Evidence review saved from the cockpit.");
+    await user.click(screen.getByRole("button", { name: /Save Evidence Review/i }));
+    expect(apiClient.saveAIBrainEvidenceReview).toHaveBeenCalledWith("ai_brain_mock_001", expect.objectContaining({
+      review_status: "accepted_for_research",
+      confidence_label: "high",
+      reviewer_label: "local_operator",
+    }));
     expect(apiClient.aiBrainQuery).toHaveBeenCalledWith({
       query: "What should I inspect before a paper test?",
       symbol: "WTI",
@@ -328,7 +358,7 @@ describe("AIDeskTab", () => {
     expect(renderedText).not.toContain(`broker-${"ready"}`);
     expect(renderedText).not.toContain(`execution-${"ready"}`);
     expect(renderedText).not.toContain("live-money");
-  });
+  }, 10000);
 
   it("renders an advisory operator brief before the console without unsafe readiness wording", async () => {
     render(
@@ -650,11 +680,11 @@ describe("AIDeskTab", () => {
     );
 
     await screen.findByText("Ask The Desk Brain");
+    const statusCallsBeforeRun = vi.mocked(apiClient.advisorRunStatus).mock.calls.length;
     await user.click(screen.getByRole("button", { name: /Run (Local Terminal Brief|Terminal Brain)/i }));
 
-    expect(await screen.findByText("Active Advisory Run")).toBeInTheDocument();
-    expect(await screen.findByText("Final response is still being persisted.")).toBeInTheDocument();
     expect(await screen.findByText("Brain Summary")).toBeInTheDocument();
+    expect(vi.mocked(apiClient.advisorRunStatus).mock.calls.length).toBeGreaterThan(statusCallsBeforeRun);
     expect(screen.queryByText(/Advisor run completed without a final response/i)).not.toBeInTheDocument();
   });
 

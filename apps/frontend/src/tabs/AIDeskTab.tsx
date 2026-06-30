@@ -15,6 +15,7 @@ import { assetWorkspaceTarget, riskContextTarget, signalContextTarget, type Work
 import type {
   AIBrainHistoryDetailView,
   AIBrainHistoryItemView,
+  AIBrainEvidenceReviewView,
   AIBrainOperatorNoteView,
   AIBrainResponseView,
   AIAdvisorResponseView,
@@ -25,6 +26,7 @@ import type {
   AvailabilityStatusView,
   MarketChartView,
   MarketEvidenceProviderDescriptor,
+  MarketEvidenceProviderReadinessView,
   OperationalBacklogView,
   PaperTradeDetailView,
   ReviewSummaryView,
@@ -152,9 +154,11 @@ interface AIViewState {
 interface AIBrainViewState {
   availability: AvailabilityStatusView | null;
   marketEvidenceProviders: MarketEvidenceProviderDescriptor[];
+  providerReadiness: MarketEvidenceProviderReadinessView[];
   response: AIBrainResponseView | null;
   history: AIBrainHistoryItemView[];
   selectedDetail: AIBrainHistoryDetailView | null;
+  evidenceReview: AIBrainEvidenceReviewView | null;
   notes: AIBrainOperatorNoteView[];
   loading: boolean;
   error: string | null;
@@ -463,15 +467,22 @@ export function AIDeskTab({
   const [brainState, setBrainState] = useState<AIBrainViewState>({
     availability: null,
     marketEvidenceProviders: [],
+    providerReadiness: [],
     response: null,
     history: [],
     selectedDetail: null,
+    evidenceReview: null,
     notes: [],
     loading: false,
     error: null,
   });
   const [brainNoteDraft, setBrainNoteDraft] = useState("");
   const [brainNoteStatus, setBrainNoteStatus] = useState("observation");
+  const [evidenceReviewStatus, setEvidenceReviewStatus] = useState("unreviewed");
+  const [evidenceReviewConfidence, setEvidenceReviewConfidence] = useState("unavailable");
+  const [evidenceReviewQuality, setEvidenceReviewQuality] = useState("unavailable");
+  const [evidenceReviewNote, setEvidenceReviewNote] = useState("");
+  const [evidenceReviewFollowUp, setEvidenceReviewFollowUp] = useState("");
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [runElapsedMs, setRunElapsedMs] = useState(0);
   const [activeRun, setActiveRun] = useState<AIAdvisorRunStatusView | null>(null);
@@ -517,6 +528,7 @@ export function AIDeskTab({
   useEffect(() => {
     void loadAvailabilityStatus();
     void loadMarketEvidenceProviders();
+    void loadProviderReadiness();
     void loadAIBrainHistory();
   }, []);
 
@@ -611,6 +623,18 @@ export function AIDeskTab({
     }
   }
 
+  async function loadProviderReadiness() {
+    try {
+      const providerReadiness = await apiClient.marketEvidenceProviderReadiness();
+      setBrainState((current) => ({ ...current, providerReadiness, error: null }));
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "Market evidence provider readiness is unavailable."),
+      }));
+    }
+  }
+
   async function loadAIBrainHistory() {
     try {
       const history = await apiClient.aiBrainHistory();
@@ -628,15 +652,57 @@ export function AIDeskTab({
 
   async function selectAIBrainAudit(auditId: string) {
     try {
-      const [selectedDetail, notes] = await Promise.all([
+      const [selectedDetail, notes, evidenceReview] = await Promise.all([
         apiClient.aiBrainHistoryDetail(auditId),
         apiClient.aiBrainHistoryNotes(auditId),
+        apiClient.aiBrainEvidenceReview(auditId),
       ]);
-      setBrainState((current) => ({ ...current, selectedDetail, notes, error: null }));
+      setBrainState((current) => ({ ...current, selectedDetail, notes, evidenceReview, error: null }));
+      setEvidenceReviewStatus(evidenceReview.review_status);
+      setEvidenceReviewConfidence(evidenceReview.confidence_label);
+      setEvidenceReviewQuality(evidenceReview.evidence_quality_label);
+      setEvidenceReviewNote(evidenceReview.review_note);
+      setEvidenceReviewFollowUp(evidenceReview.follow_up_action);
     } catch (error) {
       setBrainState((current) => ({
         ...current,
         error: friendlyAiError(error, "AI Brain audit detail is unavailable."),
+      }));
+    }
+  }
+
+  async function saveEvidenceReview() {
+    const auditId = brainState.selectedDetail?.audit_id ?? brainState.response?.audit_id;
+    if (!auditId) {
+      return;
+    }
+    const providerId =
+      brainState.selectedDetail?.evidence_review?.provider_id
+      ?? brainState.evidenceReview?.provider_id
+      ?? brainState.response?.market_evidence_provider?.provider_id
+      ?? "local_ai_trader_snapshot";
+    try {
+      const evidenceReview = await apiClient.saveAIBrainEvidenceReview(auditId, {
+        review_status: evidenceReviewStatus,
+        reviewer_label: "local_operator",
+        confidence_label: evidenceReviewConfidence,
+        evidence_quality_label: evidenceReviewQuality,
+        provider_id: providerId,
+        symbol: brainState.response?.market_evidence?.symbol ?? brainState.evidenceReview?.symbol ?? selectedSymbol,
+        timeframe: brainState.response?.market_evidence?.timeframe ?? brainState.evidenceReview?.timeframe ?? timeframe,
+        review_note: evidenceReviewNote,
+        follow_up_action: evidenceReviewFollowUp,
+      });
+      setBrainState((current) => ({
+        ...current,
+        evidenceReview,
+        selectedDetail: current.selectedDetail ? { ...current.selectedDetail, evidence_review: evidenceReview } : current.selectedDetail,
+        error: null,
+      }));
+    } catch (error) {
+      setBrainState((current) => ({
+        ...current,
+        error: friendlyAiError(error, "Evidence review could not be saved."),
       }));
     }
   }
@@ -685,8 +751,10 @@ export function AIDeskTab({
         response,
         availability,
         marketEvidenceProviders: brainState.marketEvidenceProviders,
+        providerReadiness: response.provider_readiness.length ? response.provider_readiness : brainState.providerReadiness,
         history: brainState.history,
         selectedDetail: brainState.selectedDetail,
+        evidenceReview: response.evidence_review ?? brainState.evidenceReview,
         notes: brainState.notes,
         loading: false,
         error: null,
@@ -975,6 +1043,22 @@ export function AIDeskTab({
             <small>Not configured; no dependency or network call in this phase.</small>
           </div>
         </div>
+        <div className="metric-grid" data-testid="provider-readiness-panel">
+          {(brainState.response?.provider_readiness.length ? brainState.response.provider_readiness : brainState.providerReadiness).map((provider) => (
+            <div key={provider.provider_id}>
+              <span>{provider.display_name}</span>
+              <strong>{provider.readiness_status.replace(/_/g, " ")}</strong>
+              <small>
+                enabled {provider.enabled ? "true" : "false"} · configured {provider.configured ? "true" : "false"} · execution capable {provider.execution_capable ? "true" : "false"}
+              </small>
+              <small>
+                Network calls {provider.network_calls_enabled ? "enabled" : "disabled"} · secrets required {provider.secrets_required ? "true" : "false"}
+              </small>
+              <small>{provider.latest_snapshot_status ?? "No snapshot status yet"}</small>
+              <small>{provider.missing_requirements.join(", ") || provider.next_setup_step}</small>
+            </div>
+          ))}
+        </div>
         {brainState.response ? (
           <div className="stack">
             <div className="panel-note">
@@ -1150,6 +1234,70 @@ export function AIDeskTab({
                   Save Note
                 </button>
               </div>
+            </div>
+            <div className="panel-note" data-testid="evidence-review-workflow">
+              <strong>Evidence Review</strong>
+              <small>
+                Status {brainState.evidenceReview?.review_status ?? brainState.selectedDetail.evidence_review?.review_status ?? "unreviewed"} · confidence {brainState.evidenceReview?.confidence_label ?? brainState.selectedDetail.evidence_review?.confidence_label ?? "unavailable"} · quality {brainState.evidenceReview?.evidence_quality_label ?? brainState.selectedDetail.evidence_review?.evidence_quality_label ?? "unavailable"}
+              </small>
+              <small>
+                Provider {brainState.evidenceReview?.provider_id ?? brainState.selectedDetail.evidence_review?.provider_id ?? "local_ai_trader_snapshot"} · paper only {brainState.evidenceReview?.paper_only ?? brainState.selectedDetail.evidence_review?.paper_only ? "true" : "true"}
+              </small>
+              {(brainState.evidenceReview?.follow_up_action ?? brainState.selectedDetail.evidence_review?.follow_up_action) ? (
+                <small>Follow-up: {brainState.evidenceReview?.follow_up_action ?? brainState.selectedDetail.evidence_review?.follow_up_action}</small>
+              ) : null}
+              <div className="field-grid">
+                <label className="field">
+                  <span>Review status</span>
+                  <select aria-label="Evidence review status" value={evidenceReviewStatus} onChange={(event) => setEvidenceReviewStatus(event.target.value)}>
+                    <option value="unreviewed">Unreviewed</option>
+                    <option value="needs_follow_up">Needs follow up</option>
+                    <option value="accepted_for_research">Accepted for research</option>
+                    <option value="rejected_as_incomplete">Rejected as incomplete</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Confidence</span>
+                  <select aria-label="Evidence review confidence" value={evidenceReviewConfidence} onChange={(event) => setEvidenceReviewConfidence(event.target.value)}>
+                    <option value="unavailable">Unavailable</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Evidence quality</span>
+                  <select aria-label="Evidence review quality" value={evidenceReviewQuality} onChange={(event) => setEvidenceReviewQuality(event.target.value)}>
+                    <option value="unavailable">Unavailable</option>
+                    <option value="degraded">Degraded</option>
+                    <option value="partial">Partial</option>
+                    <option value="good">Good</option>
+                  </select>
+                </label>
+              </div>
+              <label className="field">
+                <span>Review note</span>
+                <textarea
+                  aria-label="Evidence review note"
+                  value={evidenceReviewNote}
+                  onChange={(event) => setEvidenceReviewNote(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Follow-up action</span>
+                <textarea
+                  aria-label="Evidence review follow-up action"
+                  value={evidenceReviewFollowUp}
+                  onChange={(event) => setEvidenceReviewFollowUp(event.target.value)}
+                />
+              </label>
+              <div className="workspace-cta-group">
+                <button type="button" onClick={saveEvidenceReview}>
+                  Save Evidence Review
+                </button>
+              </div>
+              <small>Saving this review creates no proposals, orders, ledger rows, or risk decisions.</small>
             </div>
           </div>
         ) : null}

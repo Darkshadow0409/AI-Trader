@@ -305,6 +305,7 @@ class AiBrainQueryRecord(SQLModel, table=True):
     paper_only: bool = True
     evidence_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     market_evidence_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    provider_readiness_snapshot_json: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     availability_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     wallet_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     risk_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
@@ -329,6 +330,25 @@ class AiBrainOperatorNoteRecord(SQLModel, table=True):
     status: str = Field(default="observation", index=True)
     paper_only: bool = True
     created_by: str = Field(default="local_operator", index=True)
+    archived: bool = Field(default=False, index=True)
+
+
+class AiBrainEvidenceReviewRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    review_id: str = Field(index=True, unique=True)
+    ai_brain_query_id: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    review_status: str = Field(default="unreviewed", index=True)
+    reviewer_label: str = Field(default="local_operator", index=True)
+    confidence_label: str = Field(default="unavailable", index=True)
+    evidence_quality_label: str = Field(default="unavailable", index=True)
+    provider_id: str = Field(default="", index=True)
+    symbol: str | None = Field(default=None, index=True)
+    timeframe: str | None = Field(default=None, index=True)
+    review_note: str = ""
+    follow_up_action: str = ""
+    paper_only: bool = True
     archived: bool = Field(default=False, index=True)
 
 

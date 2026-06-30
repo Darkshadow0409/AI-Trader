@@ -1523,6 +1523,25 @@ class MarketEvidenceProviderDescriptor(BaseModel):
     last_checked_at: datetime | None = None
 
 
+class MarketEvidenceProviderReadinessView(BaseModel):
+    provider_id: str
+    display_name: str
+    enabled: bool = False
+    configured: bool = False
+    readiness_status: str
+    paper_research_only: bool = True
+    supported_symbols: list[str] = Field(default_factory=list)
+    supported_timeframes: list[str] = Field(default_factory=list)
+    latest_snapshot_status: str | None = None
+    missing_requirements: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    next_setup_step: str
+    external_dependency_required: bool = False
+    network_calls_enabled: bool = False
+    secrets_required: bool = False
+    execution_capable: bool = False
+
+
 class MarketEvidenceSnapshot(BaseModel):
     snapshot_id: str
     created_at: datetime
@@ -1546,6 +1565,36 @@ class MarketEvidenceSnapshot(BaseModel):
     paper_research_only: bool = True
 
 
+class AIBrainEvidenceReviewUpsertRequest(BaseModel):
+    review_status: str = "unreviewed"
+    reviewer_label: str = "local_operator"
+    confidence_label: str = "unavailable"
+    evidence_quality_label: str = "unavailable"
+    provider_id: str = ""
+    symbol: str | None = None
+    timeframe: str | None = None
+    review_note: str = ""
+    follow_up_action: str = ""
+
+
+class AIBrainEvidenceReviewView(BaseModel):
+    review_id: str | None = None
+    ai_brain_query_id: str
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    review_status: str = "unreviewed"
+    reviewer_label: str = "local_operator"
+    confidence_label: str = "unavailable"
+    evidence_quality_label: str = "unavailable"
+    provider_id: str = ""
+    symbol: str | None = None
+    timeframe: str | None = None
+    review_note: str = ""
+    follow_up_action: str = ""
+    paper_only: bool = True
+    archived: bool = False
+
+
 class AIBrainResponseView(BaseModel):
     audit_id: str | None = None
     generated_at: datetime
@@ -1563,6 +1612,8 @@ class AIBrainResponseView(BaseModel):
     suggested_next_inspection: str
     market_evidence: MarketEvidenceSnapshot | None = None
     market_evidence_provider: MarketEvidenceProviderDescriptor | None = None
+    provider_readiness: list[MarketEvidenceProviderReadinessView] = Field(default_factory=list)
+    evidence_review: AIBrainEvidenceReviewView | None = None
     uncertainty_notes: list[str] = Field(default_factory=list)
     evidence_cards: list[AIBrainEvidenceCardView] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -1589,6 +1640,8 @@ class AIBrainHistoryItemView(BaseModel):
 class AIBrainHistoryDetailView(AIBrainHistoryItemView):
     evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
     market_evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
+    provider_readiness_snapshot: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_review: AIBrainEvidenceReviewView | None = None
     availability_snapshot: dict[str, Any] = Field(default_factory=dict)
     wallet_snapshot: dict[str, Any] = Field(default_factory=dict)
     risk_snapshot: dict[str, Any] = Field(default_factory=dict)

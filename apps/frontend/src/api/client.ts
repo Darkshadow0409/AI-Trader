@@ -33,12 +33,14 @@ import {
   mockAdapterHealth,
   mockAIBrain,
   mockAIBrainHistory,
+  mockAIBrainEvidenceReview,
   mockAIBrainNotes,
   mockAIAdvisor,
   mockAIStatus,
   mockAuditLogs,
   mockAvailabilityStatus,
   mockMarketEvidenceProviders,
+  mockMarketEvidenceProviderReadiness,
   mockMarketEvidenceSnapshot,
   mockSignalDetail,
   mockSignals,
@@ -79,6 +81,8 @@ import type {
   ActiveTradeView,
   AIBrainHistoryDetailView,
   AIBrainHistoryItemView,
+  AIBrainEvidenceReviewUpsertRequest,
+  AIBrainEvidenceReviewView,
   AIBrainOperatorNoteCreateRequest,
   AIBrainOperatorNoteView,
   AIBrainQueryRequest,
@@ -96,6 +100,7 @@ import type {
   BarView,
   MarketChartView,
   MarketEvidenceProviderDescriptor,
+  MarketEvidenceProviderReadinessView,
   MarketEvidenceSnapshot,
   DailyBriefingView,
   DeskSummaryView,
@@ -432,6 +437,8 @@ export const apiClient = {
   availabilityStatus: () => requestJson<AvailabilityStatusView>("/availability/status", mockAvailabilityStatus),
   marketEvidenceProviders: () =>
     requestJson<MarketEvidenceProviderDescriptor[]>("/market-evidence/providers", mockMarketEvidenceProviders),
+  marketEvidenceProviderReadiness: () =>
+    requestJson<MarketEvidenceProviderReadinessView[]>("/market-evidence/provider-readiness", mockMarketEvidenceProviderReadiness),
   marketEvidenceSnapshot: (symbol: string, timeframe = "1d") =>
     requestJson<MarketEvidenceSnapshot>(
       `/market-evidence/snapshot?${new URLSearchParams({ symbol, timeframe }).toString()}`,
@@ -451,6 +458,8 @@ export const apiClient = {
         provider: mockAIBrain.market_evidence_provider,
         snapshot: mockAIBrain.market_evidence,
       },
+      provider_readiness_snapshot: mockMarketEvidenceProviderReadiness as unknown as Record<string, unknown>[],
+      evidence_review: mockAIBrainEvidenceReview,
       availability_snapshot: mockAvailabilityStatus as unknown as Record<string, unknown>,
       wallet_snapshot: {},
       risk_snapshot: {},
@@ -463,6 +472,13 @@ export const apiClient = {
     }),
   aiBrainHistoryNotes: (auditId: string) =>
     requestJson<AIBrainOperatorNoteView[]>(`/ai-brain/history/${auditId}/notes`, mockAIBrainNotes),
+  aiBrainEvidenceReview: (auditId: string) =>
+    requestJson<AIBrainEvidenceReviewView>(`/ai-brain/history/${auditId}/evidence-review`, mockAIBrainEvidenceReview),
+  saveAIBrainEvidenceReview: (auditId: string, payload: AIBrainEvidenceReviewUpsertRequest) =>
+    requestJson<AIBrainEvidenceReviewView>(`/ai-brain/history/${auditId}/evidence-review`, mockAIBrainEvidenceReview, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   createAIBrainHistoryNote: (auditId: string, payload: AIBrainOperatorNoteCreateRequest) =>
     requestJson<AIBrainOperatorNoteView>(`/ai-brain/history/${auditId}/notes`, mockAIBrainNotes[0], {
       method: "POST",

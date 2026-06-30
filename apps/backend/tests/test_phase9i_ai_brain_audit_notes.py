@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from app.core.database import engine, init_db
 from app.main import app
 from app.models.entities import (
+    AiBrainEvidenceReviewRecord,
     AiBrainOperatorNoteRecord,
     AiBrainQueryRecord,
     PaperLedgerTransactionRecord,
@@ -27,6 +28,7 @@ def isolated_ai_brain_state() -> None:
     _ensure_paper_wallet_tables()
     with Session(engine) as session:
         for model in (
+            AiBrainEvidenceReviewRecord,
             AiBrainOperatorNoteRecord,
             AiBrainQueryRecord,
             PaperRiskDecisionRecord,

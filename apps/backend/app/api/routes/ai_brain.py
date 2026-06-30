@@ -5,6 +5,8 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.models.schemas import (
+    AIBrainEvidenceReviewUpsertRequest,
+    AIBrainEvidenceReviewView,
     AIBrainHistoryDetailView,
     AIBrainHistoryItemView,
     AIBrainOperatorNoteCreateRequest,
@@ -14,10 +16,12 @@ from app.models.schemas import (
 )
 from app.services.ai_brain import (
     create_ai_brain_note,
+    get_ai_brain_evidence_review,
     get_ai_brain_history_detail,
     list_ai_brain_history,
     list_ai_brain_notes,
     run_ai_brain_query,
+    upsert_ai_brain_evidence_review,
 )
 
 
@@ -61,3 +65,23 @@ def create_history_note(
     if note is None:
         raise HTTPException(status_code=404, detail="AI Brain audit record not found")
     return note
+
+
+@router.get("/history/{audit_id}/evidence-review", response_model=AIBrainEvidenceReviewView)
+def history_evidence_review(audit_id: str, session: Session = Depends(get_session)) -> AIBrainEvidenceReviewView:
+    review = get_ai_brain_evidence_review(session, audit_id)
+    if review is None:
+        raise HTTPException(status_code=404, detail="AI Brain audit record not found")
+    return review
+
+
+@router.post("/history/{audit_id}/evidence-review", response_model=AIBrainEvidenceReviewView)
+def upsert_history_evidence_review(
+    audit_id: str,
+    payload: AIBrainEvidenceReviewUpsertRequest,
+    session: Session = Depends(get_session),
+) -> AIBrainEvidenceReviewView:
+    review = upsert_ai_brain_evidence_review(session, audit_id, payload)
+    if review is None:
+        raise HTTPException(status_code=404, detail="AI Brain audit record not found")
+    return review

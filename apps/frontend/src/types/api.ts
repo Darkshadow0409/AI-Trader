@@ -1820,6 +1820,85 @@ export interface PaperLoopControlActionRequest {
   actor_label?: string;
 }
 
+export interface PaperLoopRunOncePermissionRequest {
+  confirm_manual_run_once_proposals?: boolean;
+  reason?: string;
+  actor_label?: string;
+}
+
+export interface PaperLoopRunOnceRequest {
+  explicit_confirmation?: boolean;
+  symbol?: string;
+  timeframe?: string;
+  strategy_key?: string | null;
+  max_candidates?: number;
+  created_by?: string;
+}
+
+export interface PaperLoopProposalView {
+  proposal_id: string;
+  run_id: string;
+  created_at: string;
+  symbol: string;
+  timeframe: string;
+  strategy_key?: string | null;
+  side: string;
+  quantity?: number | null;
+  requested_price?: number | null;
+  confidence_label: string;
+  evidence_quality_label: string;
+  source_signal_id?: string | null;
+  market_evidence_snapshot: Record<string, unknown>;
+  strategy_contract_snapshot: Record<string, unknown>;
+  backtest_assumption_snapshot: Record<string, unknown>;
+  ai_brain_audit_id?: string | null;
+  status: string;
+  gate_reason: string;
+  paper_only: boolean;
+  simulated_order_id?: string | null;
+}
+
+export interface PaperLoopSafetyEventView {
+  event_id: string;
+  run_id: string;
+  proposal_id?: string | null;
+  created_at: string;
+  severity: string;
+  event_type: string;
+  reason_code: string;
+  message: string;
+  snapshot: Record<string, unknown>;
+  paper_only: boolean;
+}
+
+export interface PaperLoopRunView {
+  run_id: string;
+  created_at: string;
+  completed_at?: string | null;
+  mode: string;
+  status: string;
+  control_status_snapshot: Record<string, unknown>;
+  cycle_limit: number;
+  candidate_count: number;
+  proposal_count: number;
+  safety_event_count: number;
+  created_by: string;
+  paper_only: boolean;
+  summary: Record<string, unknown>;
+  proposals: PaperLoopProposalView[];
+  safety_events: PaperLoopSafetyEventView[];
+}
+
+export interface PaperLoopRunOnceResponseView {
+  run: PaperLoopRunView;
+  proposals: PaperLoopProposalView[];
+  safety_events: PaperLoopSafetyEventView[];
+  created_order_count: number;
+  created_ledger_count: number;
+  created_risk_decision_count: number;
+  paper_only: boolean;
+}
+
 export interface JournalReviewView {
   journal_id: string;
   symbol: string;

@@ -1199,6 +1199,85 @@ class PaperLoopControlActionRequest(BaseModel):
     actor_label: str = "local_operator"
 
 
+class PaperLoopRunOncePermissionRequest(BaseModel):
+    confirm_manual_run_once_proposals: bool = False
+    reason: str = ""
+    actor_label: str = "local_operator"
+
+
+class PaperLoopRunOnceRequest(BaseModel):
+    explicit_confirmation: bool = False
+    symbol: str = "USOUSD"
+    timeframe: str = "1d"
+    strategy_key: str | None = None
+    max_candidates: int = 3
+    created_by: str = "local_operator"
+
+
+class PaperLoopProposalView(BaseModel):
+    proposal_id: str
+    run_id: str
+    created_at: datetime
+    symbol: str
+    timeframe: str
+    strategy_key: str | None = None
+    side: str
+    quantity: float | None = None
+    requested_price: float | None = None
+    confidence_label: str
+    evidence_quality_label: str
+    source_signal_id: str | None = None
+    market_evidence_snapshot: dict[str, Any] = Field(default_factory=dict)
+    strategy_contract_snapshot: dict[str, Any] = Field(default_factory=dict)
+    backtest_assumption_snapshot: dict[str, Any] = Field(default_factory=dict)
+    ai_brain_audit_id: str | None = None
+    status: str
+    gate_reason: str
+    paper_only: bool = True
+    simulated_order_id: str | None = None
+
+
+class PaperLoopSafetyEventView(BaseModel):
+    event_id: str
+    run_id: str
+    proposal_id: str | None = None
+    created_at: datetime
+    severity: str
+    event_type: str
+    reason_code: str
+    message: str
+    snapshot: dict[str, Any] = Field(default_factory=dict)
+    paper_only: bool = True
+
+
+class PaperLoopRunView(BaseModel):
+    run_id: str
+    created_at: datetime
+    completed_at: datetime | None = None
+    mode: str
+    status: str
+    control_status_snapshot: dict[str, Any] = Field(default_factory=dict)
+    cycle_limit: int
+    candidate_count: int
+    proposal_count: int
+    safety_event_count: int
+    created_by: str
+    paper_only: bool = True
+    summary: dict[str, Any] = Field(default_factory=dict)
+    proposals: list[PaperLoopProposalView] = Field(default_factory=list)
+    safety_events: list[PaperLoopSafetyEventView] = Field(default_factory=list)
+
+
+class PaperLoopRunOnceResponseView(BaseModel):
+    run: PaperLoopRunView
+    proposals: list[PaperLoopProposalView] = Field(default_factory=list)
+    safety_events: list[PaperLoopSafetyEventView] = Field(default_factory=list)
+    created_order_count: int = 0
+    created_ledger_count: int = 0
+    created_risk_decision_count: int = 0
+    paper_only: bool = True
+
+
 class PaperRiskPolicyPauseRequest(BaseModel):
     reason: str = "Manual paper risk pause."
 

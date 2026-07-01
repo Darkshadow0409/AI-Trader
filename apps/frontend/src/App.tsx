@@ -50,6 +50,9 @@ import type {
   OperationalBacklogView,
   PaperLoopControlActionRequest,
   PaperLoopControlStatusView,
+  PaperLoopRunOncePermissionRequest,
+  PaperLoopRunOnceRequest,
+  PaperLoopRunOnceResponseView,
   PaperTradeAnalyticsView,
   PaperTradeReviewView,
   PaperTradeView,
@@ -2118,6 +2121,26 @@ export default function App() {
     return nextStatus;
   }
 
+  async function handleAllowPaperLoopRunOnceProposals(
+    payload: PaperLoopRunOncePermissionRequest,
+  ): Promise<PaperLoopControlStatusView> {
+    const nextStatus = await apiClient.allowPaperLoopRunOnceProposals(payload);
+    await Promise.all([resources.paperLoopStatus.refresh(), resources.paperLoopEvents.refresh()]);
+    return nextStatus;
+  }
+
+  async function handlePaperLoopRunOnce(payload: PaperLoopRunOnceRequest): Promise<PaperLoopRunOnceResponseView> {
+    const response = await apiClient.runPaperLoopOnce(payload);
+    await Promise.all([
+      resources.paperLoopStatus.refresh(),
+      resources.paperLoopEvents.refresh(),
+      resources.simulatedOrders.refresh(),
+      resources.paperLedger.refresh(),
+      resources.paperRiskDecisions.refresh(),
+    ]);
+    return response;
+  }
+
   async function proposePaperTradeFromSignal(signalId?: string | null, riskReportId?: string | null) {
     const workspaceSignal =
       selectedSignalWorkspace && (!signalId || selectedSignalWorkspace.signal.signal_id === signalId)
@@ -2774,6 +2797,8 @@ export default function App() {
             paperLoopStatus={resources.paperLoopStatus.data}
             paperLoopEvents={resources.paperLoopEvents.data}
             onPaperLoopAction={handlePaperLoopControlAction}
+            onAllowPaperLoopRunOnceProposals={handleAllowPaperLoopRunOnceProposals}
+            onPaperLoopRunOnce={handlePaperLoopRunOnce}
             simulatedOrders={resources.simulatedOrders.data}
           />
         );

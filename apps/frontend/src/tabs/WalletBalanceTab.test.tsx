@@ -7,6 +7,7 @@ import {
   mockPaperEquityCurve,
   mockPaperLoopControlEvents,
   mockPaperLoopControlStatus,
+  mockPaperLoopRunOnceResponse,
   mockPaperPerformance,
   mockPaperRejectionAnalysis,
   mockPaperRiskDecisions,
@@ -46,8 +47,11 @@ describe("WalletBalanceTab", () => {
     expect(screen.getByRole("heading", { name: "Paper Rejections" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Paper Review Queue" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Paper Loop Control" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Proposal Evidence" })).toBeInTheDocument();
     expect(screen.getByText("run_once_allowed")).toBeInTheDocument();
     expect(screen.getByText("scheduler_allowed")).toBeInTheDocument();
+    expect(screen.getAllByText(/proposal-only/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Proposal-only generation is blocked/i)).toBeInTheDocument();
     expect(screen.getByText(/Phase 9L controls do not run strategies or create orders/i)).toBeInTheDocument();
     expect(screen.getByText(/Paper risk governor accepted this manual simulated order/i)).toBeInTheDocument();
     expect(screen.getByText(/does not invent mark-to-market performance/i)).toBeInTheDocument();
@@ -65,6 +69,13 @@ describe("WalletBalanceTab", () => {
       status: action === "pause" ? "paused" : action === "kill" ? "killed" : "enabled",
       recent_events: [],
     }));
+    const onAllowPaperLoopRunOnceProposals = vi.fn(async () => ({
+      ...mockPaperLoopControlStatus,
+      status: "enabled",
+      run_once_allowed: true,
+      recent_events: [],
+    }));
+    const onPaperLoopRunOnce = vi.fn(async () => mockPaperLoopRunOnceResponse);
 
     render(
       <WalletBalanceTab
@@ -80,6 +91,8 @@ describe("WalletBalanceTab", () => {
         paperLoopStatus={mockPaperLoopControlStatus}
         paperLoopEvents={mockPaperLoopControlEvents}
         onPaperLoopAction={onPaperLoopAction}
+        onAllowPaperLoopRunOnceProposals={onAllowPaperLoopRunOnceProposals}
+        onPaperLoopRunOnce={onPaperLoopRunOnce}
         simulatedOrders={mockSimulatedOrders}
       />,
     );
@@ -104,7 +117,63 @@ describe("WalletBalanceTab", () => {
       }),
     );
 
-    expect(screen.queryByRole("button", { name: /run once|proposal|trade|broker/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept|execute|order|broker/i })).not.toBeInTheDocument();
+  });
+
+  it("runs proposal-only permission and generation flows without showing execution controls", async () => {
+    const onAllowPaperLoopRunOnceProposals = vi.fn(async () => ({
+      ...mockPaperLoopControlStatus,
+      status: "enabled",
+      run_once_allowed: true,
+      scheduler_allowed: false,
+      recent_events: [],
+    }));
+    const onPaperLoopRunOnce = vi.fn(async () => mockPaperLoopRunOnceResponse);
+
+    render(
+      <WalletBalanceTab
+        rows={mockWalletBalances}
+        paperWallet={mockPaperWallet}
+        paperLedger={mockPaperLedger}
+        paperRiskPolicy={mockPaperRiskPolicy}
+        paperRiskDecisions={mockPaperRiskDecisions}
+        paperPerformance={mockPaperPerformance}
+        paperEquityCurve={mockPaperEquityCurve}
+        paperRejectionAnalysis={mockPaperRejectionAnalysis}
+        paperReviewQueue={mockPaperReviewQueue}
+        paperLoopStatus={{ ...mockPaperLoopControlStatus, status: "enabled" }}
+        paperLoopEvents={mockPaperLoopControlEvents}
+        onAllowPaperLoopRunOnceProposals={onAllowPaperLoopRunOnceProposals}
+        onPaperLoopRunOnce={onPaperLoopRunOnce}
+        simulatedOrders={mockSimulatedOrders}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/Allow reason/i), { target: { value: "Manual evidence check." } });
+    fireEvent.click(screen.getByLabelText(/Confirm proposal-only run-once permission/i));
+    fireEvent.click(screen.getByRole("button", { name: /Allow proposal scan/i }));
+    await waitFor(() =>
+      expect(onAllowPaperLoopRunOnceProposals).toHaveBeenCalledWith({
+        confirm_manual_run_once_proposals: true,
+        reason: "Manual evidence check.",
+      }),
+    );
+
+    fireEvent.click(screen.getByLabelText(/Confirm manual proposal-only generation/i));
+    fireEvent.click(screen.getByRole("button", { name: /Generate proposal evidence/i }));
+    await waitFor(() =>
+      expect(onPaperLoopRunOnce).toHaveBeenCalledWith({
+        explicit_confirmation: true,
+        symbol: "USOUSD",
+        timeframe: "1d",
+        max_candidates: 3,
+      }),
+    );
+
+    expect(screen.getByText(/Zero-mutation proof: 0 simulated orders, 0 ledger rows/i)).toBeInTheDocument();
+    expect(screen.queryByText("paper_loop_prop_mock_uso")).not.toBeInTheDocument();
+    expect(screen.getByText("Mock proposal evidence is degraded and remains proposal-only.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept|execute|order|broker/i })).not.toBeInTheDocument();
   });
 
   it("renders honest unavailable copy when no paper wallet has loaded", () => {

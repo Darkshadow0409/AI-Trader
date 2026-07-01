@@ -13,6 +13,9 @@ from app.models.entities import (
     PaperLedgerTransactionRecord,
     PaperLoopControlEventRecord,
     PaperLoopControlStateRecord,
+    PaperLoopProposalRecord,
+    PaperLoopRunRecord,
+    PaperLoopSafetyEventRecord,
     PaperRiskDecisionRecord,
     PaperRiskPolicyRecord,
     PaperWalletRecord,
@@ -29,6 +32,9 @@ def isolated_paper_loop_state() -> None:
         for model in (
             PaperLoopControlEventRecord,
             PaperLoopControlStateRecord,
+            PaperLoopSafetyEventRecord,
+            PaperLoopProposalRecord,
+            PaperLoopRunRecord,
             PaperRiskDecisionRecord,
             PaperRiskPolicyRecord,
             SimulatedOrderRecord,
@@ -45,7 +51,7 @@ def _paper_counts() -> dict[str, int]:
             "orders": len(session.exec(select(SimulatedOrderRecord)).all()),
             "ledger": len(session.exec(select(PaperLedgerTransactionRecord)).all()),
             "risk_decisions": len(session.exec(select(PaperRiskDecisionRecord)).all()),
-            "proposals": 0,
+            "proposals": len(session.exec(select(PaperLoopProposalRecord)).all()),
         }
 
 
@@ -167,9 +173,11 @@ def test_paper_loop_control_actions_do_not_create_trading_records() -> None:
 def test_phase9l_does_not_expose_run_once_cycles_or_proposals() -> None:
     client = TestClient(app)
 
-    assert client.post("/api/portfolio/paper-loop/run-once", json={}).status_code == 404
     assert client.get("/api/portfolio/paper-loop/cycles").status_code == 404
-    assert client.get("/api/portfolio/paper-loop/proposals").status_code == 404
+    assert client.post("/api/portfolio/paper-loop/accept", json={}).status_code == 404
+    assert client.post("/api/portfolio/paper-loop/execute", json={}).status_code == 404
+    assert client.get("/api/portfolio/paper-loop/run-once").status_code == 405
+    assert client.post("/api/portfolio/paper-loop/run-once", json={}).status_code == 400
 
     payload = client.get("/api/portfolio/paper-loop/status").json()
     serialized = json.dumps(payload).lower()

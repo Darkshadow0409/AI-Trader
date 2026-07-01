@@ -43,6 +43,10 @@ import type {
   PaperLedgerTransactionView,
   PaperLoopControlEventView,
   PaperLoopControlStatusView,
+  PaperLoopProposalView,
+  PaperLoopRunOnceResponseView,
+  PaperLoopRunView,
+  PaperLoopSafetyEventView,
   PaperPerformanceSummaryView,
   PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
@@ -3025,6 +3029,76 @@ export const mockPaperLoopControlStatus: PaperLoopControlStatusView = {
   updated_at: "2026-07-01T04:51:00Z",
   recent_events: mockPaperLoopControlEvents,
   phase_note: "Phase 9L controls do not run strategies or create orders.",
+};
+
+export const mockPaperLoopProposals: PaperLoopProposalView[] = [
+  {
+    proposal_id: "paper_loop_prop_mock_uso",
+    run_id: "paper_loop_run_mock",
+    created_at: "2026-07-01T07:28:00Z",
+    symbol: "USOUSD",
+    timeframe: "1d",
+    strategy_key: null,
+    side: "hold",
+    quantity: null,
+    requested_price: 78.42,
+    confidence_label: "unavailable",
+    evidence_quality_label: "degraded",
+    source_signal_id: null,
+    market_evidence_snapshot: { provider_id: "local_ai_trader_snapshot", freshness_status: "degraded" },
+    strategy_contract_snapshot: {},
+    backtest_assumption_snapshot: {},
+    ai_brain_audit_id: null,
+    status: "skipped",
+    gate_reason: "Mock proposal evidence is degraded and remains proposal-only.",
+    paper_only: true,
+    simulated_order_id: null,
+  },
+];
+
+export const mockPaperLoopSafetyEvents: PaperLoopSafetyEventView[] = [
+  {
+    event_id: "paper_loop_safe_mock_uso",
+    run_id: "paper_loop_run_mock",
+    proposal_id: "paper_loop_prop_mock_uso",
+    created_at: "2026-07-01T07:28:00Z",
+    severity: "warning",
+    event_type: "proposal_evidence",
+    reason_code: "skipped",
+    message: "Mock safety event confirms this generated evidence only.",
+    snapshot: { proposal_only: true, scheduler_allowed: false },
+    paper_only: true,
+  },
+];
+
+export const mockPaperLoopRuns: PaperLoopRunView[] = [
+  {
+    run_id: "paper_loop_run_mock",
+    created_at: "2026-07-01T07:28:00Z",
+    completed_at: "2026-07-01T07:28:00Z",
+    mode: "manual_run_once",
+    status: "completed",
+    control_status_snapshot: { status: "enabled", run_once_allowed: true, scheduler_allowed: false },
+    cycle_limit: 1,
+    candidate_count: 1,
+    proposal_count: 1,
+    safety_event_count: 1,
+    created_by: "local_operator",
+    paper_only: true,
+    summary: { proposal_only: true, created_order_count: 0, created_ledger_count: 0, created_risk_decision_count: 0 },
+    proposals: mockPaperLoopProposals,
+    safety_events: mockPaperLoopSafetyEvents,
+  },
+];
+
+export const mockPaperLoopRunOnceResponse: PaperLoopRunOnceResponseView = {
+  run: mockPaperLoopRuns[0],
+  proposals: mockPaperLoopProposals,
+  safety_events: mockPaperLoopSafetyEvents,
+  created_order_count: 0,
+  created_ledger_count: 0,
+  created_risk_decision_count: 0,
+  paper_only: true,
 };
 
 export const mockPaperEquityCurve: PaperEquityCurvePointView[] = [

@@ -15,6 +15,12 @@ from app.models.schemas import (
     PaperLoopControlActionRequest,
     PaperLoopControlEventView,
     PaperLoopControlStatusView,
+    PaperLoopProposalView,
+    PaperLoopRunOncePermissionRequest,
+    PaperLoopRunOnceRequest,
+    PaperLoopRunOnceResponseView,
+    PaperLoopRunView,
+    PaperLoopSafetyEventView,
     PaperTradeOpenRequest,
     PaperTradePartialExitRequest,
     PaperPerformanceSummaryView,
@@ -70,6 +76,7 @@ from app.services.paper_wallet import (
     resume_paper_risk_policy,
 )
 from app.services.paper_loop_control import (
+    allow_manual_run_once_proposals,
     disable_paper_loop_control,
     enable_paper_loop_control,
     get_paper_loop_status,
@@ -77,6 +84,13 @@ from app.services.paper_loop_control import (
     list_paper_loop_events,
     pause_paper_loop_control,
     resume_paper_loop_control,
+)
+from app.services.paper_loop_proposals import (
+    get_paper_loop_run,
+    list_paper_loop_proposals,
+    list_paper_loop_runs,
+    list_paper_loop_safety_events,
+    run_paper_loop_once,
 )
 
 
@@ -168,6 +182,29 @@ def paper_loop_events(session: Session = Depends(get_session)) -> list[PaperLoop
     return list_paper_loop_events(session)
 
 
+@router.get("/paper-loop/runs", response_model=list[PaperLoopRunView])
+def paper_loop_runs(session: Session = Depends(get_session)) -> list[PaperLoopRunView]:
+    return list_paper_loop_runs(session)
+
+
+@router.get("/paper-loop/runs/{run_id}", response_model=PaperLoopRunView)
+def paper_loop_run_detail(run_id: str, session: Session = Depends(get_session)) -> PaperLoopRunView:
+    run = get_paper_loop_run(session, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Paper loop run not found.")
+    return run
+
+
+@router.get("/paper-loop/proposals", response_model=list[PaperLoopProposalView])
+def paper_loop_proposals(session: Session = Depends(get_session)) -> list[PaperLoopProposalView]:
+    return list_paper_loop_proposals(session)
+
+
+@router.get("/paper-loop/safety-events", response_model=list[PaperLoopSafetyEventView])
+def paper_loop_safety_events(session: Session = Depends(get_session)) -> list[PaperLoopSafetyEventView]:
+    return list_paper_loop_safety_events(session)
+
+
 @router.post("/paper-loop/enable", response_model=PaperLoopControlStatusView)
 def enable_paper_loop(
     payload: PaperLoopControlActionRequest,
@@ -175,6 +212,28 @@ def enable_paper_loop(
 ) -> PaperLoopControlStatusView:
     try:
         return enable_paper_loop_control(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/paper-loop/allow-run-once-proposals", response_model=PaperLoopControlStatusView)
+def allow_paper_loop_run_once_proposals(
+    payload: PaperLoopRunOncePermissionRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopControlStatusView:
+    try:
+        return allow_manual_run_once_proposals(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/paper-loop/run-once", response_model=PaperLoopRunOnceResponseView)
+def paper_loop_run_once(
+    payload: PaperLoopRunOnceRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopRunOnceResponseView:
+    try:
+        return run_paper_loop_once(session, payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

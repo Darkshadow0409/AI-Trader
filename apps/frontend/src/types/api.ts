@@ -1776,6 +1776,50 @@ export interface PaperPerformanceSummaryView {
   paper_only: boolean;
 }
 
+export interface PaperLoopControlEventView {
+  event_id: string;
+  control_id: string;
+  created_at: string;
+  previous_status: string;
+  next_status: string;
+  action: string;
+  actor_label: string;
+  reason: string;
+  paper_only: boolean;
+}
+
+export interface PaperLoopControlStatusView {
+  control_id: string;
+  schema_version: string;
+  status: "disabled" | "enabled" | "paused" | "killed" | string;
+  paper_only: boolean;
+  run_once_allowed: boolean;
+  scheduler_allowed: boolean;
+  enabled_by: string | null;
+  enabled_at: string | null;
+  disabled_by: string | null;
+  disabled_at: string | null;
+  paused_by: string | null;
+  paused_at: string | null;
+  pause_reason: string;
+  resumed_by: string | null;
+  resumed_at: string | null;
+  killed_by: string | null;
+  killed_at: string | null;
+  kill_reason: string;
+  last_transition_reason: string;
+  created_at: string;
+  updated_at: string;
+  recent_events: PaperLoopControlEventView[];
+  phase_note: string;
+}
+
+export interface PaperLoopControlActionRequest {
+  confirm_paper_loop_control?: boolean;
+  reason?: string;
+  actor_label?: string;
+}
+
 export interface JournalReviewView {
   journal_id: string;
   symbol: string;

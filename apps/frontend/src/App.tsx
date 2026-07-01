@@ -48,6 +48,8 @@ import type {
   HomeOperatorSummaryView,
   OperatorWireItemView,
   OperationalBacklogView,
+  PaperLoopControlActionRequest,
+  PaperLoopControlStatusView,
   PaperTradeAnalyticsView,
   PaperTradeReviewView,
   PaperTradeView,
@@ -2035,6 +2037,8 @@ export default function App() {
       resources.closedPaperTrades.refresh(),
       resources.paperTradeAnalytics.refresh(),
       resources.paperTradeReviews.refresh(),
+      resources.paperLoopStatus.refresh(),
+      resources.paperLoopEvents.refresh(),
       resources.journal.refresh(),
       resources.tradeTickets.refresh(),
       resources.tradeTicketSummary.refresh(),
@@ -2096,6 +2100,22 @@ export default function App() {
     if (selectedTicketId) {
       await resources.tradeTicketDetail.refresh();
     }
+  }
+
+  async function handlePaperLoopControlAction(
+    action: "enable" | "disable" | "pause" | "resume" | "kill",
+    payload: PaperLoopControlActionRequest,
+  ): Promise<PaperLoopControlStatusView> {
+    const handlers = {
+      enable: apiClient.enablePaperLoopControl,
+      disable: apiClient.disablePaperLoopControl,
+      pause: apiClient.pausePaperLoopControl,
+      resume: apiClient.resumePaperLoopControl,
+      kill: apiClient.killPaperLoopControl,
+    };
+    const nextStatus = await handlers[action](payload);
+    await Promise.all([resources.paperLoopStatus.refresh(), resources.paperLoopEvents.refresh()]);
+    return nextStatus;
   }
 
   async function proposePaperTradeFromSignal(signalId?: string | null, riskReportId?: string | null) {
@@ -2751,6 +2771,9 @@ export default function App() {
             paperEquityCurve={resources.paperEquityCurve.data}
             paperRejectionAnalysis={resources.paperRejectionAnalysis.data}
             paperReviewQueue={resources.paperReviewQueue.data}
+            paperLoopStatus={resources.paperLoopStatus.data}
+            paperLoopEvents={resources.paperLoopEvents.data}
+            onPaperLoopAction={handlePaperLoopControlAction}
             simulatedOrders={resources.simulatedOrders.data}
           />
         );

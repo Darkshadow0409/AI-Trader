@@ -27,6 +27,8 @@ import type {
   OpportunityHunterView,
   ReplayView,
   PaperEquityCurvePointView,
+  PaperLoopControlEventView,
+  PaperLoopControlStatusView,
   PaperTradeAnalyticsView,
   PaperLedgerTransactionView,
   PaperPerformanceSummaryView,
@@ -1353,6 +1355,14 @@ export function useDashboardData(
     enabled: showWallet,
     preserveData: true,
   });
+  const paperLoopStatus = usePollingResource<PaperLoopControlStatusView | null>(() => apiClient.paperLoopStatus(), null, {
+    enabled: showWallet,
+    preserveData: true,
+  });
+  const paperLoopEvents = usePollingResource<PaperLoopControlEventView[]>(() => apiClient.paperLoopEvents(), [], {
+    enabled: showWallet,
+    preserveData: true,
+  });
   const simulatedOrders = usePollingResource<SimulatedOrderView[]>(() => apiClient.simulatedOrders(), [], { enabled: showWallet, preserveData: true });
   const journal = usePollingResource<JournalReviewView[]>(() => apiClient.journal(), [], { enabled: showJournal, preserveData: true });
   const paperTradeAnalytics = usePollingResource<PaperTradeAnalyticsView>(
@@ -1573,6 +1583,8 @@ export function useDashboardData(
     paperEquityCurve,
     paperRejectionAnalysis,
     paperReviewQueue,
+    paperLoopStatus,
+    paperLoopEvents,
     simulatedOrders,
     journal,
     scenario,

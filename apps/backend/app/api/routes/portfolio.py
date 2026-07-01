@@ -12,6 +12,9 @@ from app.models.schemas import (
     PaperTradeCloseRequest,
     PaperTradeDetailView,
     PaperEquityCurvePointView,
+    PaperLoopControlActionRequest,
+    PaperLoopControlEventView,
+    PaperLoopControlStatusView,
     PaperTradeOpenRequest,
     PaperTradePartialExitRequest,
     PaperPerformanceSummaryView,
@@ -65,6 +68,15 @@ from app.services.paper_wallet import (
     list_simulated_orders,
     pause_paper_risk_policy,
     resume_paper_risk_policy,
+)
+from app.services.paper_loop_control import (
+    disable_paper_loop_control,
+    enable_paper_loop_control,
+    get_paper_loop_status,
+    kill_paper_loop_control,
+    list_paper_loop_events,
+    pause_paper_loop_control,
+    resume_paper_loop_control,
 )
 
 
@@ -144,6 +156,71 @@ def paper_rejections(session: Session = Depends(get_session)) -> list[PaperRejec
 @router.get("/paper-review-queue", response_model=list[PaperReviewQueueItemView])
 def paper_reviews(session: Session = Depends(get_session)) -> list[PaperReviewQueueItemView]:
     return paper_review_queue(session)
+
+
+@router.get("/paper-loop/status", response_model=PaperLoopControlStatusView)
+def paper_loop_status(session: Session = Depends(get_session)) -> PaperLoopControlStatusView:
+    return get_paper_loop_status(session)
+
+
+@router.get("/paper-loop/events", response_model=list[PaperLoopControlEventView])
+def paper_loop_events(session: Session = Depends(get_session)) -> list[PaperLoopControlEventView]:
+    return list_paper_loop_events(session)
+
+
+@router.post("/paper-loop/enable", response_model=PaperLoopControlStatusView)
+def enable_paper_loop(
+    payload: PaperLoopControlActionRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopControlStatusView:
+    try:
+        return enable_paper_loop_control(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/paper-loop/disable", response_model=PaperLoopControlStatusView)
+def disable_paper_loop(
+    payload: PaperLoopControlActionRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopControlStatusView:
+    try:
+        return disable_paper_loop_control(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/paper-loop/pause", response_model=PaperLoopControlStatusView)
+def pause_paper_loop(
+    payload: PaperLoopControlActionRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopControlStatusView:
+    try:
+        return pause_paper_loop_control(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/paper-loop/resume", response_model=PaperLoopControlStatusView)
+def resume_paper_loop(
+    payload: PaperLoopControlActionRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopControlStatusView:
+    try:
+        return resume_paper_loop_control(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/paper-loop/kill", response_model=PaperLoopControlStatusView)
+def kill_paper_loop(
+    payload: PaperLoopControlActionRequest,
+    session: Session = Depends(get_session),
+) -> PaperLoopControlStatusView:
+    try:
+        return kill_paper_loop_control(session, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/paper-risk-policy/pause", response_model=PaperRiskPolicyView)

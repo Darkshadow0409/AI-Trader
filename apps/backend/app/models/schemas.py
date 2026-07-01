@@ -1155,6 +1155,50 @@ class PaperPerformanceSummaryView(BaseModel):
     paper_only: bool = True
 
 
+class PaperLoopControlEventView(BaseModel):
+    event_id: str
+    control_id: str
+    created_at: datetime
+    previous_status: str
+    next_status: str
+    action: str
+    actor_label: str
+    reason: str = ""
+    paper_only: bool = True
+
+
+class PaperLoopControlStatusView(BaseModel):
+    control_id: str
+    schema_version: str
+    status: str
+    paper_only: bool = True
+    run_once_allowed: bool = False
+    scheduler_allowed: bool = False
+    enabled_by: str | None = None
+    enabled_at: datetime | None = None
+    disabled_by: str | None = None
+    disabled_at: datetime | None = None
+    paused_by: str | None = None
+    paused_at: datetime | None = None
+    pause_reason: str = ""
+    resumed_by: str | None = None
+    resumed_at: datetime | None = None
+    killed_by: str | None = None
+    killed_at: datetime | None = None
+    kill_reason: str = ""
+    last_transition_reason: str = ""
+    created_at: datetime
+    updated_at: datetime
+    recent_events: list[PaperLoopControlEventView] = Field(default_factory=list)
+    phase_note: str = "Phase 9L controls do not run strategies or create orders."
+
+
+class PaperLoopControlActionRequest(BaseModel):
+    confirm_paper_loop_control: bool = False
+    reason: str = ""
+    actor_label: str = "local_operator"
+
+
 class PaperRiskPolicyPauseRequest(BaseModel):
     reason: str = "Manual paper risk pause."
 

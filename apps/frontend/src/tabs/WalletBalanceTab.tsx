@@ -6,6 +6,9 @@ import type {
   PaperLoopControlActionRequest,
   PaperLoopControlEventView,
   PaperLoopControlStatusView,
+  PaperLoopRunOncePermissionRequest,
+  PaperLoopRunOnceRequest,
+  PaperLoopRunOnceResponseView,
   PaperPerformanceSummaryView,
   PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
@@ -32,6 +35,8 @@ interface WalletBalanceTabProps {
     action: "enable" | "disable" | "pause" | "resume" | "kill",
     payload: PaperLoopControlActionRequest,
   ) => Promise<PaperLoopControlStatusView>;
+  onAllowPaperLoopRunOnceProposals?: (payload: PaperLoopRunOncePermissionRequest) => Promise<PaperLoopControlStatusView>;
+  onPaperLoopRunOnce?: (payload: PaperLoopRunOnceRequest) => Promise<PaperLoopRunOnceResponseView>;
   simulatedOrders?: SimulatedOrderView[];
 }
 
@@ -78,6 +83,8 @@ export function WalletBalanceTab({
   paperLoopStatus,
   paperLoopEvents = [],
   onPaperLoopAction,
+  onAllowPaperLoopRunOnceProposals,
+  onPaperLoopRunOnce,
   simulatedOrders = [],
 }: WalletBalanceTabProps) {
   const [localLoopStatus, setLocalLoopStatus] = useState<PaperLoopControlStatusView | null>(paperLoopStatus ?? null);
@@ -88,6 +95,15 @@ export function WalletBalanceTab({
   const [killReason, setKillReason] = useState("");
   const [loopMessage, setLoopMessage] = useState("");
   const [loopBusyAction, setLoopBusyAction] = useState<string | null>(null);
+  const [confirmAllowRunOnce, setConfirmAllowRunOnce] = useState(false);
+  const [allowRunOnceReason, setAllowRunOnceReason] = useState("");
+  const [runOnceConfirmation, setRunOnceConfirmation] = useState(false);
+  const [runOnceSymbol, setRunOnceSymbol] = useState("USOUSD");
+  const [runOnceTimeframe, setRunOnceTimeframe] = useState("1d");
+  const [runOnceMaxCandidates, setRunOnceMaxCandidates] = useState(3);
+  const [runOnceMessage, setRunOnceMessage] = useState("");
+  const [runOnceBusy, setRunOnceBusy] = useState(false);
+  const [runOnceResponse, setRunOnceResponse] = useState<PaperLoopRunOnceResponseView | null>(null);
   const visibleLoopStatus = localLoopStatus ?? paperLoopStatus ?? null;
   const visibleLoopEvents = visibleLoopStatus?.recent_events?.length
     ? visibleLoopStatus.recent_events
@@ -128,6 +144,53 @@ export function WalletBalanceTab({
       setLoopMessage(error instanceof Error ? error.message : "Paper loop control action failed.");
     } finally {
       setLoopBusyAction(null);
+    }
+  }
+
+  async function allowProposalRunOnce() {
+    if (!onAllowPaperLoopRunOnceProposals) {
+      setRunOnceMessage("Paper loop proposal-only permission API is not connected in this view.");
+      return;
+    }
+    setRunOnceBusy(true);
+    setRunOnceMessage("");
+    try {
+      const nextStatus = await onAllowPaperLoopRunOnceProposals({
+        confirm_manual_run_once_proposals: true,
+        reason: allowRunOnceReason,
+      });
+      setLocalLoopStatus(nextStatus);
+      setConfirmAllowRunOnce(false);
+      setAllowRunOnceReason("");
+      setRunOnceMessage("Manual proposal-only run-once is now explicitly allowed. Scheduler remains disabled.");
+    } catch (error) {
+      setRunOnceMessage(error instanceof Error ? error.message : "Unable to allow proposal-only run-once.");
+    } finally {
+      setRunOnceBusy(false);
+    }
+  }
+
+  async function generateProposalEvidence() {
+    if (!onPaperLoopRunOnce) {
+      setRunOnceMessage("Paper loop proposal generator API is not connected in this view.");
+      return;
+    }
+    setRunOnceBusy(true);
+    setRunOnceMessage("");
+    try {
+      const response = await onPaperLoopRunOnce({
+        explicit_confirmation: true,
+        symbol: runOnceSymbol,
+        timeframe: runOnceTimeframe,
+        max_candidates: runOnceMaxCandidates,
+      });
+      setRunOnceResponse(response);
+      setRunOnceConfirmation(false);
+      setRunOnceMessage(`Proposal-only run ${response.run.status}: ${response.proposals.length} proposal rows and ${response.safety_events.length} safety events.`);
+    } catch (error) {
+      setRunOnceMessage(error instanceof Error ? error.message : "Proposal-only run-once failed.");
+    } finally {
+      setRunOnceBusy(false);
     }
   }
 
@@ -289,6 +352,156 @@ export function WalletBalanceTab({
           >
             Kill control state
           </button>
+        </div>
+        <div className="subpanel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Manual proposal-only run-once</p>
+              <h4>Proposal Evidence</h4>
+            </div>
+            <span className="status-pill">scheduler disabled</span>
+          </div>
+          <p className="muted-copy">
+            Phase 9M controls create proposal and safety-event evidence only. They do not run strategies automatically,
+            create simulated orders, update the ledger, or persist risk decisions.
+          </p>
+          <div className="tag-row compact-link-row">
+            <span>proposal-only</span>
+            <span>paper/research only</span>
+            <span>run_once_allowed={visibleLoopStatus?.run_once_allowed ? "true" : "false"}</span>
+            <span>scheduler_allowed={visibleLoopStatus?.scheduler_allowed ? "true" : "false"}</span>
+          </div>
+          <div className="control-grid">
+            <label className="field">
+              <span>Allow reason</span>
+              <input
+                onChange={(event) => setAllowRunOnceReason(event.target.value)}
+                placeholder="Required before enabling proposal-only run-once"
+                type="text"
+                value={allowRunOnceReason}
+              />
+            </label>
+            <label className="control-check">
+              <input
+                checked={confirmAllowRunOnce}
+                onChange={(event) => setConfirmAllowRunOnce(event.target.checked)}
+                type="checkbox"
+              />
+              Confirm proposal-only run-once permission
+            </label>
+            <button
+              className="action-button"
+              disabled={
+                !confirmAllowRunOnce ||
+                !allowRunOnceReason.trim() ||
+                runOnceBusy ||
+                !onAllowPaperLoopRunOnceProposals ||
+                visibleLoopStatus?.status !== "enabled"
+              }
+              onClick={allowProposalRunOnce}
+              type="button"
+            >
+              Allow proposal scan
+            </button>
+            <label className="field">
+              <span>Symbol</span>
+              <input onChange={(event) => setRunOnceSymbol(event.target.value)} type="text" value={runOnceSymbol} />
+            </label>
+            <label className="field">
+              <span>Timeframe</span>
+              <input onChange={(event) => setRunOnceTimeframe(event.target.value)} type="text" value={runOnceTimeframe} />
+            </label>
+            <label className="field">
+              <span>Max candidates</span>
+              <input
+                max={5}
+                min={1}
+                onChange={(event) => setRunOnceMaxCandidates(Number(event.target.value))}
+                type="number"
+                value={runOnceMaxCandidates}
+              />
+            </label>
+            <label className="control-check">
+              <input
+                checked={runOnceConfirmation}
+                onChange={(event) => setRunOnceConfirmation(event.target.checked)}
+                type="checkbox"
+              />
+              Confirm manual proposal-only generation
+            </label>
+            <button
+              className="action-button"
+              disabled={
+                !runOnceConfirmation ||
+                runOnceBusy ||
+                !onPaperLoopRunOnce ||
+                visibleLoopStatus?.status !== "enabled" ||
+                !visibleLoopStatus?.run_once_allowed
+              }
+              onClick={generateProposalEvidence}
+              type="button"
+            >
+              Generate proposal evidence
+            </button>
+          </div>
+          {runOnceMessage ? <p className="muted-copy">{runOnceMessage}</p> : null}
+          {visibleLoopStatus?.status !== "enabled" ? (
+            <p className="muted-copy">Proposal-only generation is blocked while control status is {visibleLoopStatus?.status ?? "disabled"}.</p>
+          ) : !visibleLoopStatus?.run_once_allowed ? (
+            <p className="muted-copy">Proposal-only generation is blocked until an operator explicitly allows it.</p>
+          ) : null}
+          {runOnceResponse ? (
+            <>
+              <p className="muted-copy">
+                Zero-mutation proof: {runOnceResponse.created_order_count} simulated orders, {runOnceResponse.created_ledger_count} ledger rows,
+                and {runOnceResponse.created_risk_decision_count} risk decisions created.
+              </p>
+              {runOnceResponse.proposals.length > 0 ? (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Symbol</th>
+                      <th>Side</th>
+                      <th>Status</th>
+                      <th>Gate reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runOnceResponse.proposals.map((proposal) => (
+                      <tr key={proposal.proposal_id}>
+                        <td>{proposal.symbol}</td>
+                        <td>{proposal.side}</td>
+                        <td>{proposal.status}</td>
+                        <td>{proposal.gate_reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="muted-copy">No proposal rows were created for this run.</p>
+              )}
+              {runOnceResponse.safety_events.length > 0 ? (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Severity</th>
+                      <th>Reason</th>
+                      <th>Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runOnceResponse.safety_events.map((event) => (
+                      <tr key={event.event_id}>
+                        <td>{event.severity}</td>
+                        <td>{event.reason_code}</td>
+                        <td>{event.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+            </>
+          ) : null}
         </div>
         {loopMessage ? <p className="muted-copy">{loopMessage}</p> : null}
         {visibleLoopEvents.length > 0 ? (

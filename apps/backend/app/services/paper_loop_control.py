@@ -9,6 +9,7 @@ from app.models.entities import PaperLoopControlEventRecord, PaperLoopControlSta
 from app.models.schemas import (
     PaperLoopControlActionRequest,
     PaperLoopControlEventView,
+    PaperLoopRunOncePermissionRequest,
     PaperLoopControlStatusView,
 )
 
@@ -23,6 +24,14 @@ def _actor_label(payload: PaperLoopControlActionRequest) -> str:
 
 
 def _reason(payload: PaperLoopControlActionRequest) -> str:
+    return payload.reason.strip()
+
+
+def _permission_actor_label(payload: PaperLoopRunOncePermissionRequest) -> str:
+    return payload.actor_label.strip() or "local_operator"
+
+
+def _permission_reason(payload: PaperLoopRunOncePermissionRequest) -> str:
     return payload.reason.strip()
 
 
@@ -72,7 +81,7 @@ def _state_view(
         schema_version=record.schema_version,
         status=record.status,
         paper_only=True,
-        run_once_allowed=False,
+        run_once_allowed=bool(record.run_once_allowed),
         scheduler_allowed=False,
         enabled_by=record.enabled_by,
         enabled_at=record.enabled_at,
@@ -103,7 +112,6 @@ def _get_or_create_state(session: Session) -> PaperLoopControlStateRecord:
     row = _get_state(session)
     if row is not None:
         row.paper_only = True
-        row.run_once_allowed = False
         row.scheduler_allowed = False
         row.schema_version = SCHEMA_VERSION
         return row
@@ -155,12 +163,13 @@ def _finish_transition(
     action: str,
     actor_label: str,
     reason: str,
+    run_once_allowed: bool = False,
 ) -> PaperLoopControlStatusView:
     if next_status not in VALID_STATUSES:
         raise ValueError("Unsupported paper loop control status.")
     row.status = next_status
     row.paper_only = True
-    row.run_once_allowed = False
+    row.run_once_allowed = bool(run_once_allowed)
     row.scheduler_allowed = False
     row.schema_version = SCHEMA_VERSION
     row.updated_at = naive_utc_now()
@@ -210,6 +219,33 @@ def enable_paper_loop_control(
         action="enable",
         actor_label=actor,
         reason=reason,
+    )
+
+
+def allow_manual_run_once_proposals(
+    session: Session,
+    payload: PaperLoopRunOncePermissionRequest,
+) -> PaperLoopControlStatusView:
+    if not payload.confirm_manual_run_once_proposals:
+        raise ValueError("Explicit confirmation is required to allow manual proposal-only run-once.")
+    reason = _permission_reason(payload)
+    if not reason:
+        raise ValueError("A reason is required to allow manual proposal-only run-once.")
+    row = _get_or_create_state(session)
+    if row.status == "killed":
+        raise ValueError("Killed paper loop control cannot allow manual run-once proposals.")
+    if row.status != "enabled":
+        raise ValueError("Manual proposal-only run-once can be allowed only when paper loop control is enabled.")
+    actor = _permission_actor_label(payload)
+    return _finish_transition(
+        session,
+        row,
+        previous_status=row.status,
+        next_status=row.status,
+        action="allow_run_once_proposals",
+        actor_label=actor,
+        reason=reason,
+        run_once_allowed=True,
     )
 
 

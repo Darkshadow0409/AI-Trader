@@ -51,6 +51,10 @@ import {
   mockPaperLedger,
   mockPaperLoopControlEvents,
   mockPaperLoopControlStatus,
+  mockPaperLoopProposals,
+  mockPaperLoopRunOnceResponse,
+  mockPaperLoopRuns,
+  mockPaperLoopSafetyEvents,
   mockPaperEquityCurve,
   mockPaperPerformance,
   mockPaperRejectionAnalysis,
@@ -132,6 +136,12 @@ import type {
   PaperLoopControlActionRequest,
   PaperLoopControlEventView,
   PaperLoopControlStatusView,
+  PaperLoopProposalView,
+  PaperLoopRunOncePermissionRequest,
+  PaperLoopRunOnceRequest,
+  PaperLoopRunOnceResponseView,
+  PaperLoopRunView,
+  PaperLoopSafetyEventView,
   PaperPerformanceSummaryView,
   PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
@@ -776,8 +786,25 @@ export const apiClient = {
   paperReviewQueue: () => requestJson<PaperReviewQueueItemView[]>("/portfolio/paper-review-queue", mockPaperReviewQueue),
   paperLoopStatus: () => requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/status", mockPaperLoopControlStatus),
   paperLoopEvents: () => requestJson<PaperLoopControlEventView[]>("/portfolio/paper-loop/events", mockPaperLoopControlEvents),
+  paperLoopRuns: () => requestJson<PaperLoopRunView[]>("/portfolio/paper-loop/runs", mockPaperLoopRuns),
+  paperLoopProposals: () => requestJson<PaperLoopProposalView[]>("/portfolio/paper-loop/proposals", mockPaperLoopProposals),
+  paperLoopSafetyEvents: () => requestJson<PaperLoopSafetyEventView[]>("/portfolio/paper-loop/safety-events", mockPaperLoopSafetyEvents),
   enablePaperLoopControl: (payload: PaperLoopControlActionRequest) =>
     requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/enable", mockPaperLoopControlStatus, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  allowPaperLoopRunOnceProposals: (payload: PaperLoopRunOncePermissionRequest) =>
+    requestJson<PaperLoopControlStatusView>(
+      "/portfolio/paper-loop/allow-run-once-proposals",
+      { ...mockPaperLoopControlStatus, status: "enabled", run_once_allowed: true, scheduler_allowed: false },
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    ),
+  runPaperLoopOnce: (payload: PaperLoopRunOnceRequest) =>
+    requestJson<PaperLoopRunOnceResponseView>("/portfolio/paper-loop/run-once", mockPaperLoopRunOnceResponse, {
       method: "POST",
       body: JSON.stringify(payload),
     }),

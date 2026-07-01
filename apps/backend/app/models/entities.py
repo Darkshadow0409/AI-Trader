@@ -390,6 +390,61 @@ class PaperLoopControlEventRecord(SQLModel, table=True):
     paper_only: bool = True
 
 
+class PaperLoopRunRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    completed_at: datetime | None = Field(default=None, index=True)
+    mode: str = Field(default="manual_run_once", index=True)
+    status: str = Field(default="created", index=True)
+    control_status_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    cycle_limit: int = 1
+    candidate_count: int = 0
+    proposal_count: int = 0
+    safety_event_count: int = 0
+    created_by: str = Field(default="local_operator", index=True)
+    paper_only: bool = True
+    summary_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class PaperLoopProposalRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    proposal_id: str = Field(index=True, unique=True)
+    run_id: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    strategy_key: str | None = Field(default=None, index=True)
+    side: str = Field(default="unavailable", index=True)
+    quantity: float | None = None
+    requested_price: float | None = None
+    confidence_label: str = Field(default="unavailable", index=True)
+    evidence_quality_label: str = Field(default="unavailable", index=True)
+    source_signal_id: str | None = Field(default=None, index=True)
+    market_evidence_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    strategy_contract_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    backtest_assumption_snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    ai_brain_audit_id: str | None = Field(default=None, index=True)
+    status: str = Field(default="unavailable", index=True)
+    gate_reason: str = ""
+    paper_only: bool = True
+    simulated_order_id: str | None = Field(default=None, index=True)
+
+
+class PaperLoopSafetyEventRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    event_id: str = Field(index=True, unique=True)
+    run_id: str = Field(index=True)
+    proposal_id: str | None = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    severity: str = Field(default="info", index=True)
+    event_type: str = Field(index=True)
+    reason_code: str = Field(index=True)
+    message: str
+    snapshot_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    paper_only: bool = True
+
+
 class PaperTradeReviewRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     review_id: str = Field(index=True, unique=True)

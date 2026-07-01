@@ -41,6 +41,8 @@ import type {
   AIBrainEvidenceReviewView,
   PaperEquityCurvePointView,
   PaperLedgerTransactionView,
+  PaperLoopControlEventView,
+  PaperLoopControlStatusView,
   PaperPerformanceSummaryView,
   PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
@@ -2983,6 +2985,46 @@ export const mockPaperPerformance: PaperPerformanceSummaryView = {
   ],
   generated_at: "2026-06-18T07:37:00Z",
   paper_only: true,
+};
+
+export const mockPaperLoopControlEvents: PaperLoopControlEventView[] = [
+  {
+    event_id: "paper_loop_evt_mock_disabled",
+    control_id: "paper_loop_default",
+    created_at: "2026-07-01T04:51:00Z",
+    previous_status: "enabled",
+    next_status: "disabled",
+    action: "disable",
+    actor_label: "local_operator",
+    reason: "Keep Phase 9L control state disabled unless the operator explicitly changes it.",
+    paper_only: true,
+  },
+];
+
+export const mockPaperLoopControlStatus: PaperLoopControlStatusView = {
+  control_id: "paper_loop_default",
+  schema_version: "phase9l.v1",
+  status: "disabled",
+  paper_only: true,
+  run_once_allowed: false,
+  scheduler_allowed: false,
+  enabled_by: null,
+  enabled_at: null,
+  disabled_by: "local_operator",
+  disabled_at: "2026-07-01T04:51:00Z",
+  paused_by: null,
+  paused_at: null,
+  pause_reason: "",
+  resumed_by: null,
+  resumed_at: null,
+  killed_by: null,
+  killed_at: null,
+  kill_reason: "",
+  last_transition_reason: "Keep Phase 9L control state disabled unless the operator explicitly changes it.",
+  created_at: "2026-07-01T04:50:00Z",
+  updated_at: "2026-07-01T04:51:00Z",
+  recent_events: mockPaperLoopControlEvents,
+  phase_note: "Phase 9L controls do not run strategies or create orders.",
 };
 
 export const mockPaperEquityCurve: PaperEquityCurvePointView[] = [

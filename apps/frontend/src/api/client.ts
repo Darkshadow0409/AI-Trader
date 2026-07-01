@@ -49,6 +49,8 @@ import {
   mockStrategies,
   mockPaperTradeAnalytics,
   mockPaperLedger,
+  mockPaperLoopControlEvents,
+  mockPaperLoopControlStatus,
   mockPaperEquityCurve,
   mockPaperPerformance,
   mockPaperRejectionAnalysis,
@@ -127,6 +129,9 @@ import type {
   PaperTradeAnalyticsView,
   PaperEquityCurvePointView,
   PaperLedgerTransactionView,
+  PaperLoopControlActionRequest,
+  PaperLoopControlEventView,
+  PaperLoopControlStatusView,
   PaperPerformanceSummaryView,
   PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
@@ -769,6 +774,33 @@ export const apiClient = {
   paperRejectionAnalysis: () =>
     requestJson<PaperRejectionAnalysisItemView[]>("/portfolio/paper-rejection-analysis", mockPaperRejectionAnalysis),
   paperReviewQueue: () => requestJson<PaperReviewQueueItemView[]>("/portfolio/paper-review-queue", mockPaperReviewQueue),
+  paperLoopStatus: () => requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/status", mockPaperLoopControlStatus),
+  paperLoopEvents: () => requestJson<PaperLoopControlEventView[]>("/portfolio/paper-loop/events", mockPaperLoopControlEvents),
+  enablePaperLoopControl: (payload: PaperLoopControlActionRequest) =>
+    requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/enable", mockPaperLoopControlStatus, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  disablePaperLoopControl: (payload: PaperLoopControlActionRequest) =>
+    requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/disable", mockPaperLoopControlStatus, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  pausePaperLoopControl: (payload: PaperLoopControlActionRequest) =>
+    requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/pause", { ...mockPaperLoopControlStatus, status: "paused" }, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  resumePaperLoopControl: (payload: PaperLoopControlActionRequest) =>
+    requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/resume", { ...mockPaperLoopControlStatus, status: "enabled" }, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  killPaperLoopControl: (payload: PaperLoopControlActionRequest) =>
+    requestJson<PaperLoopControlStatusView>("/portfolio/paper-loop/kill", { ...mockPaperLoopControlStatus, status: "killed" }, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   simulatedOrders: () => requestJson<SimulatedOrderView[]>("/portfolio/simulated-orders", mockSimulatedOrders),
   proposedPaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/proposed", mockPaperTradesProposed),
   activePaperTrades: () => requestJson<PaperTradeView[]>("/portfolio/paper-trades/active", mockPaperTradesActive),

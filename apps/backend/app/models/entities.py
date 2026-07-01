@@ -352,6 +352,44 @@ class AiBrainEvidenceReviewRecord(SQLModel, table=True):
     archived: bool = Field(default=False, index=True)
 
 
+class PaperLoopControlStateRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    control_id: str = Field(default="paper_loop_default", index=True, unique=True)
+    schema_version: str = "phase9l.v1"
+    status: str = Field(default="disabled", index=True)
+    paper_only: bool = True
+    run_once_allowed: bool = False
+    scheduler_allowed: bool = False
+    enabled_by: str | None = Field(default=None, index=True)
+    enabled_at: datetime | None = Field(default=None, index=True)
+    disabled_by: str | None = Field(default=None, index=True)
+    disabled_at: datetime | None = Field(default=None, index=True)
+    paused_by: str | None = Field(default=None, index=True)
+    paused_at: datetime | None = Field(default=None, index=True)
+    pause_reason: str = ""
+    resumed_by: str | None = Field(default=None, index=True)
+    resumed_at: datetime | None = Field(default=None, index=True)
+    killed_by: str | None = Field(default=None, index=True)
+    killed_at: datetime | None = Field(default=None, index=True)
+    kill_reason: str = ""
+    last_transition_reason: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class PaperLoopControlEventRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    event_id: str = Field(index=True, unique=True)
+    control_id: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    previous_status: str = Field(default="", index=True)
+    next_status: str = Field(default="", index=True)
+    action: str = Field(index=True)
+    actor_label: str = Field(default="local_operator", index=True)
+    reason: str = ""
+    paper_only: bool = True
+
+
 class PaperTradeReviewRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     review_id: str = Field(index=True, unique=True)

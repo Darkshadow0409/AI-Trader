@@ -1,6 +1,11 @@
+import { useEffect, useState } from "react";
+
 import type {
   PaperEquityCurvePointView,
   PaperLedgerTransactionView,
+  PaperLoopControlActionRequest,
+  PaperLoopControlEventView,
+  PaperLoopControlStatusView,
   PaperPerformanceSummaryView,
   PaperRejectionAnalysisItemView,
   PaperRiskDecisionView,
@@ -21,6 +26,12 @@ interface WalletBalanceTabProps {
   paperEquityCurve?: PaperEquityCurvePointView[];
   paperRejectionAnalysis?: PaperRejectionAnalysisItemView[];
   paperReviewQueue?: PaperReviewQueueItemView[];
+  paperLoopStatus?: PaperLoopControlStatusView | null;
+  paperLoopEvents?: PaperLoopControlEventView[];
+  onPaperLoopAction?: (
+    action: "enable" | "disable" | "pause" | "resume" | "kill",
+    payload: PaperLoopControlActionRequest,
+  ) => Promise<PaperLoopControlStatusView>;
   simulatedOrders?: SimulatedOrderView[];
 }
 
@@ -30,6 +41,28 @@ function formatMoney(value: number, currency = "USD") {
 
 function formatMaybe(value: number | null) {
   return value === null ? "n/a" : value.toFixed(2);
+}
+
+function latestTransition(status?: PaperLoopControlStatusView | null) {
+  if (!status) {
+    return "No control-state response loaded yet.";
+  }
+  if (status.killed_at) {
+    return `Killed at ${status.killed_at}`;
+  }
+  if (status.paused_at && status.status === "paused") {
+    return `Paused at ${status.paused_at}`;
+  }
+  if (status.resumed_at && status.status === "enabled") {
+    return `Resumed at ${status.resumed_at}`;
+  }
+  if (status.enabled_at && status.status === "enabled") {
+    return `Enabled at ${status.enabled_at}`;
+  }
+  if (status.disabled_at && status.status === "disabled") {
+    return `Disabled at ${status.disabled_at}`;
+  }
+  return status.last_transition_reason || "No transition has been recorded.";
 }
 
 export function WalletBalanceTab({
@@ -42,8 +75,62 @@ export function WalletBalanceTab({
   paperEquityCurve = [],
   paperRejectionAnalysis = [],
   paperReviewQueue = [],
+  paperLoopStatus,
+  paperLoopEvents = [],
+  onPaperLoopAction,
   simulatedOrders = [],
 }: WalletBalanceTabProps) {
+  const [localLoopStatus, setLocalLoopStatus] = useState<PaperLoopControlStatusView | null>(paperLoopStatus ?? null);
+  const [confirmEnable, setConfirmEnable] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState(false);
+  const [confirmKill, setConfirmKill] = useState(false);
+  const [pauseReason, setPauseReason] = useState("");
+  const [killReason, setKillReason] = useState("");
+  const [loopMessage, setLoopMessage] = useState("");
+  const [loopBusyAction, setLoopBusyAction] = useState<string | null>(null);
+  const visibleLoopStatus = localLoopStatus ?? paperLoopStatus ?? null;
+  const visibleLoopEvents = visibleLoopStatus?.recent_events?.length
+    ? visibleLoopStatus.recent_events
+    : paperLoopEvents;
+
+  useEffect(() => {
+    setLocalLoopStatus(paperLoopStatus ?? null);
+  }, [paperLoopStatus]);
+
+  async function runPaperLoopAction(
+    action: "enable" | "disable" | "pause" | "resume" | "kill",
+    payload: PaperLoopControlActionRequest,
+  ) {
+    if (!onPaperLoopAction) {
+      setLoopMessage("Paper loop control API is not connected in this view.");
+      return;
+    }
+    setLoopBusyAction(action);
+    setLoopMessage("");
+    try {
+      const nextStatus = await onPaperLoopAction(action, payload);
+      setLocalLoopStatus(nextStatus);
+      setLoopMessage(`Paper loop control status is now ${nextStatus.status}.`);
+      if (action === "enable") {
+        setConfirmEnable(false);
+      }
+      if (action === "disable") {
+        setConfirmDisable(false);
+      }
+      if (action === "pause") {
+        setPauseReason("");
+      }
+      if (action === "kill") {
+        setConfirmKill(false);
+        setKillReason("");
+      }
+    } catch (error) {
+      setLoopMessage(error instanceof Error ? error.message : "Paper loop control action failed.");
+    } finally {
+      setLoopBusyAction(null);
+    }
+  }
+
   return (
     <div className="stack">
       <article className="panel compact-panel">
@@ -83,6 +170,151 @@ export function WalletBalanceTab({
             ) : null}
           </>
         ) : null}
+      </article>
+
+      <article className="panel compact-panel" data-testid="paper-loop-control-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Paper/research-only control state</p>
+            <h3>Paper Loop Control</h3>
+          </div>
+          <span className="status-pill">{visibleLoopStatus?.status ?? "disabled"}</span>
+        </div>
+        <p className="muted-copy">
+          {visibleLoopStatus?.phase_note ?? "Phase 9L controls do not run strategies or create orders."}
+        </p>
+        <div className="metric-grid">
+          <div className="metric-card">
+            <span>Status</span>
+            <strong>{visibleLoopStatus?.status ?? "disabled"}</strong>
+          </div>
+          <div className="metric-card">
+            <span>Paper only</span>
+            <strong>{visibleLoopStatus?.paper_only === false ? "false" : "true"}</strong>
+          </div>
+          <div className="metric-card">
+            <span>run_once_allowed</span>
+            <strong>{visibleLoopStatus?.run_once_allowed ? "true" : "false"}</strong>
+          </div>
+          <div className="metric-card">
+            <span>scheduler_allowed</span>
+            <strong>{visibleLoopStatus?.scheduler_allowed ? "true" : "false"}</strong>
+          </div>
+        </div>
+        <div className="tag-row compact-link-row">
+          <span>{latestTransition(visibleLoopStatus)}</span>
+          {visibleLoopStatus?.pause_reason ? <span>Pause: {visibleLoopStatus.pause_reason}</span> : null}
+          {visibleLoopStatus?.kill_reason ? <span>Kill: {visibleLoopStatus.kill_reason}</span> : null}
+        </div>
+        <div className="control-grid">
+          <label className="control-check">
+            <input
+              checked={confirmEnable}
+              onChange={(event) => setConfirmEnable(event.target.checked)}
+              type="checkbox"
+            />
+            Confirm enable paper loop control
+          </label>
+          <button
+            className="action-button"
+            disabled={!confirmEnable || loopBusyAction !== null || !onPaperLoopAction || visibleLoopStatus?.status === "killed"}
+            onClick={() => runPaperLoopAction("enable", { confirm_paper_loop_control: true })}
+            type="button"
+          >
+            Enable control state
+          </button>
+          <label className="control-check">
+            <input
+              checked={confirmDisable}
+              onChange={(event) => setConfirmDisable(event.target.checked)}
+              type="checkbox"
+            />
+            Confirm disable paper loop control
+          </label>
+          <button
+            className="action-button"
+            disabled={!confirmDisable || loopBusyAction !== null || !onPaperLoopAction || visibleLoopStatus?.status === "killed"}
+            onClick={() => runPaperLoopAction("disable", { confirm_paper_loop_control: true, reason: "Operator disabled Phase 9L control state." })}
+            type="button"
+          >
+            Disable control state
+          </button>
+          <label className="field">
+            <span>Pause reason</span>
+            <input
+              onChange={(event) => setPauseReason(event.target.value)}
+              placeholder="Required before pausing"
+              type="text"
+              value={pauseReason}
+            />
+          </label>
+          <button
+            className="action-button"
+            disabled={!pauseReason.trim() || loopBusyAction !== null || !onPaperLoopAction || visibleLoopStatus?.status === "killed"}
+            onClick={() => runPaperLoopAction("pause", { reason: pauseReason })}
+            type="button"
+          >
+            Pause control state
+          </button>
+          <button
+            className="action-button"
+            disabled={visibleLoopStatus?.status !== "paused" || loopBusyAction !== null || !onPaperLoopAction}
+            onClick={() => runPaperLoopAction("resume", { reason: "Operator resumed Phase 9L control state from paused." })}
+            type="button"
+          >
+            Resume from paused
+          </button>
+          <label className="field">
+            <span>Kill reason</span>
+            <input
+              onChange={(event) => setKillReason(event.target.value)}
+              placeholder="Required before kill"
+              type="text"
+              value={killReason}
+            />
+          </label>
+          <label className="control-check">
+            <input
+              checked={confirmKill}
+              onChange={(event) => setConfirmKill(event.target.checked)}
+              type="checkbox"
+            />
+            Confirm kill paper loop control
+          </label>
+          <button
+            className="action-button"
+            disabled={!confirmKill || !killReason.trim() || loopBusyAction !== null || !onPaperLoopAction}
+            onClick={() => runPaperLoopAction("kill", { confirm_paper_loop_control: true, reason: killReason })}
+            type="button"
+          >
+            Kill control state
+          </button>
+        </div>
+        {loopMessage ? <p className="muted-copy">{loopMessage}</p> : null}
+        {visibleLoopEvents.length > 0 ? (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleLoopEvents.slice(0, 5).map((event) => (
+                <tr key={event.event_id}>
+                  <td>{event.action}</td>
+                  <td>{event.previous_status || "-"}</td>
+                  <td>{event.next_status}</td>
+                  <td>{event.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="muted-copy">No paper loop control events have been recorded yet.</p>
+        )}
       </article>
 
       <article className="panel compact-panel">
